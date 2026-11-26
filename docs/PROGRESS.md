@@ -7,6 +7,26 @@ finished (300 levels)" and "Next taps are fine". After two screenshots of the ad
 anything close to it" and "I think you designed the wrong thing I was thinking of". The game was rebuilt as the
 real-time squad shooter of those screenshots the same day (commit `fe44b21` on top of the turn-based `5b8bb05`).
 
+## 2026-11-26 evening: the new look and the difficulty curve
+
+The owner: "Visuals and graphics need lots and lots of work, it needs to be visually impressive. Hand off any creative
+and design or asset creation work to a fable subagent", then "make sure that it scales up in difficulty, with extra hard
+levels throwing in here and there with the later levels just barely theoretically beatable with 100% perfect runs".
+
+- **Art (Fable, `docs/ART_DIRECTION.md`):** painted toy soldiers in a sunlit diorama, rendered in Blender by
+  `tools/art/` and shipped as sprites in `assets/art/`. Stage 1 (all units, the ogre, gates, barrel, effects, world 1's
+  ground, props and backdrop) is in the game. Stage 2 (worlds 2-10, a shared boss recoloured per world) and stage 3
+  (HUD, screens, icon) are Fable's next work.
+- **Engine (this session):** `src/gfx/art.*` loads the manifest, the atlases (one texture array; each world's own
+  atlases loaded while it is played) and the world looks; sprites with elevation variants in the sticker pass; textured
+  road and land with anisotropy, sky and backdrop; cast shadows along the sun; bloom, grade and vignette; the animated
+  gate panels; deaths, blasts, the boss's stomp and fall, confetti, sparkles, drifting leaves; the new camera
+  (30°, 15 high, 8.5 back).
+- **Difficulty:** the planner (`planLevel`) is the "perfect run"; hordes are sized against the squad the bot really
+  has; the end fight is dialled so the best run keeps a share of its peak that falls to under 3% by level 300, with a
+  hard level about one in nine (a third of the margin, a boss, "HARD LEVEL! EVERY SOLDIER COUNTS"). The march speeds up
+  from 4.6 to 7.0 units a second and the horde from 1.0 to 1.35 times its pace over the 300 levels. GAME_DESIGN 6.
+
 ## Status
 
 | Part | Status |

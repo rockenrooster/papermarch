@@ -151,12 +151,19 @@ elseif(EMSCRIPTEN)
     -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=96MB -sSTACK_SIZE=2MB -sENVIRONMENT=web
     "SHELL:--shell-file ${PM_ROOT}/web/shell.html" $<$<CONFIG:Release>:-O3>)
   set_property(TARGET papermarch APPEND PROPERTY LINK_DEPENDS ${PM_ROOT}/web/shell.html)
+  # The art (assets/art) as preloaded files under /art: index.data beside index.wasm.
+  if(EXISTS ${PM_ROOT}/assets/art/sprites.txt)
+    target_link_options(papermarch PRIVATE "SHELL:--preload-file ${PM_ROOT}/assets/art@/art")
+    file(GLOB PM_ART_FILES CONFIGURE_DEPENDS ${PM_ROOT}/assets/art/*)
+    set_property(TARGET papermarch APPEND PROPERTY LINK_DEPENDS ${PM_ART_FILES})
+  endif()
   add_dependencies(papermarch pm_shaders)
 else()
   add_executable(papermarch ${PM_APP_SRC})
   target_include_directories(papermarch SYSTEM PRIVATE ${PM_TP}/khronos)
   target_link_libraries(papermarch PRIVATE pm_sim pm_audio pm_core SDL3::SDL3-static)
   target_compile_options(papermarch PRIVATE ${PM_WARN})
+  target_compile_definitions(papermarch PRIVATE PM_ART_DIR="${PM_ROOT}/assets/art")  # the art, read in place
   target_link_options(papermarch PRIVATE ${PM_STATIC_LINK})
   add_dependencies(papermarch pm_shaders)
 

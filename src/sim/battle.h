@@ -15,6 +15,7 @@ constexpr int kMaxBullets = 512;
 constexpr int kMaxGates = 160;
 constexpr int kMaxBarrels = 48;
 constexpr int kMaxWaves = 24;
+constexpr int kMaxRows = 32;        // rows of two or more gates side by side: the level's choices
 constexpr i32 kSquadCap = 99999;
 
 enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kEnemyKindCount };
@@ -42,16 +43,27 @@ struct LevelDef {
     i32 start = 3;
     float length = 120;  // the boss (or the finish line) stands here
     float speed = 5;     // the squad's march, units a second
+    float pace = 1;      // the horde's speed (march and closing in) times its kind's own; the boss keeps its own
     i32 bossHp = 0;      // 0: no boss, the level ends at `length`
     u8 world = 1, boss = 0, hint = 0, pad = 0;
     u32 seed = 0;
-    i32 star2 = 0, star3 = 0;  // soldiers left at the end for two and three stars (the bake sets them from its bot)
-    i32 botEnd = 0;            // what the bake's bot ended with (the report; the tests replay it)
+    i32 star2 = 0, star3 = 0;  // soldiers left at the end for two and three stars (the bake sets them from its plan)
+    i32 botEnd = 0;            // what the bake's planned run ended with (the report; the tests replay it)
+    u8 spike = 0;              // one of the hard levels thrown in among the others (GAME_DESIGN 6)
+    // The bake's best run (the proof the level can be won, src/sim/bot.*): how far ahead the bot lines up with a row of
+    // gates (0: its everyday 15 units) and, for each row of two or more gates, which one it takes (from the left; -1 its
+    // own choice). rowZ lists those rows up the road (from the gates: indexRows).
+    float planLook = 0;
+    u8 rowCount = 0, planCount = 0;
+    float rowZ[kMaxRows] = {};
+    i8 plan[kMaxRows] = {};
     int gateCount = 0, barrelCount = 0, waveCount = 0;
     GateDef gates[kMaxGates];
     BarrelDef barrels[kMaxBarrels];
     WaveDef waves[kMaxWaves];
 };
+// Finds the rows of two or more gates side by side (rowZ, rowCount). The decoder and the generator call it.
+void indexRows(LevelDef& d);
 
 struct EnemyStats {
     i16 hp;
@@ -151,6 +163,7 @@ bool decodeLevel(const char* text, LevelDef& out);
 int encodeLevel(const LevelDef& d, char* out, int cap);
 const char* hintText(int hint);
 constexpr int kHintCount = 16;
+constexpr int kHintHard = 11;  // shown on every hard level
 int starsFor(const LevelDef& d, i32 squadLeft);
 
 }  // namespace pm::sim

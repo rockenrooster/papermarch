@@ -1,4 +1,5 @@
 // Levels: the compact text form (the bake writes it, the app reads it), the baked table and the hint lines.
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -26,7 +27,8 @@ const char* const kHints[kHintCount] = {
     "BRING DOWN THE BOSS",               // 8
     "BRUTES TAKE MANY HITS",             // 9
     "DON'T RUN INTO BARRELS",            // 10
-    "", "", "", "", "",
+    "HARD LEVEL! EVERY SOLDIER COUNTS",  // 11 (kHintHard)
+    "", "", "", "",
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -79,6 +81,25 @@ bool nums(const char*& p, i64* out, int n) {
 
 const char* hintText(int hint) { return hint > 0 && hint < kHintCount ? kHints[hint] : ""; }
 
+void indexRows(LevelDef& d) {
+    d.rowCount = 0;
+    for (int i = 0; i < d.gateCount; ++i) {
+        const float z = d.gates[i].z;
+        int same = 0;
+        for (int j = 0; j < d.gateCount; ++j) same += std::fabs(d.gates[j].z - z) < 0.05f;
+        if (same < 2) continue;
+        bool known = false;
+        for (int r = 0; r < d.rowCount; ++r) known = known || std::fabs(d.rowZ[r] - z) < 0.05f;
+        if (known || d.rowCount >= kMaxRows) continue;
+        int at = d.rowCount++;  // kept in order up the road
+        while (at > 0 && d.rowZ[at - 1] > z) {
+            d.rowZ[at] = d.rowZ[at - 1];
+            --at;
+        }
+        d.rowZ[at] = z;
+    }
+}
+
 int levelCount() {
     load();
     return g_count;
@@ -109,6 +130,19 @@ bool decodeLevel(const char* text, LevelDef& out) {
             case 'A': if (!num(p, v[0])) return false; out.star2 = i32(v[0]); break;
             case 'C': if (!num(p, v[0])) return false; out.star3 = i32(v[0]); break;
             case 'R': if (!num(p, v[0])) return false; out.botEnd = i32(v[0]); break;
+            case 'K': if (!num(p, v[0])) return false; out.spike = u8(v[0]); break;
+            case 'Y': if (!num(p, v[0])) return false; out.pace = float(v[0]) / 100.0f; break;
+            case 'P': if (!num(p, v[0])) return false; out.planLook = float(v[0]) / 10.0f; break;
+            case 'Q': {  // the plan's choices, one a row: Q-1,0,1
+                out.planCount = 0;
+                for (;;) {
+                    if (!num(p, v[0])) return false;
+                    if (out.planCount < kMaxRows) out.plan[out.planCount++] = i8(v[0]);
+                    if (*p != ',') break;
+                    ++p;
+                }
+                break;
+            }
             case 'g': {
                 if (out.gateCount >= kMaxGates || !nums(p, v, 7)) return false;
                 out.gates[out.gateCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4]), u8(v[5]),
@@ -130,6 +164,7 @@ bool decodeLevel(const char* text, LevelDef& out) {
         }
         if (*p && *p != ' ') return false;
     }
+    indexRows(out);
     return out.start > 0 && out.length > 10;
 }
 
@@ -144,6 +179,13 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     auto t10 = [](float f) { return int(f * 10.0f + (f >= 0 ? 0.5f : -0.5f)); };
     put("S%d L%d V%d B%d W%d X%d T%d E%u A%d C%d R%d", d.start, t10(d.length), int(d.speed * 100.0f + 0.5f), d.bossHp, d.world, d.boss,
         d.hint, d.seed, d.star2, d.star3, d.botEnd);
+    if (d.spike) put(" K%d", d.spike);
+    if (int(d.pace * 100.0f + 0.5f) != 100) put(" Y%d", int(d.pace * 100.0f + 0.5f));
+    if (d.planLook > 0) put(" P%d", t10(d.planLook));
+    if (d.planCount > 0) {
+        put(" Q%d", d.plan[0]);
+        for (int i = 1; i < d.planCount; ++i) put(",%d", d.plan[i]);
+    }
     for (int i = 0; i < d.gateCount; ++i) {
         const GateDef& g = d.gates[i];
         put(" g%d,%d,%d,%d,%d,%d,%d", t10(g.x0), t10(g.x1), t10(g.z), g.value, g.kind, g.grows, g.cap);

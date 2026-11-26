@@ -98,18 +98,48 @@ bool Paper::makeR8(Target& t, int w, int h) {
 bool Paper::init(int w, int h) {
     static const char* texSampler[] = {"uTex"};
     static const char* atlasSampler[] = {"uAtlas"};
-    pSticker_ = buildProgram("sticker.vert", "sticker.frag");
+    static const char* spriteSampler[] = {"uSprites"};
+    static const char* groundSamplers[] = {"uRoadTex", "uLandTex", "uBackdrop"};
+    static const char* postSamplers[] = {"uTex", "uBloom"};
+    pSticker_ = buildProgram("sticker.vert", "sticker.frag", spriteSampler, 1);
     pPage_ = buildProgram("page.vert", "page.frag", texSampler, 1);
     pTable_ = buildProgram("fullscreen.vert", "table.frag");
     pShadow_ = buildProgram("fullscreen.vert", "shadow.frag", texSampler, 1);
     pCurl_ = buildProgram("curl.vert", "curl.frag", texSampler, 1);
     pText_ = buildProgram("text.vert", "text.frag", atlasSampler, 1);
-    pGround_ = buildProgram("fullscreen.vert", "ground.frag");
-    for (GLuint p : {pSticker_, pPage_, pTable_, pShadow_, pCurl_, pText_, pGround_})
+    pGround_ = buildProgram("fullscreen.vert", "ground.frag", groundSamplers, 3);
+    pBright_ = buildProgram("fullscreen.vert", "bright.frag", texSampler, 1);
+    pBlur_ = buildProgram("fullscreen.vert", "blur.frag", texSampler, 1);
+    pPost_ = buildProgram("fullscreen.vert", "post.frag", postSamplers, 2);
+    for (GLuint p : {pSticker_, pPage_, pTable_, pShadow_, pCurl_, pText_, pGround_, pBright_, pBlur_, pPost_})
         if (!p) return false;
     {
-        const char* names[9] = {"uCam0", "uCam1", "uStoneA", "uStoneB", "uMortar", "uCurb", "uGrassA", "uGrassB", "uHaze"};
-        for (int i = 0; i < 9; ++i) uGround_[i] = glGetUniformLocation(pGround_, names[i]);
+        const char* names[kGroundUniforms] = {"uCam0",  "uCam1",  "uStoneA", "uStoneB", "uMortar", "uCurb",  "uGrassA",
+                                              "uGrassB", "uHaze",  "uTexP",   "uSkyTop", "uSkyHor", "uBackP"};
+        for (int i = 0; i < kGroundUniforms; ++i) uGround_[i] = glGetUniformLocation(pGround_, names[i]);
+    }
+    uBright_ = glGetUniformLocation(pBright_, "uBright");
+    uBlurDir_ = glGetUniformLocation(pBlur_, "uDir");
+    uPost_ = glGetUniformLocation(pPost_, "uPost");
+    uPostLight_ = glGetUniformLocation(pPost_, "uLight");
+    uPostGrade_ = glGetUniformLocation(pPost_, "uGrade");
+    uPostEdge_ = glGetUniformLocation(pPost_, "uEdge");
+    {
+        const u8 clear[4] = {0, 0, 0, 0};
+        glGenTextures(1, &blank2D_);
+        glBindTexture(GL_TEXTURE_2D, blank2D_);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, clear);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    }
+    {
+        const u8 clear[4] = {0, 0, 0, 0};
+        glGenTextures(1, &noSprites_);
+        glBindTexture(GL_TEXTURE_2D_ARRAY, noSprites_);
+        glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA8, 1, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, clear);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        sprites_ = noSprites_;
     }
     uStickerMode_ = glGetUniformLocation(pSticker_, "uMode");
     uStickerShift_ = glGetUniformLocation(pSticker_, "uShift");
@@ -192,7 +222,7 @@ bool Paper::init(int w, int h) {
 }
 
 void Paper::destroy() {
-    for (GLuint* p : {&pSticker_, &pPage_, &pTable_, &pShadow_, &pCurl_, &pText_, &pGround_}) {
+    for (GLuint* p : {&pSticker_, &pPage_, &pTable_, &pShadow_, &pCurl_, &pText_, &pGround_, &pBright_, &pBlur_, &pPost_}) {
         if (*p) glDeleteProgram(*p);
         *p = 0;
     }
@@ -206,10 +236,17 @@ void Paper::destroy() {
     }
     if (atlas_) glDeleteTextures(1, &atlas_);
     atlas_ = 0;
+    if (noSprites_) glDeleteTextures(1, &noSprites_);
+    noSprites_ = sprites_ = 0;
+    if (blank2D_) glDeleteTextures(1, &blank2D_);
+    blank2D_ = 0;
     shadowRT_.destroy();
     snap_.destroy();
     page_.destroy();
     layerRT_.destroy();
+    sceneRT_.destroy();
+    bloomA_.destroy();
+    bloomB_.destroy();
     pageW_ = pageH_ = 0;
     w_ = h_ = 0;
 }
@@ -220,6 +257,9 @@ void Paper::resize(int w, int h) {
     h_ = h;
     makeR8(shadowRT_, maxv(1, w / 2), maxv(1, h / 2));
     snap_.create(w, h, false, true);
+    sceneRT_.create(w, h, false, true);
+    bloomA_.create(maxv(1, w / 4), maxv(1, h / 4), false, true);
+    bloomB_.create(maxv(1, w / 4), maxv(1, h / 4), false, true);
 }
 
 void Paper::setScreen(int w, int h, float time) {
@@ -242,6 +282,8 @@ void Paper::drawStickers(GLuint vao, GLuint vbo, const Sticker* s, int n, bool u
     glUseProgram(pSticker_);
     glUniform4f(uStickerMode_, mode, extraSoft, alpha, liftScale);
     glUniform4f(uStickerShift_, 0, 0, 1, 1);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, sprites_ ? sprites_ : noSprites_);
     glBindVertexArray(vao);
     glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, n);
     glBindVertexArray(0);
@@ -323,12 +365,90 @@ void Paper::drawGround(const GroundParams& g) {
         rgb3(cols[i], c);
         glUniform4f(uGround_[2 + i], c[0], c[1], c[2], ws[i]);
     }
+    const bool tex = g.roadTex && g.landTex;
+    glUniform4f(uGround_[9], tex ? 1.0f : 0.0f, g.roadWidth, g.roadTile, g.landTile);
+    rgb3(g.skyTop, c);
+    glUniform4f(uGround_[10], c[0], c[1], c[2], g.hazeEnd);
+    rgb3(g.skyHorizon, c);
+    glUniform4f(uGround_[11], c[0], c[1], c[2], 0);
+    const bool back = tex && g.backdropTex && g.backdropHeight > 1.0f;
+    glUniform4f(uGround_[12], back ? 1.0f : 0.0f, g.backdropHeight, g.backdropShift, g.backdropHaze);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, back ? g.backdropTex : blank2D_);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, tex ? g.landTex : blank2D_);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex ? g.roadTex : blank2D_);
     glBindVertexArray(vaoEmpty_);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     ++drawCalls_;
 }
 
+void Paper::fullscreen() {
+    glBindVertexArray(vaoEmpty_);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    ++drawCalls_;
+}
+
+// Bloom at a quarter of the size (a bright pass, a separable blur), then the world, the glow, a grade and a vignette.
+void Paper::postProcess(const PaperFrame& f, GLuint fbo, int w, int h) {
+    const PostParams& p = f.post;
+    glDisable(GL_BLEND);
+    if (p.bloom > 0) {
+        bloomA_.bind();
+        glUseProgram(pBright_);
+        glUniform4f(uBright_, 1.0f / float(w), 1.0f / float(h), p.threshold, 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, sceneRT_.color);
+        fullscreen();
+        glUseProgram(pBlur_);
+        for (int pass = 0; pass < 2; ++pass) {
+            const float spread = pass == 0 ? 1.0f : 2.0f;
+            bloomB_.bind();
+            glUniform4f(uBlurDir_, spread / float(bloomA_.w), 0, 0, 0);
+            glBindTexture(GL_TEXTURE_2D, bloomA_.color);
+            fullscreen();
+            bloomA_.bind();
+            glUniform4f(uBlurDir_, 0, spread / float(bloomB_.h), 0, 0);
+            glBindTexture(GL_TEXTURE_2D, bloomB_.color);
+            fullscreen();
+        }
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, w, h);
+    glUseProgram(pPost_);
+    glUniform4f(uPost_, p.bloom, p.vignette, p.lightStrength, float(w) / float(maxv(1, h)));
+    float c[3];
+    rgb3(p.light, c);
+    glUniform4f(uPostLight_, c[0], c[1], c[2], 1);
+    glUniform4f(uPostGrade_, p.contrast, p.saturation, p.hudTop, 0);
+    rgb3(p.edgeColor, c);
+    glUniform4f(uPostEdge_, c[0], c[1], c[2], p.edge);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, bloomA_.color);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, sceneRT_.color);
+    fullscreen();
+}
+
 void Paper::drawScene(const PaperFrame& f, GLuint fbo, int w, int h, bool table) {
+    const bool post = f.post.on && sceneRT_.fbo && sceneRT_.w == w && sceneRT_.h == h &&
+                      (f.post.bloom > 0 || f.post.lightStrength > 0 || f.post.vignette > 0 || f.post.contrast != 1.0f ||
+                       f.post.saturation != 1.0f || f.post.edge > 0);
+    sprites_ = f.spriteTex ? f.spriteTex : noSprites_;
+    drawWorld(f, post ? sceneRT_.fbo : fbo, w, h, table);
+    if (post) postProcess(f, fbo, w, h);
+    if (f.labels) {
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glViewport(0, 0, w, h);
+        setScreen(w, h, f.time);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+        drawBatch(*f.labels, f.labelOpacity);
+    }
+}
+
+void Paper::drawWorld(const PaperFrame& f, GLuint fbo, int w, int h, bool table) {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, w, h);
     setScreen(w, h, f.time);
@@ -402,7 +522,6 @@ void Paper::drawScene(const PaperFrame& f, GLuint fbo, int w, int h, bool table)
         drawStickers(vaoMain_, vboMain_, f.stickers, f.stickerCount, false, 0.0f, 0.0f, 1.0f, 1.0f);
     }
     if (f.overCount > 0) drawStickers(vaoOver_, vboOver_, f.over, f.overCount, true, 0.0f, 0.0f, 1.0f, 1.0f);
-    if (f.labels) drawBatch(*f.labels, f.labelOpacity);
 }
 
 void Paper::drawTurn(int w, int h) {
@@ -463,6 +582,11 @@ void Paper::snapshot(const PaperFrame& f) {
 void Paper::draw(const PaperFrame& f, GLuint fbo, int w, int h) {
     drawCalls_ = 0;
     drawScene(f, fbo, w, h, true);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, w, h);
+    setScreen(w, h, f.time);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
     if (turnT_ >= 0.0f && turnT_ < 1.0f) drawTurn(w, h);
     if (f.ui) drawBatch(*f.ui, f.uiOpacity);
     glDisable(GL_BLEND);

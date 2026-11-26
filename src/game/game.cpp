@@ -108,12 +108,16 @@ bool Game::init(const Args& args, const GameEnv& env) {
 
 bool Game::initGraphics() {
     if (!paper_.init(env_.frameW, env_.frameH)) return false;
+    art_.load(args_.art);
+    field_.setArt(&art_);
     graphicsReady_ = true;
     checkGl("Game::initGraphics");
     return true;
 }
 
 void Game::destroyGraphics() {
+    field_.setArt(nullptr);
+    art_.destroy();
     paper_.destroy();
     graphicsReady_ = false;
 }
@@ -162,6 +166,9 @@ void Game::loadLevel(int n) {
         hintShownFor_ = def_->hint;
         hintLineTime_ = 5.0f;
         save_.hints |= 1u << def_->hint;
+    } else if (def_->spike) {  // a hard level says so, every time
+        hintShownFor_ = sim::kHintHard;
+        hintLineTime_ = 4.0f;
     }
     int enemies = 0;
     for (int w = 0; w < def_->waveCount; ++w) enemies += def_->waves[w].count;

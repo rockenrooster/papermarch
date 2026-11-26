@@ -9,7 +9,11 @@
 namespace pm {
 
 enum Shape : u8 {
-    kShBox, kShEllipse, kShTri, kShPawn, kShFlag, kShStar, kShRing, kShCapsule, kShBlob, kShHorse, kShDiamond, kShArch
+    kShBox, kShEllipse, kShTri, kShPawn, kShFlag, kShStar, kShRing, kShCapsule, kShBlob, kShHorse, kShDiamond, kShArch,
+    kShSprite,  // a frame of the art's atlases: soft = layer; p0, p1, p2, fold = u0, v0, u1, v1; c0 tint (a opacity),
+                // c1 a flash added (a its amount), c2.a 1 = drawn additively; a negative hw mirrors it
+    kShGate     // a gate's animated panel (sticker.frag gatePanel): p0 kind (0 +, 1 x, 2 -), p1, p2 its width and height
+                // in road units, fold the hit flash; c0 colour, c1 highlight, c2.r the taken flash, c2.a 1 while moving
 };
 
 // One sticker (shaders/sticker.*): a shape on a quad, pixels, top-left origin. Colours are 0xRRGGBB plus alpha.
@@ -37,10 +41,29 @@ struct GroundParams {
     u32 stoneA = 0xC9BFAE, stoneB = 0xA89C8A, mortar = 0x7D7264, curb = 0xE8E0D0, grassA = 0x7CC655, grassB = 0x5FAE45,
         haze = 0xCFE8F0;
     float roadHalf = 5, speckle = 0.5f, hazeStart = 40;
+    // The art's textures (gfx/art.h) instead of the procedural stones and grass, when both are set.
+    GLuint roadTex = 0, landTex = 0;
+    float roadWidth = 11.2f, roadTile = 10, landTile = 8, hazeEnd = 140;
+    u32 skyTop = 0x6FA8DC, skyHorizon = 0xCFE8F0;
+    GLuint backdropTex = 0;                                       // a strip on the horizon (premultiplied)
+    float backdropHeight = 0, backdropShift = 0, backdropHaze = 0.35f;  // its height (px), its sideways shift (u)
+};
+
+// After the world, before the tags: bloom, a colour grade and a vignette (off: drawn straight to the target).
+struct PostParams {
+    bool on = false;
+    float threshold = 0.75f, bloom = 0;
+    u32 light = 0xFFFFFF;
+    float lightStrength = 0, vignette = 0;
+    float contrast = 1, saturation = 1, hudTop = 0.1f;
+    u32 edgeColor = 0xFF2030;
+    float edge = 0;  // a flash at the screen's edges, 0..1
 };
 
 struct PaperFrame {
     GroundParams ground;
+    PostParams post;
+    GLuint spriteTex = 0;  // the art's atlas array (kShSprite stickers)
     const Sticker* shadows = nullptr;   // if set, these cast the union shadow instead of the stickers (feet on a road)
     int shadowCount = 0;
     u32 tableA = 0x70482C, tableB = 0x45281B, tableLine = 0x3C2417;
@@ -92,6 +115,9 @@ public:
 private:
     void setScreen(int w, int h, float time = 0);
     void drawScene(const PaperFrame& f, GLuint fbo, int w, int h, bool table);
+    void drawWorld(const PaperFrame& f, GLuint fbo, int w, int h, bool table);
+    void postProcess(const PaperFrame& f, GLuint fbo, int w, int h);
+    void fullscreen();
     void drawStickers(GLuint vao, GLuint vbo, const Sticker* s, int n, bool upload, float mode, float extraSoft, float alpha,
                       float liftScale);
     void drawBatch(const UiBatch& b, float opacity);
@@ -101,10 +127,16 @@ private:
     int w_ = 0, h_ = 0, maxTex_ = 2048;
     GLuint ubo_ = 0;
     void drawGround(const GroundParams& g);
-    GLuint pSticker_ = 0, pPage_ = 0, pTable_ = 0, pShadow_ = 0, pCurl_ = 0, pText_ = 0, pGround_ = 0;
+    GLuint pSticker_ = 0, pPage_ = 0, pTable_ = 0, pShadow_ = 0, pCurl_ = 0, pText_ = 0, pGround_ = 0, pBright_ = 0, pBlur_ = 0,
+           pPost_ = 0;
     GLint uStickerMode_ = -1, uStickerShift_ = -1, uPageRect_ = -1, uPageUV_ = -1, uPageParams_ = -1, uTableA_ = -1, uTableB_ = -1,
-          uTableLine_ = -1, uShadow_ = -1, uCurl_ = -1, uSpan_ = -1, uBack_ = -1, uTextSpread_ = -1, uTextOpacity_ = -1;
-    GLint uGround_[9] = {-1, -1, -1, -1, -1, -1, -1, -1, -1};
+          uTableLine_ = -1, uShadow_ = -1, uCurl_ = -1, uSpan_ = -1, uBack_ = -1, uTextSpread_ = -1, uTextOpacity_ = -1,
+          uBright_ = -1, uBlurDir_ = -1, uPost_ = -1, uPostLight_ = -1, uPostGrade_ = -1, uPostEdge_ = -1;
+    static constexpr int kGroundUniforms = 13;
+    GLint uGround_[kGroundUniforms] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+    GLuint sprites_ = 0, noSprites_ = 0;  // the frame's atlas array; a 1x1 clear one when there is none
+    GLuint blank2D_ = 0;                  // a 1x1 clear texture for samplers with nothing to show
+    Target sceneRT_, bloomA_, bloomB_;
     static constexpr int kMaxStickers = 6000;
     GLuint vaoMain_ = 0, vboMain_ = 0, vaoOver_ = 0, vboOver_ = 0, vaoOne_ = 0, vboOne_ = 0, vaoBake_ = 0, vboBake_ = 0;
     GLuint vaoCast_ = 0, vboCast_ = 0;

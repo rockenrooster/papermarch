@@ -4,6 +4,7 @@
 // the sounds. It reads the battle and never changes it.
 
 #include "game/layout.h"
+#include "gfx/art.h"
 #include "gfx/paper.h"
 #include "sim/battle.h"
 
@@ -33,6 +34,8 @@ class Field {
 public:
     void init(const Layout& L);
     void resize(const Layout& L);
+    // The art (null: the paper stickers). Its sprites are found by name once here.
+    void setArt(Art* art);
     void setLevel(const sim::LevelDef& d, int number);
     void events(const sim::Battle& b, const sim::BattleEvents& ev);  // after every step
     void update(float dt, const sim::Battle& b);                       // every frame
@@ -59,7 +62,26 @@ private:
         float x, z, y, vx, vz, vy;
         float life, max, size, rot, vr;
         u32 c0, c1;
-        u8 shape, kind;  // kind: 0 a bit of paper, 1 a puff, 2 a falling figure, 3 a spark, 4 a ring
+        u8 shape, kind;  // kind: 0 a bit of paper, 1 a puff, 2 a falling figure, 3 a spark, 4 a ring, 5 confetti,
+                         // 6 a flipbook (the art's `anim`, played once over its life, after `vr` seconds of delay),
+                         // 7 a drifting bit, 8 a figure shrinking away (the art)
+        i16 anim;        // the art's anim (a bit's, a flipbook's, a dying figure's sprite), -1 none
+    };
+    // The art's sprites this view uses, found by name (-1: missing, the paper sticker instead).
+    struct Ids {
+        int soldier = -1, foot = -1, rider = -1, brute = -1, boss = -1, barrel = -1;
+        int bossOf[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};  // each world's own boss (boss_wN), else boss
+        int muzzle = -1, tracer = -1, hit = -1, poofRed = -1, poofBlue = -1, debris = -1, explosion = -1, explosionGlow = -1;
+        int bigboom = -1, bigboomGlow = -1, ring = -1, dust = -1, sparkle = -1;
+        int gatePass[3] = {-1, -1, -1}, gatePost[3] = {-1, -1, -1}, gateSpikes = -1;  // add, multiply, negative
+        int confetti[6] = {-1, -1, -1, -1, -1, -1};
+        int confettiCount = 0;
+    };
+    // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation.
+    struct Placed {
+        Sticker* st = nullptr;
+        float sx = 0, sy = 0, k = 0, elev = 0, s = 0;
+        const SpriteFrame* fr = nullptr;
     };
     struct Floater {
         float x, z, y, life;
@@ -82,12 +104,38 @@ private:
     void drawParticles();
     void label(UiBatch& b, const char* s, float x, float y, float size, u32 fill, u32 stroke);
     void burst(float x, float z, float y, int n, u32 c0, u32 c1, float speed, float size, u8 kind);
-    void figureFalls(float x, float z, float size, u32 c0, u32 c1, u32 c2, float dir);
+    void figureFalls(float x, float z, float size, u32 c0, u32 c1, u32 c2, float dir, int anim = -1);
     void floater(float x, float z, float y, const char* text, u32 fill, u32 stroke, float size, bool follow = false);
     void cue(u8 c, int step, float x);
     float rnd();
+    // The art: a frame of `anim` standing at (x, z), `y` above the road, `t` seconds into it, `scale` times its size,
+    // rotated about its pivot. Off screen or a full pool: st is null.
+    Placed sprite(int anim, float x, float z, float y, float t, float scale, float alpha, float rot = 0, bool mirror = false,
+                  float flash = 0);
+    // A sprite at a screen spot (its pivot there), `size` road units tall per its height, for effects on a figure.
+    Sticker* spriteAt(int anim, float key, float sx, float sy, float s, float t, float scale, float alpha, float rot = 0);
+    void flipbook(int anim, float x, float z, float y, float scale, float rot = 0, float delay = 0);
+    void dying(int anim, float x, float z, float knock, float seconds, float scale = 1);
+    void confetti(float x, float z, float y, int n, float spread);
+    // A thing's shadow cast on the road along the world's sun: `height` and `radius` (its footprint) in road units.
+    void castShadow(float x, float z, float height, float radius);
+    void sceneryArt(float zLo, float zHi);
+    void ambientArt(float dt);
+    void drawGround(PaperFrame& f);
 
     Layout L_;
+    Art* art_ = nullptr;
+    Ids ids_;
+    float ambientClock_[WorldArt::kMaxAmbient] = {};
+    float shDx_ = 0.5f, shDz_ = 0.6f, shAlpha_ = 0.35f;
+    u32 shColor_ = 0x1B2A55;
+    float gateUsedAt_[sim::kMaxGates] = {};  // when the squad took each gate (its collapse), -1 never
+    float bornAt_[200] = {};                 // when each shown soldier appeared (the pop-in)
+    int shownBefore_ = 0;
+    int bossFrame_ = -1, bossTenth_ = 10;
+    float hitStop = 0;  // seconds the view nearly stops (the boss's fall)
+    float zoom_ = 0;    // the camera's zoom-out after the boss's fall, 0..1
+    float edge_ = 0;    // a red flash at the screen's edges (a lost gate, a crash), 1..0
     Camera cam_;
     const sim::LevelDef* def_ = nullptr;
     int number_ = 1;

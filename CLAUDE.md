@@ -1,9 +1,10 @@
 # PAPERMARCH — notes for Claude sessions
 
-A real-time squad shooter in cut paper (the owner's advertisement screenshots, 2026-11-26): the squad marches up a road
-firing; the player drags it through gates, shoots barrels and barricades, crushes red hordes and an ogre boss. Read
-`docs/PLAN.md` first, then `docs/PROGRESS.md`; `docs/GAME_DESIGN.md` (rules and numbers) and `docs/TECH_SPEC.md` (code)
-by section.
+A real-time squad shooter (the owner's advertisement screenshots, 2026-11-26): the squad marches up a road firing; the
+player drags it through gates, shoots barrels and barricades, crushes red hordes and an ogre boss. The look is painted
+toy soldiers in a diorama (`docs/ART_DIRECTION.md`): creative, design and asset work goes to a Fable subagent (the
+owner's rule, 2026-11-26), engine work stays here. Read `docs/PLAN.md` first, then `docs/PROGRESS.md`;
+`docs/GAME_DESIGN.md` (rules, numbers, the difficulty curve) and `docs/TECH_SPEC.md` (code) by section.
 
 ## Commands (PowerShell 7, repo root; every script dot-sources `scripts\env.ps1`: 4 cores, silent, the tool paths)
 
@@ -16,7 +17,9 @@ by section.
 | A battle picture N/60 s into a level (the bot plays) | `scripts\run-desktop.ps1 -Config dev -NoBuild -AppArgs '--picture level --level 12 --fixed-step --fresh' -Frames 300 -Screenshot captures\shots\x.png -Res 540x1170` |
 | The bot's run of a level, event by event | `build\desktop-dev\papermarch_headless.exe --play --level 12` |
 | Every level: length, waves, enemies, boss, the bot's peak and end, stars | `papermarch_headless --sim table [--from A --to B]` |
-| The bake (writes `src\sim\levels_baked.h` and a report; about 16 s) | `papermarch_headless --bake-levels --from 1 --to 300 --jobs 4 --seeds 60 --out src\sim\levels_baked.h --report captures\levels\report.md` |
+| The bake (writes `src\sim\levels_baked.h` and a report; the planner plays every candidate, minutes) | `papermarch_headless --bake-levels --from 1 --to 300 --jobs 4 --seeds 40 --out src\sim\levels_baked.h --report captures\levels\report.md` |
+| How a level's end fight moves its margin (tuning the difficulty, GAME_DESIGN 6) | `papermarch_headless --sweep N [--seed S]` |
+| The art (Fable's; `docs/ART_DIRECTION.md`): rebuild the assets | `tools\art\README.md`; the game reads `assets\art` in place on the desktop (`--art <folder>` or `--art none` to override) |
 | Offline audio and its numbers | `papermarch_headless --render-audio music\|battle\|effects\|win\|lose\|ui\|turn\|ladder --out x.wav [--world N] [--layers K]`; `python -I -B tools\wav_metrics.py x.wav` |
 | Build the APK (`$env:PM_APP_ID_SUFFIX = '.dev'`: `dev.papermarch.game.dev`, installs beside a GitHub build) | `scripts\build-android.ps1 [-Config dev\|debug\|release] [-Offline]` |
 | Install and launch on a device (lock, foreground checks) | `scripts\deploy-android.ps1 -Serial moto\|tablet\|<serial> [-NoBuild] [-AppArgs '...']` |
@@ -40,7 +43,9 @@ errors, 4 benchmark invalid, 5 capture failed, 6 flow test failed, 7 a lint fail
 
 ## Owner's rules (they hold for every run)
 
-- **No subagents** unless the owner asks: one agent works directly.
+- **Subagents:** creative, design and asset work goes to a Fable subagent (`model: fable`), which owns
+  `docs/ART_DIRECTION.md`, `tools/art/`, `assets/art/` and `captures/art/` and does not run git; other work is done
+  directly, no other subagents unless the owner asks.
 - **PC runs are silent and off screen** (`--silent --offscreen`), on **at most 4 CPU cores**. Phones keep their sound.
 - **Shared devices** (PLAN 3): every adb command with `-s <serial>`; nothing device-wide; check the foreground app
   first; take the lock file in `D:\Stuff\DevFolder\Android_Games\Raveform\captures\locks\`; force-stop only

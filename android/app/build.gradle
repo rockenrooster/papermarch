@@ -76,6 +76,8 @@ android {
     sourceSets {
         main {
             java.srcDirs += ['../../third_party/SDL/android-project/app/src/main/java']
+            // The art: assets/art becomes the APK's assets/art (the font's source folder stays out, see below).
+            assets.srcDirs += ['../../assets']
         }
         // A GitHub release (built with a build number) adds the in-app updater's permission and receiver.
         if ((pmBuildNumber as int) > 0) {
@@ -89,6 +91,11 @@ android {
         jniLibs {
             useLegacyPackaging false
         }
+    }
+
+    // aapt2's default ignore list plus the font's source folder (assets/font: baked into the code, not read at run time).
+    androidResources {
+        ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~:<dir>font'
     }
 
     lint {

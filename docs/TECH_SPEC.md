@@ -7,12 +7,13 @@
 | `src/core` | types and `minv/maxv/clampv`, PCG32 `Rng` and `hash64`, the clock, logging, PNG writer, arguments, `Tuning` (`--set name=value`), the allocation counter |
 | `src/sim` | `battle.*` the rules (no SDL, no GL, no allocation after start); `bot.*` the steering bot and `botPlay`; `levels.cpp` the baked table, its text form, the hint lines; `levels_baked.h` the bake's output (committed) |
 | `src/gen` | the generator and the bake (linked into the headless tool and the tests only, never the app) |
-| `src/gfx` | GL loader, shaders, render targets, `paper.*` (the renderer), `text.*` (signed-distance text and UI quads), `palette.*` (worlds' colours, contrast) |
+| `src/gfx` | GL loader, shaders, render targets, `paper.*` (the renderer), `art.*` (the art's manifest, atlases, ground textures and world looks from `assets/art`), `text.*` (signed-distance text and UI quads), `palette.*` (worlds' colours, contrast) |
 | `src/audio` | `synth.*` the sound bank, `mixer.*` voices, the march sequencer, the count ladder, the limiter |
 | `src/game` | `app.*` the loop, `game.*` levels, input, the frame; `field.*` the battle on screen; `screens.cpp` the HUD, panels and the flow test; `feedback.*` cues to sounds and haptics; `ui.*`, `layout.*`, `save.*`, `bench.*`, `pictures.cpp`, `audio_out.*` |
 | `src/platform` | SDL main, Android (haptics, refresh rate, the updater through JNI), the browser (save in `localStorage`) |
 | `src/tools` | `headless.cpp` (play, table, bake, audio renders), `tests.cpp`, `audio_render.*` |
-| `shaders` | `sticker.*` paper shapes, `ground.frag` the road, `shadow.frag`, `text.*`, `curl.*` and `page.*` (the page turn), `table.frag`, the preludes |
+| `shaders` | `sticker.*` paper shapes, the art's sprites and the gates' panels, `ground.frag` the road, land, sky and backdrop, `shadow.frag`, `bright.frag`, `blur.frag` and `post.frag` (bloom, grade, vignette), `text.*`, `curl.*` and `page.*` (the page turn), `table.frag`, the preludes |
+| `assets/art`, `tools/art` | the art (docs/ART_DIRECTION.md): atlases, `sprites.txt`, ground textures, `worlds.txt`; the Blender and Python scripts that make them |
 
 ## 2. Build
 
@@ -57,8 +58,9 @@ what the table will hold. `levelCount()`/`level(n)` decode `kBaked[]` once; a fa
 
 ## 5. The view (`src/game/field.*`)
 
-**Camera.** A pinhole at height h = 20 pitched θ = 34° down. The squad is `camBack` = 6 units ahead of the camera's
-foot. With `depth_s = h·sinθ + 6·cosθ` and `up_s = (h·cosθ − 6·sinθ)/depth_s`, the focal length is
+**Camera.** A pinhole at height h = 15 pitched θ = 30° down (ART_DIRECTION 5; it shows the horizon near the top). The
+squad is `camBack` = 8.5 units ahead of the camera's foot. With `depth_s = h·sinθ + b·cosθ` and
+`up_s = (h·cosθ − b·sinθ)/depth_s`, the focal length is
 `f = roadPx·depth_s/10` (roadPx = min(0.92·W, 0.44·H)) and the principal point `cy = 0.80·H − f·up_s`, so the squad
 stands 80% down the screen with the road 92% of the width there. A point (x, z, height y): `t = z − camZ`,
 `depth = (h − y)·sinθ + t·cosθ`, `up = (y − h)·cosθ + t·sinθ`, screen `(cx + x·f/depth, cy − up·f/depth)`, scale
@@ -73,9 +75,21 @@ strength bars, the squad's badge, floating numbers) go to the labels batch, draw
 stickers, 3,200 items, 2,600 shadows, 700 particles (a ring), 24 floating numbers. Enemies far away get 2 stickers, near
 ones 4 or 5. Scenery is hashed from 4.5-unit cells of the road, so it is the same on every visit.
 
+**The art.** With `assets/art` loaded (`Field::setArt`), each figure, prop and effect is one sprite sticker: the frame
+of its anim nearest the view's elevation `atan2(h − y, z − camZ)`, sized by the frame's height in road units, placed by
+its pivot, with a per-figure size, shade and step; muzzle flashes at the `muzzle` point; tracers turned along their
+flight. Shadows are cast on the road along the world's sun (`shadow` in `worlds.txt`): a soft ellipse per thing,
+projected from road space, all in the union shadow. Props come from the world's `prop` and `edge` rules (hashed cells),
+drifting bits from `ambient`. Gates are a panel sticker (`kShGate`, animated in `sticker.frag`) between two post sprites,
+with stakes on a barricade; a taken gate folds down, its row fades. Deaths shrink and fade into a puff; barrels burst
+into a blast, its glow, a ring and planks; the boss stomps (rings, dust), takes a blast per tenth of its strength and
+dies in three blasts and a big one with a hit-stop and a pull-back of the camera. Without the art the paper stickers
+below are drawn instead.
+
 **Effects.** Particles live in road space: paper bits (gravity, bounce), smoke puffs (grow, fade), falling figures (a
-pawn tipping over), sparks, ground rings, confetti (slow fall, flutter). Floating numbers either stay where they were
-made (barrels) or follow the squad (gates). Screen shake moves the principal point for a moment.
+pawn tipping over), sparks, ground rings, confetti (slow fall, flutter), flipbooks (an anim played once, after a
+delay), drifting bits, figures shrinking away. Floating numbers either stay where they were made (barrels) or follow
+the squad (gates). Screen shake moves the principal point for a moment.
 
 **Cues.** The view turns events into cues (`kCueShot`, `kCueKill`, `kCueGate`, `kCueBarrel`, `kCueBoss`, ...), rate
 limited per kind (shots 13 a second, hits 20, kills 28), each with a pan from its x. `Feedback` plays them.
@@ -88,6 +102,15 @@ before it shimmers); the union shadow (the foot-shadow stickers max-blended into
 once at `shadowStrength`); the stickers in one instanced draw (each a quad whose fragment shader draws one SDF shape:
 box, ellipse, triangle, pawn, banner, star, ring, capsule, blob, horse, diamond, arch, with a two-tone fold and an
 analytic edge); the labels; the page turn (a snapshot curled away) when a level changes; the UI. About 7 draw calls.
+
+With the art: the ground pass samples the world's road texture (spanning `road` units across, repeating along) and land
+texture (mipmapped, anisotropic where offered), hazes to the world's colour between `haze` start and end, and above the
+horizon draws the sky gradient and the backdrop strip (premultiplied, shifted by the squad's x). Sprites sample one
+`GL_TEXTURE_2D_ARRAY` (premultiplied at load; additive frames write alpha 0 so they add under the same blend): the
+global atlases keep their layers, each world's own atlases (`atlas <id> <file> <world>`) are loaded into the layers after
+them when that world is played. The world is drawn into a full-size target, then bloom (a bright pass into a quarter-size
+target, two separable blurs), the grade (the world's light at constant brightness, contrast, saturation), a vignette that
+spares the HUD row and a red edge flash are applied on the way to the screen; tags and UI are drawn after, unbloomed.
 
 ## 7. Audio
 

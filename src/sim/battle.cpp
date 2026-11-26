@@ -218,8 +218,8 @@ void Battle::moveEnemies(BattleEvents& ev) {
             }
             continue;
         }
-        e.z -= st.speed * kDt;
-        if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * kDt;
+        e.z -= st.speed * def->pace * kDt;
+        if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * def->pace * kDt;
         if (d < r * 0.6f + st.radius && std::fabs(e.x - x) < r + st.radius) {
             squad -= st.strength;
             ev.lost += st.strength;

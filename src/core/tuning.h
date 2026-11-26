@@ -4,9 +4,9 @@
 
 #define PM_TUNING(X)                                                                                                  \
     /* ---- the camera over the road (src/game/field.cpp) ---- */                                                    \
-    X(camPitch, 34.0f)          /* degrees below the horizon */                                                      \
-    X(camHeight, 20.0f)         /* road units */                                                                     \
-    X(camBack, 6.0f)            /* how far ahead of the camera's foot the squad marches */                           \
+    X(camPitch, 30.0f)          /* degrees below the horizon (ART_DIRECTION 5) */                                    \
+    X(camHeight, 15.0f)         /* road units */                                                                     \
+    X(camBack, 8.5f)            /* how far ahead of the camera's foot the squad marches */                           \
     X(camRoad, 0.92f)           /* the road's width at the squad: this share of the screen's width, */               \
     X(camRoadH, 0.44f)          /* and at most this share of its height */                                           \
     X(camSquadY, 0.80f)         /* the squad's place on the screen, from the top */                                  \

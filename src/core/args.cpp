@@ -76,6 +76,8 @@ bool parseArgs(int argc, char** argv, Args& a) {
             if (!need() || !copyStr(a.moves, sizeof a.moves, v)) return false;
         } else if (!std::strcmp(k, "--screenshot")) {
             if (!need() || !copyStr(a.screenshot, sizeof a.screenshot, v)) return false;
+        } else if (!std::strcmp(k, "--art")) {
+            if (!need() || !copyStr(a.art, sizeof a.art, v)) return false;
         } else if (!std::strcmp(k, "--frames")) {
             if (!need() || !toInt(v, iv) || iv < 1) return false;
             a.frames = int(iv);

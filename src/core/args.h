@@ -36,6 +36,7 @@ struct Args {
     bool lint = false;             // layout lint on this run's screens (exit 7 on failure)
     bool logSites = false;         // log where the takeable sites and NEXT are (the browser check taps them)
     bool fresh = false;            // ignore the save file (pictures and tests)
+    char art[260] = "";            // --art <folder>: the art's files from there (else the platform's place)
     int setCount = 0;
     char sets[24][64] = {};
 };

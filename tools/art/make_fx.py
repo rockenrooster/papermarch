@@ -1,0 +1,262 @@
+# PAPERMARCH: the 2D effect flipbooks and ambient particles, drawn with numpy.
+#   python -I -B tools/art/make_fx.py captures/art/frames
+# Writes <out>/<kind>.play.0.<frame>.png (2x supersampled) and <kind>.play.json, like render_sprites.py.
+# Additive sprites: colour in RGB, intensity in alpha (blend SRC_ALPHA, ONE).
+import sys, os, json, math
+import numpy as np
+from PIL import Image
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from worlds import WORLDS
+
+OUT = sys.argv[1] if len(sys.argv) > 1 else 'captures/art/frames'
+os.makedirs(OUT, exist_ok=True)
+SS = 2
+TAU = 2 * math.pi
+
+class Cv:
+    def __init__(s, w, h, add):
+        s.w, s.h, s.add = w, h, add
+        s.rgb = np.zeros((h, w, 3)); s.a = np.zeros((h, w))
+        y, x = np.mgrid[0:h, 0:w]
+        s.X, s.Y = x + 0.5, y + 0.5
+    def paint(s, cov, col):
+        col = np.array(col[:3], float) / 255.0
+        c = cov[..., None]
+        if s.add:
+            s.rgb += c * col
+        else:
+            s.rgb = s.rgb * (1 - c) + col * c
+            s.a = s.a * (1 - cov) + cov
+    def disc(s, cx, cy, r, col, alpha=1.0, soft=2.0, sy=1.0):
+        if r <= 0: return
+        d = np.hypot(s.X - cx, (s.Y - cy) / sy)
+        s.paint(np.clip((r - d) / soft + 0.5, 0, 1) * alpha, col)
+    def glow(s, cx, cy, r, col, alpha=1.0, sy=1.0, p=2.0):
+        if r <= 0: return
+        d = np.hypot(s.X - cx, (s.Y - cy) / sy) / r
+        s.paint(np.exp(-(d ** p) * 3.0) * alpha, col)
+    def ring(s, cx, cy, r, th, col, alpha=1.0):
+        d = np.abs(np.hypot(s.X - cx, s.Y - cy) - r)
+        s.paint(np.exp(-(d / max(th, 0.5)) ** 2) * alpha, col)
+    def rect(s, cx, cy, hw, hh, ang, col, alpha=1.0, soft=1.5):
+        c, n = math.cos(ang), math.sin(ang)
+        u = (s.X - cx) * c + (s.Y - cy) * n
+        v = -(s.X - cx) * n + (s.Y - cy) * c
+        s.paint(np.clip((hw - np.abs(u)) / soft + 0.5, 0, 1) * np.clip((hh - np.abs(v)) / soft + 0.5, 0, 1) * alpha, col)
+    def star(s, cx, cy, r, col, n=4, k=0.25, p=3.0, rot=0.0, alpha=1.0, soft=2.0, sy=1.0):
+        dx, dy = s.X - cx, (s.Y - cy) / sy
+        d = np.hypot(dx, dy)
+        edge = r * (k + (1 - k) * np.abs(np.cos(n * (np.arctan2(dy, dx) + rot) / 2)) ** p)
+        s.paint(np.clip((edge - d) / soft + 0.5, 0, 1) * alpha, col)
+    def line(s, x0, y0, x1, y1, th, col, alpha=1.0):
+        dx, dy = x1 - x0, y1 - y0
+        L2 = dx * dx + dy * dy + 1e-9
+        t = np.clip(((s.X - x0) * dx + (s.Y - y0) * dy) / L2, 0, 1)
+        d = np.hypot(s.X - (x0 + t * dx), s.Y - (y0 + t * dy))
+        s.paint(np.exp(-(d / th) ** 2) * alpha, col)
+    def image(s):
+        if s.add:
+            a = np.clip(s.rgb.max(axis=2), 0, 1)
+            rgb = np.clip(s.rgb / np.maximum(s.rgb.max(axis=2), 1e-6)[..., None], 0, 1)
+            rgb[a < 1e-4] = 0
+        else:
+            a = np.clip(s.a, 0, 1)
+            rgb = np.clip(s.rgb / np.maximum(a, 1e-6)[..., None], 0, 1)
+        return Image.fromarray((np.dstack([rgb, a]) * 255 + 0.5).astype(np.uint8), 'RGBA')
+
+def book(kind, frames, w_units, h_units, ppu, add, draw, pivot=(0.5, 0.5)):
+    """draw(cv, t, f): t = f / frames; canvas pixels, origin top-left."""
+    s = ppu * SS
+    W, H = int(round(w_units * s)), int(round(h_units * s))
+    for f in range(frames):
+        cv = Cv(W, H, add)
+        draw(cv, f / frames, f)
+        cv.image().save(os.path.join(OUT, '%s.play.0.%d.png' % (kind, f)))
+    with open(os.path.join(OUT, '%s.play.json' % kind), 'w') as fh:
+        json.dump({'ppu': s, 'ss': SS, 'frames': frames, 'elevs': {'0': {'pivot': [W * pivot[0], H * pivot[1]], 'points': {}}}}, fh)
+    print('drew', kind)
+
+def lerp3(stops, x):
+    x = min(max(x, 0.0), 1.0)
+    for (x0, c0), (x1, c1) in zip(stops, stops[1:]):
+        if x <= x1:
+            k = (x - x0) / max(x1 - x0, 1e-6)
+            return tuple(c0[i] + (c1[i] - c0[i]) * k for i in range(3))
+    return stops[-1][1]
+
+FIRE = [(0.0, (92, 84, 88)), (0.25, (120, 70, 50)), (0.45, (235, 90, 30)), (0.65, (255, 160, 40)), (0.85, (255, 225, 90)), (1.0, (255, 252, 220))]
+SMOKE = [(0.0, (196, 186, 170)), (0.5, (236, 228, 212)), (1.0, (255, 252, 244))]
+
+def puffs(cv, t, seed, n, radius, ramp, rise=0.25, cool=1.0):
+    """A toon burst: shaded balls flying out, cooling and shrinking away."""
+    rnd = np.random.RandomState(seed)
+    cx, cy = cv.w / 2, cv.h / 2
+    items = []
+    for i in range(n):
+        ang, spd, size, late = rnd.uniform(0, TAU), rnd.uniform(0.15, 1.0), rnd.uniform(0.5, 1.0), rnd.uniform(0, 0.15)
+        tt = (t - late) / (1 - late)
+        if tt <= 0: continue
+        ease = 1 - (1 - tt) ** 2.5
+        x = cx + math.cos(ang) * spd * ease * radius * 0.62
+        y = cy + math.sin(ang) * spd * ease * radius * 0.62 - rise * radius * tt * tt
+        r = radius * 0.34 * size * (0.55 + 0.75 * ease) * (1.0 if tt < 0.55 else max(0.0, 1 - ((tt - 0.55) / 0.45) ** 1.5))
+        heat = 1 - cool * tt * (0.9 + 0.8 * spd)
+        items.append((heat, x, y, r))
+    for heat, x, y, r in sorted(items):
+        c = lerp3(ramp, heat)
+        cv.disc(x + r * 0.06, y + r * 0.06, r, tuple(v * 0.72 for v in c))
+        cv.disc(x - r * 0.07, y - r * 0.07, r * 0.88, c)
+        cv.disc(x - r * 0.3, y - r * 0.32, r * 0.4, tuple(min(255, v * 1.12 + 14) for v in c), alpha=0.8)
+
+def bits(cv, t, seed, n, radius, cols, size, gravity=0.5):
+    rnd = np.random.RandomState(seed)
+    cx, cy = cv.w / 2, cv.h / 2
+    for i in range(n):
+        ang, spd, spin = rnd.uniform(0, TAU), rnd.uniform(0.45, 1.0), rnd.uniform(-9, 9)
+        x = cx + math.cos(ang) * spd * t * radius
+        y = cy + math.sin(ang) * spd * t * radius * 0.8 - radius * 0.35 * t + gravity * radius * t * t
+        flip = abs(math.cos(spin * t + i))
+        cv.rect(x, y, size, size * (0.25 + 0.75 * flip), spin * t, cols[i % len(cols)], alpha=min(1.0, 3.0 * (1 - t)))
+
+# ---- the flipbooks -----------------------------------------------------------------------------------------------------
+def muzzle(cv, t, f):
+    k = [0.75, 0.6, 0.38, 0.15][f]
+    cx, cy, R = cv.w / 2, cv.h * 0.72, cv.w * 0.5
+    cv.glow(cx, cy - R * 0.25, R * 0.9 * (0.7 + 0.3 * k), (255, 150, 30), 0.55 * k, sy=1.3)
+    cv.star(cx, cy - R * 0.2, R * (0.55 + 0.45 * k), (255, 200, 60), n=5, k=0.18, p=2.5, rot=math.pi / 2 + f, alpha=k, sy=1.5)
+    cv.star(cx, cy - R * 0.15, R * 0.55 * k, (255, 236, 170), n=5, k=0.3, p=2.0, rot=math.pi / 2 + f, alpha=k * 0.8, sy=1.5)
+book('fx.muzzle', 4, 0.6, 0.75, 100, True, muzzle, (0.5, 0.72))
+
+def tracer(cv, t, f):
+    v = cv.Y / cv.h
+    across = np.exp(-(((cv.X - cv.w / 2) / (cv.w * 0.2)) ** 2))
+    cv.paint(across * np.clip(1 - v, 0, 1) ** 1.2 * np.clip(v * 14, 0, 1), (255, 160, 30))
+    cv.paint(np.exp(-(((cv.X - cv.w / 2) / (cv.w * 0.11)) ** 2)) * np.clip(1 - v * 1.5, 0, 1) * np.clip(v * 14, 0, 1), (255, 250, 215))
+book('fx.tracer', 1, 0.26, 1.5, 100, True, tracer, (0.5, 0.1))
+
+def hit(cv, t, f):
+    rnd = np.random.RandomState(4)
+    cx, cy, R = cv.w / 2, cv.h / 2, cv.w / 2
+    if f < 3:
+        cv.glow(cx, cy, R * (0.35 + 0.2 * f), (255, 190, 60), 0.9 - 0.3 * f)
+        cv.star(cx, cy, R * (0.5 + 0.15 * f), (255, 250, 220), n=4, k=0.12, p=4, rot=0.5, alpha=1 - 0.33 * f)
+    for i in range(9):
+        a, l = rnd.uniform(0, TAU), rnd.uniform(0.6, 1.0)
+        r0, r1 = R * l * min(1.0, 1.25 * t + 0.05), R * l * min(1.0, 1.25 * t + 0.3)
+        cv.line(cx + math.cos(a) * r0, cy + math.sin(a) * r0, cx + math.cos(a) * r1, cy + math.sin(a) * r1, 1.6 * SS * (1 - t) + 0.6,
+                (255, 220, 120), alpha=1 - t ** 2)
+book('fx.hit', 6, 1.0, 1.0, 84, True, hit)
+
+for name, cols in (('red', [(227, 38, 46), (168, 20, 31), (74, 80, 96), (243, 230, 196)]), ('blue', [(47, 107, 255), (29, 73, 200), (255, 255, 255), (255, 200, 58)])):
+    def poof(cv, t, f, cols=cols):
+        puffs(cv, t, 11, 8, cv.w * 0.5, SMOKE, rise=0.2, cool=0.6)
+        bits(cv, t, 5, 9, cv.w * 0.46, cols, cv.w * 0.035)
+    book('fx.poof_' + name, 8, 1.6, 1.6, 64, False, poof, (0.5, 0.62))
+
+def debris(cv, t, f):
+    a = TAU * t
+    flip = math.cos(a)
+    c = (138, 90, 52) if flip > 0 else (90, 58, 34)
+    cv.rect(cv.w / 2, cv.h / 2, cv.w * 0.42, cv.w * (0.03 + 0.13 * abs(flip)), a * 0.5 + 0.4, (60, 38, 24))
+    cv.rect(cv.w / 2, cv.h / 2, cv.w * 0.42 - SS, cv.w * (0.03 + 0.13 * abs(flip)) - SS, a * 0.5 + 0.4, c)
+book('fx.debris', 8, 0.5, 0.5, 80, False, debris)
+
+def boom(n, seed):
+    def draw(cv, t, f):
+        R = cv.w / 2
+        puffs(cv, t, seed, n, R, FIRE, rise=0.22, cool=1.0)
+        if f < 3:
+            cv.star(cv.w / 2, cv.h / 2, R * (0.55 + 0.2 * f), (255, 240, 170), n=7, k=0.35, p=2.0, rot=0.3, alpha=1 - f * 0.34)
+            cv.disc(cv.w / 2, cv.h / 2, R * (0.3 + 0.1 * f), (255, 255, 240), alpha=1 - f * 0.34)
+    return draw
+def boom_glow(cv, t, f):
+    k = math.exp(-4.0 * t) * min(1.0, (f + 1) / 2)
+    cv.glow(cv.w / 2, cv.h / 2, cv.w * 0.5 * (0.5 + 0.5 * min(1, 3 * t)), (255, 140, 40), 0.9 * k, p=1.5)
+    cv.glow(cv.w / 2, cv.h / 2, cv.w * 0.25, (255, 240, 180), k)
+book('fx.explosion', 14, 4.5, 4.5, 50, False, boom(22, 2), (0.5, 0.56))
+book('fx.explosion_glow', 14, 4.5, 4.5, 16, True, boom_glow)
+book('fx.bigboom', 16, 11, 11, 27, False, boom(46, 9), (0.5, 0.56))
+book('fx.bigboom_glow', 16, 11, 11, 8, True, boom_glow)
+
+def ring(cv, t, f):
+    R = cv.w / 2
+    r = R * (0.12 + 0.8 * (1 - (1 - t) ** 2))
+    cv.ring(cv.w / 2, cv.h / 2, r, R * 0.07 * (1 - t) + 1, (255, 235, 170), alpha=(1 - t) ** 1.2)
+    cv.ring(cv.w / 2, cv.h / 2, r * 0.82, R * 0.12 * (1 - t) + 1, (255, 160, 60), alpha=0.5 * (1 - t) ** 2)
+book('fx.ring', 8, 5, 5, 28, True, ring)
+
+def dust(cv, t, f):
+    R = cv.w / 2
+    for i, (dx, dy, s) in enumerate(((-0.3, 0.1, 0.5), (0.25, 0.05, 0.6), (0.0, -0.15, 0.7))):
+        r = R * s * (0.5 + 0.7 * t)
+        cv.disc(cv.w / 2 + dx * R * (1 + t), cv.h * 0.6 + dy * R - R * 0.3 * t, r, (226, 208, 176), alpha=0.75 * (1 - t) ** 1.3, soft=r * 0.5)
+book('fx.dust', 6, 0.9, 0.9, 64, False, dust, (0.5, 0.7))
+
+def sparkle(cv, t, f):
+    k = math.sin(math.pi * min(1.0, t * 1.15 + 0.08))
+    cv.glow(cv.w / 2, cv.h / 2, cv.w * 0.3 * k, (255, 210, 110), 0.4 * k)
+    cv.star(cv.w / 2, cv.h / 2, cv.w * 0.48 * k, (255, 240, 190), n=4, k=0.1, p=5, rot=t * 1.2, alpha=min(0.75, k))
+book('fx.sparkle', 6, 0.6, 0.6, 80, True, sparkle)
+
+for name, col, hi, up in (('add', (46, 139, 255), (191, 228, 255), 1), ('mul', (155, 77, 255), (230, 204, 255), 1), ('neg', (240, 50, 60), (255, 194, 184), -1)):
+    def gp(cv, t, f, col=col, hi=hi, up=up):
+        rnd = np.random.RandomState(7)
+        W, H = cv.w, cv.h
+        base = H * (0.8 if up > 0 else 0.3)
+        cv.rect(W / 2, base, W * 0.48 * (1 - 0.3 * t), H * 0.05 * (1 - t) + 1, 0, hi, alpha=(1 - t) ** 2, soft=4)
+        cv.glow(W / 2, base, W * 0.5, col, 0.7 * (1 - t) ** 1.5, sy=0.35)
+        for i in range(16):
+            x = W * rnd.uniform(0.06, 0.94); sp = rnd.uniform(0.5, 1.0); late = rnd.uniform(0, 0.3)
+            tt = max(0.0, (t - late) / (1 - late))
+            y = base - up * H * 0.7 * sp * (1 - (1 - tt) ** 2)
+            cv.line(x, y, x, y + up * H * 0.16 * (1 - tt), 1.4 * SS, col, alpha=(1 - tt) * (tt > 0))
+            if i % 3 == 0:
+                cv.star(x, y, W * 0.035 * (1 - tt * 0.5), hi, n=4, k=0.12, p=4, alpha=(1 - tt) * (tt > 0))
+    book('fx.gatepass_' + name, 10, 4, 3, 36, True, gp, (0.5, 0.8 if up > 0 else 0.3))
+
+for name, a, b in (('a', (47, 107, 255), (20, 60, 170)), ('b', (255, 200, 58), (200, 140, 20)), ('c', (255, 255, 255), (205, 205, 215)),
+                   ('d', (240, 50, 60), (160, 20, 35)), ('e', (155, 77, 255), (95, 35, 180)), ('f', (60, 200, 110), (25, 130, 70))):
+    def conf(cv, t, f, a=a, b=b):
+        flip = math.cos(TAU * t)
+        cv.rect(cv.w / 2, cv.h / 2, cv.w * 0.36, cv.w * (0.04 + 0.22 * abs(flip)), TAU * t * 0.5 + 0.3, a if flip > 0 else b)
+    book('fx.confetti_' + name, 8, 0.3, 0.3, 80, False, conf)
+
+# ---- ambient particles, per world (tools/art/worlds.py) -----------------------------------------------------------------
+def c3(h):
+    return ((h >> 16) & 255, (h >> 8) & 255, h & 255)
+
+def ambient(style, cols):
+    a, b = c3(cols[0]), c3(cols[1])
+    def leafy(cv, t, f):
+        flip = math.cos(TAU * t)
+        ang = 0.6 + 0.5 * math.sin(TAU * t)
+        c, n = math.cos(ang), math.sin(ang)
+        u = ((cv.X - cv.w / 2) * c + (cv.Y - cv.h / 2) * n) / (cv.w * 0.42)
+        v = (-(cv.X - cv.w / 2) * n + (cv.Y - cv.h / 2) * c) / (cv.w * (0.05 + 0.17 * abs(flip)))
+        shape = 1 - np.abs(u) ** (1.6 if style == 'leaf' else 2.6) - v * v
+        cv.paint(np.clip(shape * 6, 0, 1), a if flip > 0 else b)
+        if style == 'leaf':
+            cv.paint(np.clip(shape * 6, 0, 1) * np.exp(-(v * 5) ** 2) * 0.5, b if flip > 0 else a)
+    def flake(cv, t, f):
+        k = 0.75 + 0.25 * math.sin(TAU * t)
+        cv.disc(cv.w / 2, cv.h / 2, cv.w * 0.26 * k, b, alpha=0.9, soft=cv.w * 0.12)
+        cv.disc(cv.w / 2 - cv.w * 0.04, cv.h / 2 - cv.w * 0.04, cv.w * 0.15 * k, a, soft=cv.w * 0.08)
+    def wisp(cv, t, f):
+        for i in range(3):
+            x = cv.w * (0.25 + 0.25 * i) + cv.w * 0.08 * math.sin(TAU * t + i)
+            cv.glow(x, cv.h * (0.5 + 0.1 * math.sin(TAU * t + 2 * i)), cv.w * 0.3, a if i != 1 else b, 0.45, sy=0.35)
+    def glow(cv, t, f):
+        k = 0.6 + 0.4 * math.sin(TAU * t)
+        cv.glow(cv.w / 2, cv.h / 2, cv.w * 0.45, a, 0.55 * k)
+        cv.glow(cv.w / 2, cv.h / 2, cv.w * 0.16, b, 0.9 * k)
+    def fleck(cv, t, f):
+        flip = math.cos(TAU * t)
+        c = c3(cols[(f // 2) % len(cols)]) if False else a
+        cv.rect(cv.w / 2, cv.h / 2, cv.w * 0.36, cv.w * (0.04 + 0.22 * abs(flip)), TAU * t * 0.5 + 0.3, a if flip > 0 else b)
+    return {'leaf': (leafy, False, 0.35), 'petal': (leafy, False, 0.3), 'flake': (flake, False, 0.22), 'wisp': (wisp, False, 1.2),
+            'glow': (glow, True, 0.45), 'fleck': (fleck, False, 0.3)}[style]
+
+for n, w in sorted(WORLDS.items()):
+    for name, style, cols, per_second in w['ambient']:
+        draw, add, size = ambient(style, cols)
+        book('w%d.%s' % (n, name), 8, size, size * (0.5 if style == 'wisp' else 1.0), 80, add, draw)

@@ -60,7 +60,8 @@ Waves spawn as a loose crowd (ranks with every soldier a little off its place).
 
 ## 6. Levels: the generator and the bake
 
-`src/gen/gen.cpp` lays sections up the road from z = 14 to 24 units before its end, keeping an estimate E of the squad:
+`src/gen/gen.cpp` lays sections up the road from z = 14 to 24 units before its end. After each section it plays the
+road built so far with the bot and measures the squad E the bot really has there; the next section is sized against E:
 
 | Section | From level | What |
 |---|---|---|
@@ -69,26 +70,49 @@ Waves spawn as a loose crowd (ranks with every soldier a little off its place).
 | Barrels | 4 | two or three barrels; hit points about one to one and a half seconds of the squad's fire |
 | Barricade | 6 | two red gates across the whole road, `-a` and `-b`, that grow |
 | Triple | 20 | `×3`, `+add` and a cost, in a random order |
-| Horde | 1 | after every two or three other sections: foot across the road or one side; riders (from 7) and brutes (from 12) behind them |
+| Horde | 1 | after every two or three other sections: foot across the road or one side; riders (from 7) and brutes (from 12) behind them; past 900 foot the rest come as brutes |
 
-The next section is drawn by weight from those the level knows, never the same twice running; every level has at least
-one horde. The boss: on every tenth level, on level 8, and on 45% of the others after 8; its hit points are about five
-to nine seconds of the squad's expected fire.
+The next section is drawn by weight from those the level knows, never the same twice running. Each horde is made as big
+as it must be (halving its size up to seven times against the bot) to cost the bot a share of its squad, its "bite":
+5% at level 1 rising to 35% at level 200 and after (times 0.6 to 1.4 at random, times 1.4 on a hard level). A section
+the bot cannot get through is dropped.
 
-The bake (`papermarch_headless --bake-levels`) tries seeds and, for each, binary-searches a dial m (0.2 to 4) that scales
-the hordes and the boss, playing the level with the bot (`src/sim/bot.cpp`), until the bot wins with a share of its
-peak squad left inside the level's band: levels 1-10 0.45-1.0, 11-40 0.3-0.75, 41-120 0.18-0.55, then 0.1-0.4. The
-table holds the bot's end squad; three stars at 90% of it, two at 45%. Levels are stored as text (`S L V B W X T E A C R`
-then `g`, `b` and `w` items) and played through that text form during the bake, so the table is exactly what was tested.
+**The end fight** sets the level's difficulty. The boss (on every tenth level, on level 8, on every hard level, on 45% of
+the others after 8 and 60% after 100) or, without one, a last stand of the horde across the road. The bake finds its
+strength m by halving (in log steps, 0.05 to 90): the boss has as many hit points as the squad at the end of the road
+deals in m seconds; the last stand is m times that squad in foot, with riders and brutes.
+
+**The difficulty curve** (the owner, 2026-11-26: "make sure that it scales up in difficulty, with extra hard levels
+throwing in here and there with the later levels just barely theoretically beatable with 100% perfect runs"). The bake
+judges each level by its best run: the planner (`src/sim/bot.cpp`, `planLevel`), which plays the level out every way it
+knows (how early to line up with a row of gates to shoot it up: 15, 26 or 42 units; which gate of each row of choices
+to take, one row after another) and keeps the run that ends with the most soldiers. The share of its peak squad that
+best run keeps must be near the level's target `0.02 + 0.6·e^(−n/65)` (between 0.6 and 1.5 times it; levels 1-10 keep
+45-100%): about 60% at the start, 30% at level 50, 15% at 100, 5% at 200 and under 3% at 300, where a perfect run
+ends with a handful of soldiers. Boss levels ask for 0.8 times their neighbours'. One level in about nine after level 14
+(`isSpike`, never two running) is a hard level: a third of the target (at least 1.2%), a boss, bigger bites; `--sim
+table` marks them "(hard)".
+
+**Speed** rises with the level too (the owner: "Are you scaling the speed of the levels too?"): the squad marches at
+4.6 units a second on level 1 and 7.0 on level 300 (linear), the horde's pace (its march and how fast it closes in,
+`Y` in the text form) from 1.0 to 1.35 times its kind's speed; a hard level marches 8% and charges 10% faster. Roads
+grow longer after level 150 (0.25 units a level) so a level stays near half a minute.
+
+The level keeps its best run's plan (`P` how early to line up, `Q` each row's gate) and end squad (`R`): the tests replay
+the plan and must end with exactly that squad, the proof that every level can be won. Three stars at 90% of it, two at
+45%. Levels are stored as text (`S L V B W X T E A C R K Y P Q` then `g`, `b` and `w` items) and played through that text
+form during the bake, so the table is exactly what was tested. `papermarch_headless --sweep N` prints how level N's end
+fight moves its margin.
 
 Hint lines (once each, on the level that introduces the idea): 1 "DRAG TO STEER YOUR SQUAD", 2 "MARCH THROUGH THE BLUE
 GATES", 3 "SHOOT A GATE TO GROW IT", 4 "SHOOT BARRELS TO FREE RECRUITS", 5 "×2 DOUBLES YOUR SQUAD", 6 "SHOOT RED
 BARRICADES UP", 7 "RIDERS CHARGE FAST", 8 "BRING DOWN THE BOSS", 12 "BRUTES TAKE MANY HITS", 16 "DON'T RUN INTO
 BARRELS".
 
-The bot: at the next row of gates within 15 units it goes for the gate that leaves the biggest squad (or a gap if every
-gate hurts); otherwise to a barrel within 26 units when no enemy is within 12 (stepping aside if about to run into
-one); otherwise toward the horde, the nearest weighing most and the boss twenty times.
+The bot: at the next row of gates within 15 units (or the plan's distance) it goes for the plan's gate, else the gate
+that leaves the biggest squad (or a gap if every gate hurts); otherwise to a barrel within 26 units when no enemy is
+within 12 (stepping aside if about to run into one); otherwise toward the horde, the nearest weighing most and the boss
+twenty times. In the app it plays each level's plan (pictures, benchmarks, `--bot best`).
 
 ## 7. Stars and progress
 
@@ -114,12 +138,13 @@ Between levels the page curls away (GLOWTIDE's paper turn; a fade with REDUCE EF
 
 ## 9. Look
 
-A camera 20 units above the road, pitched 34° down, the squad 6 units ahead of its foot and 80% down the screen; the
-road at the squad spans 92% of the screen's width (at most 44% of its height on wide screens). About 70 units of road
-show ahead. The ground is drawn per pixel (`shaders/ground.frag`): paving stones with mortar and a worn middle, light
-curbs, a verge of two colours with tufts and specks, the finish line, haze in the distance. Beside the road: trees of
-the world's family (pines, palms, snowy pines, maples, blossoms, mushrooms, bushes, ember trees, lantern trees) and
-banners on poles. Everything standing is a paper sticker with a soft foot shadow (one union shadow layer).
+The look is `docs/ART_DIRECTION.md` (the owner, 2026-11-26: "Visuals and graphics need lots and lots of work, it needs
+to be visually impressive"; art direction and assets by a Fable art director): painted toy soldiers in a sunlit
+diorama, rendered in Blender and shipped as sprites (`assets/art`, made by `tools/art`). A camera 15 units above the
+road, pitched 30° down, the squad 8.5 units ahead of its foot and 80% down the screen; the road at the squad spans 92%
+of the screen's width; the horizon, a sky and a backdrop show near the top. Without `assets/art` the paper look below
+is drawn: the ground per pixel (`shaders/ground.frag`), paving stones, curbs, a verge, trees of the world's family and
+banners as paper stickers with soft foot shadows.
 
 Juice: enemies flash white when hit and fall over when killed (with paper bits); gates flash and grow; a passed gate
 shatters into its colour and its number rises over the squad; a barrel bursts into gold shards, smoke, sparks and a

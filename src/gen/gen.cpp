@@ -30,16 +30,55 @@ void gate(LevelDef& d, float x0, float x1, float z, i32 v, u8 kind, u8 grows, i3
     if (d.gateCount < kMaxGates) d.gates[d.gateCount++] = {x0, x1, z, v, kind, grows, cap};
 }
 
+// The squad the bot has at `zEnd` on the road built so far (no boss; the level ends there): what the next section is
+// sized from. 0 if the bot does not get there.
+float squadAt(const LevelDef& d, float zEnd) {
+    thread_local LevelDef* tp = nullptr;  // large: one per thread
+    if (!tp) tp = new LevelDef();
+    LevelDef& t = *tp;
+    t = d;
+    t.length = zEnd;
+    t.bossHp = 0;
+    t.planLook = 0;
+    t.planCount = 0;
+    indexRows(t);
+    const PlayResult r = playLevel(t, 150);
+    return r.won ? float(r.left) : 0.0f;
+}
+
 }  // namespace
 
-void generate(int n, u64 seed, float m, LevelDef& out) {
+bool isSpike(int n) {
+    auto hard = [](int k) { return k >= 15 && hash64(u64(k) * 7919ULL + 17ULL) % 9ULL == 0; };
+    return hard(n) && !hard(n - 1);
+}
+
+float marginTarget(int n) {
+    float t = 0.02f + 0.6f * std::exp(-float(n) / 65.0f);
+    if (n % 10 == 0) t *= 0.8f;          // a boss's level, a little harder
+    if (isSpike(n)) t = maxv(0.012f, t * 0.3f);
+    return t;
+}
+
+// The share of its squad each horde on the way costs the bot: a nibble early on, a third late, more on the hard levels.
+float bite(int n) {
+    const float b = 0.05f + 0.3f * minv(1.0f, float(n - 1) / 199.0f);
+    return isSpike(n) ? b * 1.4f : b;
+}
+
+void build(int n, u64 seed, Shape& out) {
     Rng r(seed, u64(n) * 2 + 1);
-    LevelDef d;
+    out = Shape{};
+    LevelDef& d = out.d;
     d.seed = u32(seed);
     d.world = u8((n - 1) / 10 % 10 + 1);
     d.boss = n % 10 == 0;
-    d.length = 96.0f + float(minv(n, 150)) * 0.7f + (d.boss ? 24.0f : 0.0f);
-    d.speed = 4.6f + float(minv(n, 120)) * 0.008f;
+    // Faster as the game goes on: the march from 4.6 to 7.0 units a second, the horde's pace up to 1.35 times; a hard
+    // level faster still. Longer roads keep a level near half a minute.
+    const float late = float(n - 1) / 299.0f;
+    d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f);
+    d.pace = (1.0f + 0.35f * late) * (isSpike(n) ? 1.1f : 1.0f);
+    d.length = 96.0f + float(minv(n, 150)) * 0.7f + float(maxv(0, n - 150)) * 0.25f + (d.boss ? 24.0f : 0.0f);
     d.start = n <= 5 ? 3 : 3 + int(r.next() % 4u);
     switch (n) {  // introductions: their hint lines (src/sim/levels.cpp)
         case 1: d.hint = 1; break;
@@ -55,13 +94,16 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
         default: break;
     }
     const bool pairs = n >= 2, barrels = n >= 4, mul = n >= 5, blocks = n >= 6, riders = n >= 7, brutes = n >= 12, triple = n >= 20;
-    const bool bossHere = d.boss || n == 8 || (n > 8 && r.f01() < 0.45f);
-    float E = float(d.start);  // the squad the generator expects at this point of the road
+    const bool bossHere = d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 100 ? 0.6f : 0.45f));
+    // E: the squad the bot really has where the next section starts, measured by playing the road built so far, so
+    // every section is sized against it (gates worth taking, barrels worth shooting, hordes that bite).
+    float E = float(d.start);
     float z = 14.0f;
     const float end = d.length - 24.0f;
     int sinceWave = 0;
     int section = 0, last = -1;
     while (z < end) {
+        const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount;
         // What comes next: a horde after every two or three other sections; else a mix of what this level knows, never
         // the same twice running. The first section is always gates.
         int kind;
@@ -89,7 +131,6 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
                 const int k = r.rangei(8, 16 + minv(n, 40) / 4);
                 const bool left = r.f01() < 0.5f;
                 for (int i = 0; i < k; ++i) gate(d, left ? -4.8f : 2.4f, left ? -2.4f : 4.8f, z + 1.3f * float(i), 1, kGateAdd, 1, 3);
-                E += float(k) * 1.6f;
                 z += 1.3f * float(k) + 6.0f;
                 ++sinceWave;
                 break;
@@ -109,8 +150,6 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
                 const float zx = z + 4.0f;
                 gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, zx, a, ka, ka == kGateAdd, a + 2 + a / 2);
                 gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, zx, b, kb, kb == kGateAdd, b < 0 ? -b / 2 : b + 2 + b / 2);
-                const float best = maxv(E + float(a), kb == kGateMul ? E * 2.0f : E + float(maxv<i32>(b, 0)));
-                E = best;
                 z += 12.0f;
                 ++sinceWave;
                 break;
@@ -123,7 +162,6 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
                     const i32 hp = maxv<i32>(4, i32(dps(E) * uni(r, 0.5f, 1.4f)));
                     const i32 reward = friendly(maxv(4.0f, E * uni(r, 0.25f, 0.6f)));
                     if (d.barrelCount < kMaxBarrels) d.barrels[d.barrelCount++] = {bx, zx + uni(r, -1.0f, 1.0f), hp, reward};
-                    E += float(reward) * 0.6f;
                 }
                 z += 14.0f;
                 ++sinceWave;
@@ -134,7 +172,6 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
                 const float zx = z + 6.0f;
                 gate(d, -4.9f, -0.15f, zx, -a, kGateAdd, 1, maxv<i32>(1, a / 3));
                 gate(d, 0.15f, 4.9f, zx, -b, kGateAdd, 1, maxv<i32>(1, b / 3));
-                E -= float(minv(a, b)) * 0.4f;
                 z += 12.0f;
                 ++sinceWave;
                 break;
@@ -151,57 +188,114 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
                     else if (which == 1) gate(d, xs[k][0], xs[k][1], zx, add, kGateAdd, 1, add + add / 2);
                     else gate(d, xs[k][0], xs[k][1], zx, -cost, kGateAdd, 1, 0);
                 }
-                E = maxv(E * 3.0f, E + float(add));
                 z += 12.0f;
                 ++sinceWave;
                 break;
             }
-            default: {  // a horde
-                const float share = uni(r, 0.7f, 1.4f) * m;
+            default: {  // a horde, as big as it must be to cost the bot about `bite` of its squad (measured)
                 const bool full = r.f01() < 0.6f;
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
-                const i32 foot = maxv<i32>(4, i32(E * share));
-                if (d.waveCount < kMaxWaves) d.waves[d.waveCount++] = {z + 10.0f, cx - half, cx + half, minv(foot, 900), kFoot};
-                if (riders && r.f01() < 0.4f && d.waveCount < kMaxWaves)
-                    d.waves[d.waveCount++] = {z + 14.0f, -4.0f, 4.0f, maxv<i32>(3, foot / 4), kRider};
-                if (brutes && r.f01() < 0.35f && d.waveCount < kMaxWaves)
-                    d.waves[d.waveCount++] = {z + 18.0f, -3.0f, 3.0f, maxv<i32>(1, foot / 12), kBrute};
-                E = maxv(float(d.start), E - float(foot) * 0.25f);
+                const bool withRiders = riders && r.f01() < 0.4f, withBrutes = brutes && r.f01() < 0.35f;
+                const float want = bite(n) * uni(r, 0.6f, 1.4f) * E;
+                const float zw = z;
+                auto lay = [&](float count) {  // this section's waves for `count` foot; past 900 the rest are brutes
+                    d.waveCount = wavesBefore;
+                    const i32 foot = maxv<i32>(3, i32(count));
+                    d.waves[d.waveCount++] = {zw + 10.0f, cx - half, cx + half, minv(foot, 900), kFoot};
+                    if (withRiders) d.waves[d.waveCount++] = {zw + 14.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider};
+                    const i32 heavy = (withBrutes ? maxv<i32>(1, foot / 12) : 0) + maxv<i32>(0, foot - 900) / 8;
+                    if (heavy > 0) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(heavy, 320), kBrute};
+                };
+                float lo = 2.0f, hi = maxv(60.0f, E * 14.0f), pick = lo;
+                for (int it = 0; it < 7 && d.waveCount + 3 <= kMaxWaves; ++it) {
+                    const float mid = std::sqrt(lo * hi);
+                    lay(mid);
+                    const float after = squadAt(d, zw + 47.0f);  // the horde fought to its end
+                    if (after < 1.0f || E - after > want * 1.2f) {
+                        hi = mid;
+                    } else {
+                        lo = pick = mid;
+                        if (E - after >= want * 0.8f) break;
+                    }
+                }
+                if (d.waveCount + 3 <= kMaxWaves) lay(pick);
                 z += 22.0f;
                 sinceWave = 0;
                 break;
             }
         }
+        // What the bot has after this section (a horde fought to its end); a section it cannot get through is dropped.
+        const float after = squadAt(d, z + (d.waveCount > wavesBefore ? 25.0f : 2.0f));
+        if (after >= 1.0f) {
+            E = after;
+        } else {
+            d.gateCount = gatesBefore;
+            d.barrelCount = barrelsBefore;
+            d.waveCount = wavesBefore;
+        }
     }
-    // Every level has a horde to crush, if only a small one near the end.
-    if (d.waveCount == 0) {
-        const i32 foot = maxv<i32>(5, i32(E * uni(r, 0.6f, 1.1f) * m));
-        d.waves[d.waveCount++] = {end - 2.0f, -3.6f, 3.6f, minv(foot, 900), kFoot};
-        E = maxv(float(d.start), E - float(foot) * 0.25f);
+    // The end: the boss, or a last stand of the horde across the road; finish() sizes it.
+    out.boss = bossHere;
+    out.endSquad = E;
+    out.lastZ = end - 2.0f;
+    out.lastRiders = riders;
+    out.lastBrutes = brutes;
+}
+
+void finish(const Shape& s, float m, LevelDef& out) {
+    thread_local LevelDef* dp = nullptr;  // large: one per thread
+    if (!dp) dp = new LevelDef();
+    LevelDef& d = *dp;
+    d = s.d;
+    if (s.boss) {  // as many hit points as the squad at the end deals in m seconds
+        d.bossHp = maxv<i32>(20, i32(dps(s.endSquad) * m));
+    } else if (d.waveCount + 3 <= kMaxWaves) {  // m times the squad's number, foot and riders and brutes
+        const i32 foot = maxv<i32>(5, i32(s.endSquad * m));
+        d.waves[d.waveCount++] = {s.lastZ, -4.3f, 4.3f, minv(foot, 900), kFoot};
+        if (s.lastRiders) d.waves[d.waveCount++] = {s.lastZ + 5.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider};
+        const i32 heavy = (s.lastBrutes ? maxv<i32>(1, foot / 10) : 0) + maxv<i32>(0, foot - 900) / 8;
+        if (heavy > 0) d.waves[d.waveCount++] = {s.lastZ + 9.0f, -3.5f, 3.5f, minv(heavy, 320), kBrute};
     }
-    // The boss: as many hit points as the expected squad deals in about eight seconds.
-    if (bossHere) d.bossHp = maxv<i32>(20, i32(dps(E) * uni(r, 5.0f, 9.0f) * m));
     // Through the text form, so the bot plays exactly what the table will hold.
     static thread_local char buf[16384];
     if (!encodeLevel(d, buf, sizeof buf) || !decodeLevel(buf, out)) out = d;
 }
 
+void generate(int n, u64 seed, float m, LevelDef& out) {
+    thread_local Shape* sp = nullptr;
+    if (!sp) sp = new Shape();
+    build(n, seed, *sp);
+    finish(*sp, m, out);
+}
+
 Baked bakeLevel(int n, int maxSeeds) {
     Baked best;
-    // The margin the bot must win by: the share of its peak squad still standing at the end.
-    const float lo = n <= 10 ? 0.45f : (n <= 40 ? 0.3f : (n <= 120 ? 0.18f : 0.1f));
-    const float hi = n <= 10 ? 1.0f : (n <= 40 ? 0.75f : (n <= 120 ? 0.55f : 0.4f));
+    // The margin the best run (the planner's) must win by: the share of its peak squad still standing at the end. It
+    // falls from about 60% to under 3% at level 300; the hard levels thrown in ask for a third of their neighbours'.
+    const float target = marginTarget(n);
+    const float lo = n <= 10 ? 0.45f : target * 0.6f;
+    const float hi = n <= 10 ? 1.0f : minv(1.0f, target * 1.5f);
+    best.target = target;
     float bestErr = 1e9f;
+    thread_local Shape* sp = nullptr;  // large: one per thread
+    if (!sp) sp = new Shape();
+    thread_local LevelDef* dp = nullptr;
+    if (!dp) dp = new LevelDef();
     for (int s = 0; s < maxSeeds; ++s) {
         const u64 seed = hash64(u64(n) * 1000003ULL + u64(s));
-        float mlo = 0.2f, mhi = 4.0f;
-        for (int it = 0; it < 9; ++it) {
-            const float m = (mlo + mhi) * 0.5f;
-            LevelDef d;
-            generate(n, seed, m, d);
-            i32 left = 0, peak = 0;
-            const bool won = botPlay(d, &left, &peak);
+        // The road once (its hordes measured against the bot), then the end fight's strength found by halving.
+        build(n, seed, *sp);
+        if (sp->endSquad < 1.0f) continue;
+        float mlo = 0.05f, mhi = 90.0f;
+        for (int it = 0; it < 12; ++it) {
+            const float m = std::sqrt(mlo * mhi);
+            LevelDef& d = *dp;
+            finish(*sp, m, d);
+            d.spike = isSpike(n) ? 1 : 0;
+            const PlayResult pr = planLevel(d);
+            const bool won = pr.won;
+            const i32 left = pr.left, peak = pr.peak;
             ++best.plays;
             const float ratio = won ? float(left) / float(maxv<i32>(peak, 1)) : -1.0f;
             if (won && ratio >= lo && ratio <= hi) {

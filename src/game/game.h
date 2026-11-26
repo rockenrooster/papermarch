@@ -106,6 +106,7 @@ private:
 
     Field field_;
     Paper paper_;
+    Art art_;
     PaperFrame frame_;
     UiBatch labels_, uiBatch_;
     Ui ui_;

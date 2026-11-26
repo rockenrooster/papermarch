@@ -19,16 +19,18 @@ $ninja = (Get-Command ninja -ErrorAction Stop).Source
 
 $dir = Join-Path $PM_ROOT 'build\web'
 if ($Clean -and (Test-Path $dir)) { Remove-Item -Recurse -Force $dir }
-if (-not (Test-Path (Join-Path $dir 'build.ninja'))) {
-    & $emcmake $PM_CMAKE -S $PM_ROOT -B $dir -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_MAKE_PROGRAM=$ninja"
-    if ($LASTEXITCODE -ne 0) { throw "CMake configure failed ($LASTEXITCODE)" }
-}
+# Configured every time (a few seconds): whether assets/art exists decides the preloaded files (CMakeLists.txt).
+& $emcmake $PM_CMAKE -S $PM_ROOT -B $dir -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_MAKE_PROGRAM=$ninja" | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "CMake configure failed ($LASTEXITCODE)" }
 & $PM_CMAKE --build $dir --parallel $PM_JOBS --target papermarch
 if ($LASTEXITCODE -ne 0) { throw "build failed ($LASTEXITCODE)" }
 
 $site = Join-Path $dir 'site'
 New-Item -ItemType Directory -Force $site | Out-Null
 foreach ($f in 'index.html', 'index.js', 'index.wasm') { Copy-Item (Join-Path $dir $f) $site -Force }
+# The art's preloaded files (assets/art), when there is art.
+$data = Join-Path $dir 'index.data'
+if (Test-Path $data) { Copy-Item $data $site -Force } else { Remove-Item (Join-Path $site 'index.data') -ErrorAction SilentlyContinue }
 foreach ($f in Get-ChildItem (Join-Path $PM_ROOT 'web') -File | Where-Object { $_.Name -ne 'shell.html' }) { Copy-Item $f.FullName $site -Force }
 $wasm = (Get-Item (Join-Path $site 'index.wasm')).Length
 Write-Host ("[build] {0} (index.wasm {1:N1} MB)" -f $site, ($wasm / 1MB))

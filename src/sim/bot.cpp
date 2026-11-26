@@ -7,14 +7,33 @@ namespace pm::sim {
 float botSteer(const Battle& b) {
     const LevelDef& d = *b.def;
     const float r = b.radius();
-    // 1. The next row of gates (within 15 units): the one that leaves the biggest squad, or a gap if every gate hurts.
+    const float look = d.planLook > 0 ? d.planLook : 15.0f;
+    // 1. The next row of gates (within `look` units): the plan's gate, else the one that leaves the biggest squad, or a
+    // gap if every gate hurts.
     float rowZ = 1e9f;
     for (int g = 0; g < d.gateCount; ++g) {
         const GateState& gs = b.gates[g];
-        if (gs.used || gs.passed || d.gates[g].z <= b.z || d.gates[g].z - b.z > 15.0f) continue;
+        if (gs.used || gs.passed || d.gates[g].z <= b.z || d.gates[g].z - b.z > look) continue;
         rowZ = minv(rowZ, d.gates[g].z);
     }
     if (rowZ < 1e8f) {
+        for (int ri = 0; ri < d.rowCount && ri < d.planCount; ++ri) {
+            if (std::fabs(d.rowZ[ri] - rowZ) > 0.05f || d.plan[ri] < 0) continue;
+            int idx[8], k = 0;
+            for (int g = 0; g < d.gateCount && k < 8; ++g)
+                if (std::fabs(d.gates[g].z - rowZ) < 0.05f) {
+                    int at = k++;  // in order from the left
+                    while (at > 0 && d.gates[idx[at - 1]].x0 > d.gates[g].x0) {
+                        idx[at] = idx[at - 1];
+                        --at;
+                    }
+                    idx[at] = g;
+                }
+            if (d.plan[ri] < k) {
+                const GateDef& gd = d.gates[idx[int(d.plan[ri])]];
+                return (gd.x0 + gd.x1) * 0.5f;
+            }
+        }
         i64 best = b.squad;  // passing no gate at all
         float bestX = b.x;
         bool gateBest = false;
@@ -74,16 +93,92 @@ float botSteer(const Battle& b) {
     return b.x * 0.98f;
 }
 
-bool botPlay(const LevelDef& d, i32* left, i32* peak, int maxSeconds) {
+PlayResult playLevel(const LevelDef& d, int maxSeconds) {
     thread_local Battle* bp = nullptr;  // large: one per thread, made once
     if (!bp) bp = new Battle();
     bp->init(d);
     BattleEvents ev;
     const int steps = maxSeconds * 60;
     for (int t = 0; t < steps && !bp->won && !bp->lost; ++t) bp->tick(botSteer(*bp), true, ev);
-    if (left) *left = bp->squad;
-    if (peak) *peak = bp->peak;
-    return bp->won;
+    PlayResult r;
+    r.won = bp->won;
+    r.left = bp->squad;
+    r.peak = bp->peak;
+    r.progress = bp->progress();
+    return r;
+}
+
+bool botPlay(const LevelDef& d, i32* left, i32* peak, int maxSeconds) {
+    const PlayResult r = playLevel(d, maxSeconds);
+    if (left) *left = r.left;
+    if (peak) *peak = r.peak;
+    return r.won;
+}
+
+namespace {
+
+bool better(const PlayResult& a, const PlayResult& b) {
+    if (a.won != b.won) return a.won;
+    if (a.won) return a.left > b.left;
+    if (std::fabs(a.progress - b.progress) > 1e-4f) return a.progress > b.progress;
+    return a.left > b.left;
+}
+
+}  // namespace
+
+PlayResult planLevel(LevelDef& d) {
+    // How far ahead to line up with a row of gates: the everyday 15 units, or earlier, to shoot the chosen gate up.
+    static const float kLooks[] = {0.0f, 26.0f, 42.0f};
+    thread_local LevelDef* wp = nullptr;  // large: one per thread
+    if (!wp) wp = new LevelDef();
+    LevelDef& w = *wp;
+    w = d;
+    w.planCount = w.rowCount;
+    for (int i = 0; i < kMaxRows; ++i) w.plan[i] = -1;
+    PlayResult best;
+    float bestLook = 0;
+    bool have = false;
+    for (float look : kLooks) {
+        w.planLook = look;
+        const PlayResult r = playLevel(w);
+        if (!have || better(r, best)) {
+            best = r;
+            bestLook = look;
+            have = true;
+        }
+    }
+    w.planLook = bestLook;
+    // Each row of choices in turn, the rows before it as chosen, the ones after left to the bot.
+    for (int ri = 0; ri < w.rowCount; ++ri) {
+        int k = 0;
+        for (int g = 0; g < w.gateCount; ++g) k += std::fabs(w.gates[g].z - w.rowZ[ri]) < 0.05f;
+        int keep = -1;
+        for (int c = 0; c < minv(k, 8); ++c) {
+            w.plan[ri] = i8(c);
+            const PlayResult r = playLevel(w);
+            if (better(r, best)) {
+                best = r;
+                keep = c;
+            }
+        }
+        w.plan[ri] = i8(keep);
+    }
+    // The other looks once more with the rows chosen.
+    for (float look : kLooks) {
+        if (look == bestLook) continue;
+        w.planLook = look;
+        const PlayResult r = playLevel(w);
+        if (better(r, best)) {
+            best = r;
+            bestLook = look;
+        }
+    }
+    d.planLook = bestLook;
+    d.planCount = 0;
+    for (int i = 0; i < w.rowCount; ++i)
+        if (w.plan[i] >= 0) d.planCount = u8(i + 1);  // the choices up to the last one made
+    for (int i = 0; i < kMaxRows; ++i) d.plan[i] = w.plan[i];
+    return best;
 }
 
 }  // namespace pm::sim

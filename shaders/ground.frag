@@ -10,6 +10,17 @@ uniform mediump vec4 uCurb;   // rgb
 uniform mediump vec4 uGrassA; // rgb
 uniform mediump vec4 uGrassB; // rgb; w the verge's speckle (petals, pebbles) strength
 uniform mediump vec4 uHaze;   // rgb; w the depth where the haze begins
+// The art's ground (gfx/art.h) when uTexP.x is 1: the road texture spans uTexP.y units across the road and repeats
+// every uTexP.z units along it (v = z / tile, its first row at v = 0); the land repeats every uTexP.w units.
+uniform mediump sampler2D uRoadTex;
+uniform mediump sampler2D uLandTex;
+uniform highp vec4 uTexP;
+uniform mediump vec4 uSkyTop;  // rgb; w the depth where the haze is complete
+uniform mediump vec4 uSkyHor;  // rgb
+// The backdrop strip standing on the horizon (premultiplied): x on, y its height (px), z its sideways shift (parallax),
+// w how much haze lies over it.
+uniform mediump sampler2D uBackdrop;
+uniform highp vec4 uBackP;
 layout(location = 0) out vec4 oColor;
 
 highp float hash21(highp vec2 p) {
@@ -31,7 +42,17 @@ void main() {
     highp float sn = uCam1.x, cs = uCam1.y, h = uCam0.w;
     highp float den = k * cs + sn;
     if (den < 0.003) {
-        oColor = vec4(uHaze.rgb, 1.0);
+        float up = clamp(-den * 3.0, 0.0, 1.0);
+        vec3 sky = uTexP.x > 0.5 ? mix(uSkyHor.rgb, uSkyTop.rgb, up) : uHaze.rgb;
+        if (uBackP.x > 0.5) {
+            highp float horizon = uCam0.y - uCam0.z * sn / cs;
+            highp float v = 1.0 - (horizon - px.y) / uBackP.y;  // 1 on the horizon (the image's bottom row)
+            if (v >= 0.0 && v <= 1.0) {
+                vec4 b = texture(uBackdrop, vec2(px.x * uScreen.z + uBackP.z, v));
+                sky = sky * (1.0 - b.a) + mix(b.rgb, uHaze.rgb * b.a, uBackP.w);
+            }
+        }
+        oColor = vec4(sky, 1.0);
         return;
     }
     highp float t = h * (cs - k * sn) / den;
@@ -43,6 +64,22 @@ void main() {
     float half_ = uStoneA.w;
     float ax = abs(x);
     vec3 c;
+    if (uTexP.x > 0.5) {
+        highp float halfW = uTexP.y * 0.5;
+        vec3 road = texture(uRoadTex, vec2((x + halfW) / uTexP.y, z / uTexP.z)).rgb;
+        vec3 land = texture(uLandTex, vec2(x, z) / uTexP.w).rgb;
+        c = mix(road, land, smoothstep(halfW - aa, halfW + aa, ax));
+        if (uCam1.w > 0.0 && ax < half_) {  // the finish line: a band of checks
+            highp float d = z - uCam1.w;
+            if (abs(d) < 0.75) {
+                float check = mod(floor(x / 0.75) + floor((d + 0.75) / 0.75), 2.0);
+                c = mix(vec3(0.97, 0.96, 0.93), vec3(0.16, 0.15, 0.2), check);
+            }
+        }
+        c = mix(c, uHaze.rgb, smoothstep(uHaze.w, uSkyTop.w, depth));
+        oColor = vec4(c, 1.0);
+        return;
+    }
     if (ax < half_) {
         // Paving stones: rows across the road, every other row shifted by half a stone.
         const float rowL = 0.9, stoneW = 1.25;

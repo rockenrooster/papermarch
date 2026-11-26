@@ -63,6 +63,7 @@
     X(PFNGLFRAMEBUFFERRENDERBUFFERPROC, glFramebufferRenderbuffer)                                             \
     X(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D)                                                   \
     X(PFNGLGENBUFFERSPROC, glGenBuffers)                                                                       \
+    X(PFNGLGENERATEMIPMAPPROC, glGenerateMipmap)                                                               \
     X(PFNGLGENFRAMEBUFFERSPROC, glGenFramebuffers)                                                             \
     X(PFNGLGENRENDERBUFFERSPROC, glGenRenderbuffers)                                                           \
     X(PFNGLGENTEXTURESPROC, glGenTextures)                                                                     \
@@ -84,8 +85,11 @@
     X(PFNGLSCISSORPROC, glScissor)                                                                             \
     X(PFNGLSHADERSOURCEPROC, glShaderSource)                                                                   \
     X(PFNGLTEXIMAGE2DPROC, glTexImage2D)                                                                       \
+    X(PFNGLTEXIMAGE3DPROC, glTexImage3D)                                                                       \
+    X(PFNGLTEXPARAMETERFPROC, glTexParameterf)                                                                 \
     X(PFNGLTEXPARAMETERIPROC, glTexParameteri)                                                                 \
     X(PFNGLTEXSUBIMAGE2DPROC, glTexSubImage2D)                                                                 \
+    X(PFNGLTEXSUBIMAGE3DPROC, glTexSubImage3D)                                                                 \
     X(PFNGLUNIFORM1FPROC, glUniform1f)                                                                         \
     X(PFNGLUNIFORM1IPROC, glUniform1i)                                                                         \
     X(PFNGLUNIFORM2FPROC, glUniform2f)                                                                         \
