@@ -56,7 +56,7 @@ void Game::drawUi(float dt) {
 void Game::drawTitle() {
     const Layout& L = layout_;
     const float a = titleFade_;
-    const float cy = L.top() + L.px(190);
+    const float cy = L.top() + L.px(262);  // under the hint line
     uiBatch_.rect(float(L.w) * 0.5f + L.px(3), cy + L.px(7), L.px(340), L.px(120), L.px(24), rgba(col::kShadow, u8(80 * a)), {0, 0, 0, 0}, 0,
                   L.px(8));
     uiBatch_.rect(float(L.w) * 0.5f, cy, L.px(340), L.px(120), L.px(24), rgba(ui::kCard, u8(250 * a)), rgba(kSquadBlue, u8(255 * a)), L.px(3));
