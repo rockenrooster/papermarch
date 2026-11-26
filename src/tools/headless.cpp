@@ -185,8 +185,7 @@ int cmdBake(int argc, char** argv) {
                 const gen::Slot slot = gen::calendar(n);
                 int rc = 0;
                 const int* rs = recipesFor(slot.kind, rc);
-                Candidate closest;
-                bool haveClosest = false;
+                std::vector<Candidate> closest;  // the nearest misses, for a level no candidate passes
                 int tried = 0;
                 for (int seed = 0; seed < maxSeeds && int(found.size()) < perLevel; ++seed) {
                     Candidate c;
@@ -198,17 +197,20 @@ int cmdBake(int argc, char** argv) {
                         c.fp = gen::fingerprint(c.d);
                         c.elems = elementSet(c.d);
                         found.push_back(c);
-                    } else if (c.g.best > 0 && (!haveClosest || std::abs(c.g.randomWinPct - 50) < std::abs(closest.g.randomWinPct - 50))) {
-                        closest = c;
-                        haveClosest = true;
+                    } else if (c.g.best > 0 && c.g.decision) {
+                        c.fp = gen::fingerprint(c.d);
+                        c.elems = elementSet(c.d);
+                        closest.push_back(c);
+                        std::sort(closest.begin(), closest.end(), [](const Candidate& a, const Candidate& b) {
+                            return std::abs(a.g.randomWinPct - 50) + a.g.randomThreePct < std::abs(b.g.randomWinPct - 50) + b.g.randomThreePct;
+                        });
+                        if (closest.size() > 40) closest.resize(40);
                     }
                 }
                 if (found.empty()) {
-                    if (haveClosest) {
-                        closest.fp = gen::fingerprint(closest.d);
-                        closest.elems = elementSet(closest.d);
-                        found.push_back(closest);
-                        std::snprintf(note, sizeof note, "band relaxed after %d candidates: %s", tried, closest.g.why);
+                    if (!closest.empty()) {
+                        found = closest;
+                        std::snprintf(note, sizeof note, "band relaxed after %d candidates: %s", tried, closest[0].g.why);
                     } else {
                         std::snprintf(note, sizeof note, "NO WINNABLE CANDIDATE in %d", tried);
                     }
@@ -229,16 +231,37 @@ int cmdBake(int argc, char** argv) {
     for (int n = 1; n < int(table.size()); ++n)
         if (have[size_t(n)]) fps.push_back(gen::fingerprint(table[size_t(n)]));
     int failed = 0;
+    sim::Solver passSolver;
     for (int n = from; n <= to; ++n) {
         auto& cs = cands[size_t(n)];
-        int pick = -1;
-        for (int k = 0; k < int(cs.size()) && pick < 0; ++k) {
-            bool clash = std::find(fps.begin(), fps.end(), cs[size_t(k)].fp) != fps.end();
+        auto clashes = [&](const Candidate& c) {
+            bool clash = std::find(fps.begin(), fps.end(), c.fp) != fps.end();
             for (int m = std::max(1, n - 11); m < n && !clash; ++m)
-                if (have[size_t(m)] && table[size_t(m)].recipe == cs[size_t(k)].d.recipe && table[size_t(m)].recipe < gen::kRecipeCount &&
-                    elementSet(table[size_t(m)]) == cs[size_t(k)].elems)
+                if (have[size_t(m)] && table[size_t(m)].recipe == c.d.recipe && table[size_t(m)].recipe < gen::kRecipeCount &&
+                    elementSet(table[size_t(m)]) == c.elems)
                     clash = true;
-            if (!clash || sim::handLevel(n, table[0])) pick = k;
+            return clash;
+        };
+        int pick = -1;
+        for (int k = 0; k < int(cs.size()) && pick < 0; ++k)
+            if (!clashes(cs[size_t(k)]) || sim::handLevel(n, table[0])) pick = k;
+        // Every candidate repeats an earlier level: search on, now that the earlier levels are known.
+        if (pick < 0 && !sim::handLevel(n, table[0])) {
+            const gen::Slot slot = gen::calendar(n);
+            int rc = 0;
+            const int* rs = recipesFor(slot.kind, rc);
+            for (int seed = maxSeeds; seed < maxSeeds * 4 && pick < 0; ++seed) {
+                Candidate c;
+                const int recipe = rs[(n * 7 + seed) % rc];
+                if (!gen::generate(n, slot, recipe, hash64(u64(n) * 1000003ULL + u64(seed)), c.d)) continue;
+                c.g = gen::grade(n, c.d, passSolver, false);
+                if (!c.g.ok) continue;
+                c.fp = gen::fingerprint(c.d);
+                c.elems = elementSet(c.d);
+                if (clashes(c)) continue;
+                cs.push_back(c);
+                pick = int(cs.size()) - 1;
+            }
         }
         if (pick < 0 && !cs.empty()) {
             pick = 0;

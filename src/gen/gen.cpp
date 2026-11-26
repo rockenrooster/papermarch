@@ -258,7 +258,7 @@ void layoutTree(Graph& g, Rng& r, int sites) {
     const int b = sites >= 10 && r.f01() < 0.6f ? 3 : 2;
     const float xs3[3] = {18, 50, 82}, xs2[2] = {26, 74};
     const int perBranch = maxv(1, (sites - 2) / b);
-    const int rows = minv(perBranch, 5);
+    const int rows = minv(perBranch, 4);
     int nodes[3][6];
     const int home = g.add(50 + jit(r, 4), g.pageH - 12);
     for (int k = 0; k < b; ++k)
@@ -277,7 +277,7 @@ void layoutTree(Graph& g, Rng& r, int sites) {
 }
 
 void layoutLadder(Graph& g, Rng& r, int sites) {
-    const int rows = clampv((sites - 2) / 2, 2, 5);
+    const int rows = clampv((sites - 2) / 2, 2, 4);
     int L[6], R[6], M[6];
     const int home = g.add(50 + jit(r, 3), g.pageH - 12);
     for (int i = 0; i < rows; ++i) {
@@ -308,14 +308,14 @@ void layoutLadder(Graph& g, Rng& r, int sites) {
 }
 
 void layoutRing(Graph& g, Rng& r, int sites) {
-    const int side = clampv((sites - 2) / 2, 2, 5);
+    const int side = clampv((sites - 2) / 2, 2, 4);
     const float cy = (g.pageH - 12 + 30) * 0.5f, ry = (g.pageH - 12 - 30) * 0.5f;
     const int home = g.add(50, g.pageH - 12);
     int L[6], R[6];
     for (int i = 0; i < side; ++i) {  // a left and a right arc of an ellipse, from Home (bottom) to the Keep (top)
-        const float ang = 3.14159f * float(i + 1) / float(side + 1);
-        L[i] = g.add(50 - 38 * std::sin(ang) + jit(r, 2), cy + ry * std::cos(ang) + jit(r, 2), i);
-        R[i] = g.add(50 + 38 * std::sin(ang) + jit(r, 2), cy + ry * std::cos(ang) + jit(r, 2), i);
+        const float ang = 3.14159f * (0.24f + 0.56f * float(i) / float(maxv(1, side - 1)));
+        L[i] = g.add(50 - 39 * std::sin(ang) + jit(r, 2), cy + ry * std::cos(ang) + jit(r, 2), i);
+        R[i] = g.add(50 + 39 * std::sin(ang) + jit(r, 2), cy + ry * std::cos(ang) + jit(r, 2), i);
     }
     g.keep = g.add(50, 30);
     road(g, home, L[0]);
@@ -335,10 +335,10 @@ void layoutRing(Graph& g, Rng& r, int sites) {
 }
 
 void layoutHourglass(Graph& g, Rng& r, int sites) {
-    const int lobe = clampv((sites - 3) / 2, 2, 5);
+    const int lobe = clampv((sites - 3) / 2, 2, 3);
     const int home = g.add(50 + jit(r, 3), g.pageH - 12);
-    const float waistY = g.pageH * 0.5f + 4;
-    const float bottomTop = waistY + 22, bottomBot = g.pageH - 34;
+    const float waistY = g.pageH * 0.5f + 2;
+    const float bottomTop = waistY + 20, bottomBot = g.pageH - 30;
     int B[6], T[6];
     for (int i = 0; i < lobe; ++i) {
         const float t = lobe == 1 ? 0.5f : float(i) / float(lobe - 1);
@@ -346,7 +346,7 @@ void layoutHourglass(Graph& g, Rng& r, int sites) {
         B[i] = g.add(x, bottomBot - (bottomBot - bottomTop) * t + jit(r, 2), i);
     }
     const int waist = g.add(50 + jit(r, 2), waistY, lobe, sim::kPost);
-    const float topBot = waistY - 22, topTop = 58;
+    const float topBot = waistY - 20, topTop = 54;
     for (int i = 0; i < lobe; ++i) {
         const float t = lobe == 1 ? 0.5f : float(i) / float(lobe - 1);
         const float x = i % 2 == 0 ? 24.0f + jit(r, 4) : 76.0f + jit(r, 4);
@@ -405,7 +405,7 @@ void layoutCrossroads(Graph& g, Rng& r, int sites) {
 }
 
 void layoutTwinValleys(Graph& g, Rng& r, int sites) {
-    const int rows = clampv((sites - 2) / 2, 2, 5);
+    const int rows = clampv((sites - 2) / 2, 2, 4);
     const int home = g.add(50 + jit(r, 3), g.pageH - 12);
     int L[6], R[6];
     for (int i = 0; i < rows; ++i) {
@@ -423,7 +423,7 @@ void layoutSpiral(Graph& g, Rng& r, int sites) {
     const int home = g.add(20 + jit(r, 3), g.pageH - 14);
     int prev = home;
     const int perRow = 3;
-    const int rows = clampv((sites - 2 + perRow - 1) / perRow, 2, 5);
+    const int rows = clampv((sites - 2 + perRow - 1) / perRow, 2, 4);
     int count = 0;
     int firstOfRow[6], lastOfRow[6];
     for (int rw = 0; rw < rows && g.n < sites - 1; ++rw) {
@@ -479,7 +479,7 @@ void layoutGauntlet(Graph& g, Rng& r, int rows, int width, bool braid) {
 void layoutRace(Graph& g, Rng& r, int sites, bool pincer, int& rivalCamp, int* route, int& routeLen) {
     // The host climbs one side; the Warlord comes down the other, taking camps on its way to Home.
     const float hx = pincer ? 74.0f : 26.0f, wx = pincer ? 26.0f : 74.0f;
-    const int rows = clampv((sites - 3) / 2, 2, 5);
+    const int rows = clampv(r.rangei(2, (sites - 3) / 2), 2, 4);
     const int home = g.add(50 + jit(r, 3), g.pageH - 12);
     int H[6], W[6];
     for (int i = 0; i < rows; ++i) {
@@ -515,16 +515,16 @@ void layoutLastStand(Graph& g, Rng& r, int sites, bool ring) {
             road(g, s[k], s[(k + 1) % n]);
         }
     } else {
-        const float dirs[3][2] = {{-1, -0.3f}, {0, -1}, {1, -0.3f}};
+        const float roadsX[3][4] = {{26, 18, 22, 30}, {50, 50, 50, 50}, {74, 82, 78, 70}};
         const int per = clampv((sites - 1) / 3, 1, 4);
-        for (int b = 0; b < 3; ++b) {
+        for (int k = 0; k < 3; ++k) {
             int prev = home;
             for (int i = 0; i < per; ++i) {
-                const float d = 26.0f * float(i + 1);
-                const int s = g.add(clampv(50 + dirs[b][0] * d * 1.15f + jit(r, 3), 12.0f, 88.0f),
-                                    clampv(g.pageH - 24 + dirs[b][1] * d + jit(r, 3), 30.0f, g.pageH - 20), i);
-                road(g, prev, s);
-                prev = s;
+                const float y = g.pageH - 44.0f - 28.0f * float(i) - (k == 1 ? 4.0f : 0.0f);
+                if (y < 40.0f) break;
+                const int s2 = g.add(roadsX[k][i] + jit(r, 3), y + jit(r, 2), i);
+                road(g, prev, s2);
+                prev = s2;
             }
         }
     }
@@ -551,6 +551,56 @@ Band bandFor(int n) {
     if (n <= 80) return {0.45f, 0.88f, 8, 13, 45, 85, 20, 1};
     if (n <= 160) return {0.55f, 0.95f, 9, 16, 25, 65, 10, 0};
     return {0.6f, 0.97f, 10, 18, 12, 50, 5, 0};
+}
+
+// Pushes sites apart until each pair is clear (GAME_DESIGN 8.4 line 4): Home and the Keep stay; the rest stay on the
+// page. False if a road crosses another afterwards.
+bool relax(Graph& g) {
+    const float minD = 18.5f, rowDy = 14.0f, rowDx = 23.0f;
+    for (int it = 0; it < 60; ++it) {
+        bool moved = false;
+        for (int i = 0; i < g.n; ++i)
+            for (int j = i + 1; j < g.n; ++j) {
+                float dx = g.x[j] - g.x[i], dy = g.y[j] - g.y[i];
+                const float d = std::sqrt(dx * dx + dy * dy);
+                const bool sameRow = std::fabs(dy) < rowDy && std::fabs(dx) < rowDx;
+                if (d >= minD && !sameRow) continue;
+                const bool fi = i == 0 || i == g.keep, fj = j == 0 || j == g.keep;
+                if (fi && fj) continue;
+                float px, py;
+                if (sameRow && d >= minD) {  // side by side: apart in x
+                    px = (dx >= 0 ? 1.0f : -1.0f) * (rowDx - std::fabs(dx)) * 0.5f + (dx >= 0 ? 0.3f : -0.3f);
+                    py = 0;
+                } else {
+                    if (d < 1e-3f) dx = 1, dy = 0;
+                    const float l = maxv(1e-3f, std::sqrt(dx * dx + dy * dy));
+                    px = dx / l * (minD - d) * 0.5f + dx / l * 0.3f;
+                    py = dy / l * (minD - d) * 0.5f + dy / l * 0.3f;
+                }
+                const float wi = fi ? 0.0f : (fj ? 2.0f : 1.0f), wj = fj ? 0.0f : (fi ? 2.0f : 1.0f);
+                g.x[i] -= px * wi, g.y[i] -= py * wi;
+                g.x[j] += px * wj, g.y[j] += py * wj;
+                moved = true;
+            }
+        for (int i = 0; i < g.n; ++i) {
+            if (i == 0 || i == g.keep) continue;
+            g.x[i] = clampv(g.x[i], 12.0f, 88.0f);
+            g.y[i] = clampv(g.y[i], 46.0f, g.pageH - 16.0f);
+        }
+        if (!moved) break;
+    }
+    for (int a = 0; a < g.rn; ++a)
+        for (int b = a + 1; b < g.rn; ++b) {
+            if (g.ra[a] == g.ra[b] || g.ra[a] == g.rb[b] || g.rb[a] == g.ra[b] || g.rb[a] == g.rb[b]) continue;
+            if (segCross(g.x[g.ra[a]], g.y[g.ra[a]], g.x[g.rb[a]], g.y[g.rb[a]], g.x[g.ra[b]], g.y[g.ra[b]], g.x[g.rb[b]], g.y[g.rb[b]]))
+                return false;
+        }
+    for (int rr = 0; rr < g.rn; ++rr)
+        for (int s = 0; s < g.n; ++s) {
+            if (s == g.ra[rr] || s == g.rb[rr]) continue;
+            if (segDist(g.x[s], g.y[s], g.x[g.ra[rr]], g.y[g.ra[rr]], g.x[g.rb[rr]], g.y[g.rb[rr]]) < 7.0f) return false;
+        }
+    return true;
 }
 
 }  // namespace
@@ -585,6 +635,7 @@ bool generate(int n, const Slot& slot, int recipe, u64 seed, sim::LevelDef& out)
         default: return false;
     }
     if (g.n < 4 || g.n > sim::kMaxSites) return false;
+    if (!relax(g)) return false;
     // Every site reachable from Home.
     {
         bool seen[sim::kMaxSites] = {};

@@ -584,7 +584,7 @@ void Scene::drawTags(UiBatch& b) {
         if (t.perTurn > 0 && (t.hi == 0 || v < t.hi)) std::snprintf(badge, sizeof badge, "+%d", t.perTurn);
         if (t.perTurn < 0 && v > t.lo) std::snprintf(badge, sizeof badge, "%d", t.perTurn);
         float x = sx(float(t.x)), y = sy(float(t.y) - lift);
-        if (t.kind == sim::kKeep && y < fit_.screenTop - L_.px(8)) {  // no room above: beside the castle
+        if (t.kind == sim::kKeep && y - L_.px(44) * scale < fit_.screenTop) {  // no room above: beside the castle
             x = sx(float(t.x) + 21.0f);
             y = sy(float(t.y) - 12.0f);
         }

@@ -114,7 +114,7 @@ jobs:
             echo
             echo "**Install:** on the phone, download \`papermarch.apk\` and open it (Android asks once to allow installs from the browser). Android 10 or later, 64-bit ARM, OpenGL ES 3.0."
             echo
-            echo "**Updates:** the game checks this page once a launch; when a newer build is out, HOME shows a gold UPDATE button that opens it."
+            echo "**Updates:** the game checks this page once a launch; when a newer build is out, the title card (and PAUSE) shows a gold UPDATE button that downloads and installs it."
             echo
             echo "**Signing:** $signing Certificate: $dn, SHA-256 \`$digest\`."
             echo

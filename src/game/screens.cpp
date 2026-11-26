@@ -56,7 +56,13 @@ void Game::drawTitle() {
     uiBatch_.text("PAPERMARCH", float(L.w) * 0.5f, cy - L.px(14), L.px(46), rgba(col::kScarlet, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
     uiBatch_.text("TAP A GOLD CAMP TO MARCH", float(L.w) * 0.5f, cy + L.px(30), L.px(15), rgba(ui::kText, u8(255 * a)), {0, 0, 0, 0}, 0,
                   Align::Center);
-    // The updater (docs/RELEASE_PIPELINE.md): a GitHub build asks once a launch.
+    drawUpdatePill(cy + L.px(70));
+}
+
+// The updater (docs/RELEASE_PIPELINE.md): a GitHub build asks once a launch; while the latest release is newer, a gold
+// pill downloads it in the game, checks it and opens Android's installer (the download's progress on the pill).
+void Game::drawUpdatePill(float cy) {
+    const Layout& L = layout_;
     if (!updateAsked_ && PM_BUILD_NUMBER > 0) {
         updateAsked_ = true;
         platform::checkForUpdate();
@@ -68,7 +74,7 @@ void Game::drawTitle() {
         if (progress >= 0) std::snprintf(buf, sizeof buf, "DOWNLOADING %d%%", int(progress * 100.0f + 0.5f));
         else std::snprintf(buf, sizeof buf, "UPDATE: BUILD %d", latest);
         const float w = UiBatch::textWidth(buf, L.px(19)) + L.px(48);
-        if (ui_.button(buf, {float(L.w) * 0.5f - w * 0.5f, cy + L.px(70), w, L.px(50)}, Ui::kPrimary, 0.8f) && progress < 0) {
+        if (ui_.button(buf, {float(L.w) * 0.5f - w * 0.5f, cy, w, L.px(50)}, Ui::kPrimary, 0.8f) && progress < 0) {
             feedback_.uiTap();
             platform::startUpdate();
         }
@@ -195,6 +201,7 @@ void Game::drawPause() {
         setScreen(Screen::Settings);
         return;
     }
+    drawUpdatePill(card.y + card.h + L.px(18));
 }
 
 void Game::drawWin() {
@@ -277,7 +284,8 @@ void Game::drawSettings(float dt) {
     ui_.panel(card, 24);
     float y = L.top() + L.px(48);
     ui_.text("SETTINGS", float(L.w) * 0.5f, y, 30, col::kScarlet);
-    const float rowH = 54, gap = usable / L.dp > 740 ? 12.0f : 7.0f;
+    const bool roomy = usable / L.dp > 740;
+    const float rowH = roomy ? 54.0f : 50.0f, gap = roomy ? 12.0f : 8.0f;
     y += L.px(54);
     bool changed = false;
     struct Sw {

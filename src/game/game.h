@@ -78,6 +78,7 @@ private:
     void drawLevels();
     void drawEnd();
     void drawTitle();
+    void drawUpdatePill(float y);
     void flowStep();
     bool press(const char* label);  // the flow test: a tap on a control by its label
     // Pictures and benchmarks (pictures.cpp).

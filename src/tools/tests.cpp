@@ -329,7 +329,11 @@ void testTable() {
             if (bad < 5) std::printf("level %d: best %lld, the table says %lld\n", n, (long long)s.best, (long long)d.best);
         }
         const u64 fp = gen::fingerprint(d);
-        for (u64 f : fps) repeats += f == fp;
+        for (int k = 0; k < int(fps.size()); ++k)
+            if (fps[size_t(k)] == fp) {
+                ++repeats;
+                std::printf("levels %d and %d share a layout fingerprint\n", k + 1, n);
+            }
         fps.push_back(fp);
     }
     char what[96];
