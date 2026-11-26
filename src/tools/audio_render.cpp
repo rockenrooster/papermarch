@@ -66,20 +66,24 @@ int renderAudio(const char* name, const char* outPath, int world, int layers, bo
         if (seconds <= 0) seconds = 1.2f;
         mixer.setLayers(0);
     } else if (!std::strcmp(name, "battle")) {
-        // A busy fight over the full march: march steps, a clash, a flip wave, a count of 24 ticks, a shrine, again.
+        // The shooter at its busiest, as src/game/feedback.cpp plays it: a volley 13 times a second, hits, kills, a horde's
+        // horn, a gate, a barrel, the boss falling.
         music = true;
-        mixer.setLayers(5);
-        for (int round = 0; round < 3; ++round) {
-            const float t0 = 0.3f + 2.6f * float(round);
-            for (int k = 0; k < 5; ++k) ev.push_back({t0 + 0.14f * float(k), kSndStep, 0.5f, -0.2f, 1.0f, -1});
-            ev.push_back({t0 + 0.75f, kSndClash, 0.9f, 0.1f, 1.0f, -1});
-            for (int k = 0; k < 6; ++k) ev.push_back({t0 + 1.0f + 0.035f * float(k), kSndFlip, 0.45f, 0.1f, 0.9f + 0.05f * float(k), -1});
-            for (int k = 1; k <= 24; ++k) ev.push_back({t0 + 1.1f + 0.5f * float(k) / 24.0f, 0, 0.55f, 0.1f, 1, k});
-            if (round == 1) {
-                const int run[8] = {0, 2, 4, 5, 7, 9, 11, 12};
-                for (int k = 0; k < 8; ++k) ev.push_back({t0 + 1.9f + 0.05f * float(k), kSndGlock, 0.55f, 0, std::pow(2.0f, float(run[k]) / 12.0f), -1});
-            }
-        }
+        mixer.setLayers(4);
+        for (float t = 0.2f; t < 8.0f; t += 1.0f / 13.0f) ev.push_back({t, kSndShot, 0.5f, 0.0f, 1.0f, -1});
+        for (float t = 0.25f; t < 8.0f; t += 1.0f / 20.0f) ev.push_back({t, kSndThwack, 0.35f, 0.2f, 1.1f, -1});
+        for (float t = 1.0f; t < 7.0f; t += 1.0f / 25.0f) ev.push_back({t, kSndFlip, 0.4f, 0.1f, 1.0f, -1});
+        ev.push_back({0.5f, kSndHorn, 0.7f, 0, 1, -1});
+        ev.push_back({0.7f, kSndDeepDrum, 0.6f, 0, 1, -1});
+        for (int k = 0; k <= 4; ++k) ev.push_back({2.0f, 0, 0.6f, 0.3f, 1, 3 + 2 * k});
+        ev.push_back({2.0f, kSndPop, 0.7f, 0.3f, 1.15f, -1});
+        ev.push_back({2.05f, kSndCoin, 0.45f, 0.3f, 1, -1});
+        ev.push_back({4.0f, kSndBoom, 0.75f, -0.3f, 1.1f, -1});
+        ev.push_back({4.08f, kSndCoin, 0.6f, -0.3f, 1, -1});
+        for (int k = 0; k < 3; ++k) ev.push_back({4.12f + 0.07f * float(k), kSndPop, 0.45f, -0.3f, 1.0f + 0.12f * float(k), -1});
+        ev.push_back({6.0f, kSndBoom, 1.0f, 0, 0.75f, -1});
+        ev.push_back({6.05f, kSndCrash, 0.6f, 0, 1, -1});
+        ev.push_back({6.18f, kSndBoom, 0.7f, 0.3f, 1.0f, -1});
         if (seconds <= 0) seconds = 8.5f;
     } else if (!std::strcmp(name, "ui")) {
         ev.push_back({0.1f, kSndTap, 0.7f, 0, 1, -1});
@@ -108,7 +112,8 @@ int renderAudio(const char* name, const char* outPath, int world, int layers, bo
     } else if (!std::strcmp(name, "effects")) {
         mixer.setLayers(0);
         const int list[] = {kSndWood, kSndFlip, kSndClash, kSndGlock, kSndCoin, kSndReed, kSndKnock, kSndCrackle, kSndHorn,
-                            kSndDeepDrum, kSndFanfare, kSndChoir, kSndLoseHorn, kSndSwish, kSndRatchet, kSndTap, kSndStep};
+                            kSndDeepDrum, kSndFanfare, kSndChoir, kSndLoseHorn, kSndSwish, kSndRatchet, kSndTap, kSndStep,
+                            kSndShot,     kSndBoom,    kSndPop,   kSndThwack};
         float t = 0.1f;
         for (int s : list) {
             ev.push_back({t, s, 0.8f, 0, 1, -1});

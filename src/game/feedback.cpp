@@ -13,7 +13,7 @@ void Feedback::play(int sound, float gain, float pan, float pitch, float delay, 
 
 void Feedback::haptic(int kind, double now) {
     if (!haptics_) return;
-    // Twelve a second at most, of wall-clock time (GAME_DESIGN 13).
+    // Twelve a second at most, of wall-clock time.
     if (now - hapticTimes_[hapticHead_] < 1.0) return;
     hapticTimes_[hapticHead_] = now;
     hapticHead_ = (hapticHead_ + 1) % 12;
@@ -39,75 +39,81 @@ void Feedback::star(int k, double now) {
 
 void Feedback::cue(const CueEvent& c, double now) {
     rng_ = rng_ * 1664525u + 1013904223u;
-    const float jitter = 0.96f + 0.08f * float(rng_ >> 24) / 255.0f;
+    const float jitter = 0.94f + 0.12f * float(rng_ >> 24) / 255.0f;
     switch (c.cue) {
-        case kCueTap:
-            play(kSndTap, 0.6f, c.pan, 0.8f);
-            haptic(kHapticLight, now);
+        case kCueShot:  // a volley: louder with more guns, never a wall of noise
+            play(kSndShot, minv(0.75f, 0.42f + 0.04f * float(c.step)), c.pan + (jitter - 1.0f) * 3.0f, jitter);
             break;
-        case kCueStep: play(kSndStep, 0.5f, c.pan, jitter); break;
-        case kCueClash:
-            play(kSndClash, 0.9f, c.pan, jitter);
-            haptic(kHapticMedium, now);
+        case kCueHit: play(kSndThwack, 0.45f, c.pan, jitter * 1.2f); break;
+        case kCueKill:
+            play(c.step == sim::kBrute ? kSndClash : kSndFlip, c.step == sim::kBrute ? 0.7f : 0.5f, c.pan, jitter);
             break;
-        case kCueFlip:  // the flip wave: a rustle of paper turning, figure by figure
-            if (now - lastFlip_ < 0.05) break;
-            lastFlip_ = now;
-            for (int k = 0; k < 6; ++k) play(kSndFlip, 0.45f, c.pan + 0.1f * float(k % 3 - 1), 0.9f + 0.05f * float(k), 0.035f * float(k));
-            break;
-        case kCueCount:
-            if (mixer_ && sound_) mixer_->ladder(c.step, false, 0.55f, c.pan);
-            break;
-        case kCueCountDown:
-            if (mixer_ && sound_) mixer_->ladder(c.step, true, 0.5f, c.pan);
-            break;
-        case kCueVillage:
-            for (int k = 0; k < 3; ++k) play(kSndGlock, 0.6f, c.pan, std::pow(2.0f, float(k * 4 - (k == 2 ? 1 : 0)) / 12.0f), 0.09f * float(k));
-            haptic(kHapticLight, now);
-            break;
-        case kCueShrine: {
-            const int run[8] = {0, 2, 4, 5, 7, 9, 11, 12};
-            for (int k = 0; k < 8; ++k) play(kSndGlock, 0.55f, c.pan, std::pow(2.0f, float(run[k]) / 12.0f), 0.05f * float(k));
-            play(kSndCrash, 0.25f, c.pan, 1.2f, 0.3f);
-            haptic(kHapticMedium, now);
+        case kCueGrow: {  // a gate shot up: the ladder climbs while the shots keep landing
+            if (now - lastGrow_ > 0.5) growStep_ = 0;
+            lastGrow_ = now;
+            if (mixer_ && sound_) mixer_->ladder(growStep_ % 14, false, 0.32f, c.pan);
+            ++growStep_;
             break;
         }
-        case kCuePost: play(kSndCoin, 0.7f, c.pan); break;
-        case kCueMire: play(kSndReed, 0.8f, c.pan); break;
-        case kCueBurn: play(kSndCrackle, 0.7f, c.pan); break;
-        case kCueOpen:
-            for (int k = 0; k < 3; ++k) play(kSndRatchet, 0.6f, c.pan, 1.0f - 0.1f * float(k), 0.06f * float(k));
+        case kCueGate:
+            if (mixer_ && sound_) {
+                for (int k = 0; k <= minv(c.step, 4); ++k) mixer_->ladder(c.step + k * 2, false, 0.6f, c.pan);
+            }
+            play(kSndPop, 0.7f, c.pan, 1.0f + 0.05f * float(minv(c.step, 8)));
+            play(kSndCoin, 0.45f, c.pan, 1.0f, 0.05f);
+            haptic(kHapticLight, now);
             break;
-        case kCueRival:
-            play(kSndDeepDrum, 0.8f, c.pan);
+        case kCueGateBad:
+            if (mixer_ && sound_) mixer_->ladder(c.step, true, 0.6f, c.pan);
+            play(kSndKnock, 0.7f, c.pan);
+            haptic(kHapticDouble, now);
             break;
-        case kCueRaid:
-            play(kSndHorn, 0.75f, c.pan);
+        case kCueBarrelHit: play(kSndWood, 0.35f, c.pan, jitter * 0.6f); break;
+        case kCueBarrel:
+            play(kSndBoom, 0.75f, c.pan, jitter * 1.15f);
+            play(kSndCoin, 0.6f, c.pan, 1.0f, 0.08f);
+            for (int k = 0; k < 3; ++k) play(kSndPop, 0.45f, c.pan, 1.0f + 0.12f * float(k), 0.12f + 0.07f * float(k));
+            haptic(kHapticMedium, now);
+            break;
+        case kCueCrash:
+            play(kSndBoom, 0.7f, c.pan, 0.9f);
+            play(kSndKnock, 0.6f, c.pan, 1.0f, 0.05f);
+            haptic(kHapticStrong, now);
+            break;
+        case kCueWave:
+            play(kSndHorn, 0.7f, c.pan);
             play(kSndDeepDrum, 0.6f, c.pan, 1.0f, 0.2f);
+            break;
+        case kCueBoss:
+            play(kSndDeepDrum, 0.9f, c.pan, 0.8f);
+            play(kSndHorn, 0.8f, c.pan, 0.75f, 0.15f);
+            play(kSndTimpani, 0.7f, c.pan, 1.0f, 0.4f);
+            haptic(kHapticStrong, now);
+            break;
+        case kCueBossHit: play(kSndThwack, 0.5f, c.pan, 0.6f * jitter); break;
+        case kCueBossDown:
+            play(kSndBoom, 1.0f, 0.0f, 0.75f);
+            play(kSndCrash, 0.6f, 0.0f, 1.0f, 0.05f);
+            play(kSndBoom, 0.7f, 0.3f, 1.0f, 0.18f);
+            haptic(kHapticWin, now);
+            break;
+        case kCueLoss:
+            play(kSndClash, 0.45f, c.pan, jitter);
+            haptic(kHapticLight, now);
             break;
         case kCueWin:
             play(kSndFanfare, 0.95f, 0.0f, 1.0f, 0.0f, true);
             play(kSndChoir, 0.5f, 0.0f, 1.0f, 0.5f);
             haptic(kHapticWin, now);
             break;
-        case kCueKeepFall:
-            play(kSndClash, 1.0f, 0.0f, 0.8f);
-            play(kSndCrash, 0.5f, 0.0f, 1.0f, 0.05f);
-            play(kSndFanfare, 0.95f, 0.0f, 1.0f, 0.25f);
-            play(kSndChoir, 0.45f, 0.0f, 1.0f, 0.7f);
-            haptic(kHapticWin, now);
-            break;
         case kCueLose:
             play(kSndLoseHorn, 0.85f, 0.0f);
             haptic(kHapticLose, now);
             break;
-        case kCueRefuse:
-            play(kSndKnock, 0.8f, c.pan);
-            haptic(kHapticDouble, now);
+        case kCueStart:
+            play(kSndSnare, 0.6f, 0.0f);
+            play(kSndHorn, 0.5f, 0.0f, 1.0f, 0.05f);
             break;
-        case kCueTurn: play(kSndRim, 0.5f, 0.0f, 0.8f); break;
-        case kCueUnfold: play(kSndRatchet, 0.35f, c.pan, jitter); break;
-        case kCueStar: star(c.step, now); break;
         default: break;
     }
 }

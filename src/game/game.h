@@ -1,15 +1,15 @@
 #pragma once
-// The game (TECH_SPEC 8): the level, its state and undo stack, the scene, the screens, feedback. App drives it.
+// The game: the level and its battle, the view, the screens, feedback and the save. App drives it.
 
 #include "audio/mixer.h"
 #include "core/args.h"
 #include "game/feedback.h"
+#include "game/field.h"
 #include "game/input.h"
 #include "game/save.h"
-#include "game/scene.h"
 #include "game/ui.h"
 #include "gfx/paper.h"
-#include "sim/level.h"
+#include "sim/battle.h"
 
 namespace pm {
 
@@ -36,16 +36,16 @@ public:
     void background();
     void foreground();
 
-    void tick();                         // one fixed 1/60 s step: bots, the flow test, scripted pictures
+    void tick();                         // one fixed 1/60 s step: the battle, the bot, the flow test
     void update(float dt, float alpha);  // once a frame
     void frameShown(float intervalSeconds);
     void render(unsigned fbo, int w, int h);
 
     bool quitRequested() const { return quit_; }
     int exitCode() const { return exitCode_; }
-    int stickers() const { return scene_.stickerCount(); }
-    int figures() const { return scene_.figures(); }
-    int confetti() const { return scene_.confetti(); }
+    int stickers() const { return field_.stickerCount(); }
+    int figures() const { return field_.figures(); }
+    int confetti() const { return field_.particles(); }
     float lastTickSeconds() const { return lastTick_; }
     int drawCalls() const { return paper_.lastDrawCalls(); }
     audio::Mixer& mixer() { return mixer_; }
@@ -55,18 +55,15 @@ public:
     int hapticPeakPerSecond() const { return hapticPeak_; }
 
 private:
-    // Levels and moves.
+    // Levels.
     void enterLevel(int n, bool turn);
     void loadLevel(int n);
-    bool makeMove(int move);
-    void undo();
     void restart();
-    void afterMove();
-    void useHint();
+    void finish(bool won);
     void saveNow();
     void applySettings();
     int musicLayers() const;
-    int botMove();
+    void stepBattle(float steer, bool go);
     // Screens (screens.cpp).
     void setScreen(Screen s);
     void drawUi(float dt);
@@ -81,9 +78,9 @@ private:
     void drawUpdatePill(float y);
     void flowStep();
     bool press(const char* label);  // the flow test: a tap on a control by its label
-    // Pictures and benchmarks (pictures.cpp).
+    // Pictures (pictures.cpp).
     bool setupPicture(const char* name);
-    void applyScriptedMoves(const char* list);
+    void logSites();
 
     Args args_;
     GameEnv env_;
@@ -92,26 +89,22 @@ private:
     int exitCode_ = 0;
     float lastTick_ = 0;
 
-    // The level.
+    // The level and its battle.
     int level_ = 1;
     const sim::LevelDef* def_ = nullptr;
-    sim::State st_;
-    static constexpr int kUndo = 96;
-    sim::State undo_[kUndo];
-    int undoCount_ = 0;
-    sim::Solver* solver_ = nullptr;
-    sim::Solve solve_;
-    bool hinted_ = false;
-    bool deadEnd_ = false;
+    sim::Battle battle_;
+    bool go_ = false;       // the player has touched the road: the march is on
+    float steerX_ = 0;      // where the player steers the squad, road units
     int stars_ = 0, starsLanded_ = 0;
     bool newBest_ = false;
+    float endTime_ = -1;    // seconds since the battle ended (-1: not yet)
     float levelTime_ = 0;
-    // A level change waits for the next update (the old page is captured first, then the new one baked).
+    // A level change waits for the next update (the old page is captured first).
     int pendingLevel_ = 0;
     bool pendingTurn_ = false;
     float turnT_ = -1;
 
-    Scene scene_;
+    Field field_;
     Paper paper_;
     PaperFrame frame_;
     UiBatch labels_, uiBatch_;
@@ -123,7 +116,7 @@ private:
     char savePath_[512] = "";
     bool saveEnabled_ = true;
 
-    enum class Mode { Play, Picture, Bench, Hash } mode_ = Mode::Play;
+    enum class Mode { Play, Picture, Bench } mode_ = Mode::Play;
     Screen screen_ = Screen::Play;
     Screen settingsReturn_ = Screen::Play;
     float screenTime_ = 0;
@@ -146,20 +139,18 @@ private:
     double hapticRing_[kHapticRing] = {};
     int hapticsSent_ = 0, hapticPeak_ = 0;
     bool useBot_ = false;
-    u32 botRng_ = 99;
-    float botWait_ = 0;
     int benchLevels_ = 0;
     int sitesLogged_ = -1;
-    void logSites();
 
-    // Input: a touch on the page takes a site; a touch that begins on a control belongs to the UI.
+    // Input: a touch on the road steers (a drag moves the squad); one that begins on a control belongs to the UI.
     i64 uiFinger_ = 0;
     bool uiFingerDown_ = false;
-    i64 pageFinger_ = 0;
-    bool pageFingerDown_ = false;
-    float downX_ = 0, downY_ = 0;
+    i64 steerFinger_ = 0;
+    bool steerDown_ = false;
+    float downX_ = 0, steerAnchor_ = 0;
+    bool keyLeft_ = false, keyRight_ = false;
 
-    // The flow test (TECH_SPEC 9.4).
+    // The flow test.
     int flowStep_ = 0, flowWait_ = 0, flowFailures_ = 0, flowChecks_ = 0;
     void check(bool ok, const char* what);
 };

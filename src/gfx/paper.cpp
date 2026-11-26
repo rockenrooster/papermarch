@@ -104,8 +104,13 @@ bool Paper::init(int w, int h) {
     pShadow_ = buildProgram("fullscreen.vert", "shadow.frag", texSampler, 1);
     pCurl_ = buildProgram("curl.vert", "curl.frag", texSampler, 1);
     pText_ = buildProgram("text.vert", "text.frag", atlasSampler, 1);
-    for (GLuint p : {pSticker_, pPage_, pTable_, pShadow_, pCurl_, pText_})
+    pGround_ = buildProgram("fullscreen.vert", "ground.frag");
+    for (GLuint p : {pSticker_, pPage_, pTable_, pShadow_, pCurl_, pText_, pGround_})
         if (!p) return false;
+    {
+        const char* names[9] = {"uCam0", "uCam1", "uStoneA", "uStoneB", "uMortar", "uCurb", "uGrassA", "uGrassB", "uHaze"};
+        for (int i = 0; i < 9; ++i) uGround_[i] = glGetUniformLocation(pGround_, names[i]);
+    }
     uStickerMode_ = glGetUniformLocation(pSticker_, "uMode");
     uStickerShift_ = glGetUniformLocation(pSticker_, "uShift");
     uPageRect_ = glGetUniformLocation(pPage_, "uRect");
@@ -126,6 +131,7 @@ bool Paper::init(int w, int h) {
     stickerVao(vaoOver_, vboOver_, kMaxStickers);
     stickerVao(vaoOne_, vboOne_, 4);
     stickerVao(vaoBake_, vboBake_, kMaxStickers);
+    stickerVao(vaoCast_, vboCast_, kMaxStickers);
 
     // Text and UI: per-vertex attributes, a shared quad index buffer.
     u16* quadIdx = new u16[UiBatch::kMaxQuads * 6];
@@ -186,15 +192,15 @@ bool Paper::init(int w, int h) {
 }
 
 void Paper::destroy() {
-    for (GLuint* p : {&pSticker_, &pPage_, &pTable_, &pShadow_, &pCurl_, &pText_}) {
+    for (GLuint* p : {&pSticker_, &pPage_, &pTable_, &pShadow_, &pCurl_, &pText_, &pGround_}) {
         if (*p) glDeleteProgram(*p);
         *p = 0;
     }
-    for (GLuint* b : {&ubo_, &vboMain_, &vboOver_, &vboOne_, &vboBake_, &vboText_, &iboQuads_, &vboCurl_}) {
+    for (GLuint* b : {&ubo_, &vboMain_, &vboOver_, &vboOne_, &vboBake_, &vboCast_, &vboText_, &iboQuads_, &vboCurl_}) {
         if (*b) glDeleteBuffers(1, b);
         *b = 0;
     }
-    for (GLuint* v : {&vaoMain_, &vaoOver_, &vaoOne_, &vaoBake_, &vaoText_, &vaoEmpty_, &vaoCurl_}) {
+    for (GLuint* v : {&vaoMain_, &vaoOver_, &vaoOne_, &vaoBake_, &vaoCast_, &vaoText_, &vaoEmpty_, &vaoCurl_}) {
         if (*v) glDeleteVertexArrays(1, v);
         *v = 0;
     }
@@ -216,12 +222,13 @@ void Paper::resize(int w, int h) {
     snap_.create(w, h, false, true);
 }
 
-void Paper::setScreen(int w, int h) {
+void Paper::setScreen(int w, int h, float time) {
     FrameBlock fb{};
     fb.screen[0] = float(w);
     fb.screen[1] = float(h);
     fb.screen[2] = 1.0f / float(w);
     fb.screen[3] = 1.0f / float(h);
+    fb.time[0] = time;
     glBindBuffer(GL_UNIFORM_BUFFER, ubo_);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof fb, &fb);
     glBindBufferBase(GL_UNIFORM_BUFFER, kFrameBinding, ubo_);
@@ -304,14 +311,33 @@ bool Paper::bakePage(int pw, int ph, const BakeLayer* layers, int layerCount) {
     return true;
 }
 
+void Paper::drawGround(const GroundParams& g) {
+    glDisable(GL_BLEND);
+    glUseProgram(pGround_);
+    float c[3];
+    glUniform4f(uGround_[0], g.cam0[0], g.cam0[1], g.cam0[2], g.cam0[3]);
+    glUniform4f(uGround_[1], g.cam1[0], g.cam1[1], g.cam1[2], g.cam1[3]);
+    const u32 cols[7] = {g.stoneA, g.stoneB, g.mortar, g.curb, g.grassA, g.grassB, g.haze};
+    const float ws[7] = {g.roadHalf, 0, 0, 0, 0, g.speckle, g.hazeStart};
+    for (int i = 0; i < 7; ++i) {
+        rgb3(cols[i], c);
+        glUniform4f(uGround_[2 + i], c[0], c[1], c[2], ws[i]);
+    }
+    glBindVertexArray(vaoEmpty_);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    ++drawCalls_;
+}
+
 void Paper::drawScene(const PaperFrame& f, GLuint fbo, int w, int h, bool table) {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
     glViewport(0, 0, w, h);
-    setScreen(w, h);
+    setScreen(w, h, f.time);
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glBlendEquation(GL_FUNC_ADD);
-    if (table) {
+    if (f.ground.on) {
+        drawGround(f.ground);
+    } else if (table) {
         glDisable(GL_BLEND);
         glUseProgram(pTable_);
         float a[3], b[3], c[3];
@@ -358,7 +384,8 @@ void Paper::drawScene(const PaperFrame& f, GLuint fbo, int w, int h, bool table)
         glClear(GL_COLOR_BUFFER_BIT);
         glBlendEquation(GL_MAX);
         glBlendFunc(GL_ONE, GL_ONE);
-        drawStickers(vaoMain_, vboMain_, f.stickers, f.stickerCount, false, 1.0f, 1.5f, 1.0f, 1.0f);
+        if (f.shadows) drawStickers(vaoCast_, vboCast_, f.shadows, f.shadowCount, true, 1.0f, 1.5f, 1.0f, 1.0f);
+        else drawStickers(vaoMain_, vboMain_, f.stickers, f.stickerCount, false, 1.0f, 1.5f, 1.0f, 1.0f);
         glBlendEquation(GL_FUNC_ADD);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glViewport(0, 0, w, h);

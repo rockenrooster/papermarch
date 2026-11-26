@@ -1,58 +1,24 @@
 #pragma once
-// The generator and the bake (GAME_DESIGN 8.3, 8.4; TECH_SPEC 4): recipes, numbers and traps, the plays that grade a
-// level, acceptance. Linked into the headless tool and the tests only, never the app.
+// The generator and the bake (TECH_SPEC 4): a level is a road of sections (columns of +1 gates, gate pairs, barrels,
+// red barricades, hordes) and a boss; the bake plays each candidate with the bot and scales the hordes and the boss until
+// the bot wins by the margin the level's place in the game asks for. Linked into the headless tool and the tests only.
 
-#include "sim/level.h"
+#include "sim/battle.h"
 
 namespace pm::gen {
 
-// Plays that grade a level (GAME_DESIGN 8.4): uniformly random takeable moves, and greedy (the weakest camp first).
-struct PlayStats {
-    int plays = 0, wins = 0, threeStars = 0;
-};
-PlayStats randomPlays(const sim::LevelDef& d, int plays, u64 seed);
-bool greedyWins(const sim::LevelDef& d, i64* final = nullptr);
-int greedyMove(const sim::LevelDef& d, const sim::State& st);
+// Level n from a seed; `m` scales the hordes and the boss (the bake's dial).
+void generate(int n, u64 seed, float m, sim::LevelDef& out);
 
-// At least one real decision on the best line: a turn with two or more takeable moves where only some keep the best.
-bool hasDecision(const sim::LevelDef& d, sim::Solver& solver);
-
-// A layout fingerprint for the no-repeat rule (GAME_DESIGN 8.4 line 5).
-u64 fingerprint(const sim::LevelDef& d);
-
-// The calendar and the recipes (GAME_DESIGN 8.2, 8.3): every level is a wave battle in two or three lanes.
-enum Recipe : u8 { kTwoLanes, kThreeLanes, kChokepoints, kRecipeCount };
-const char* recipeName(int r);
-enum Focus : u8 { kFocusNone, kFocusThreeLanes, kFocusSwamp, kFocusChoke, kFocusTriple, kFocusDouble, kFocusKey, kFocusDepot };
-struct Slot {
-    u8 kind = sim::kWaves;
-    u8 boss = 0;
-    u8 world = 1;
-    u8 focus = 0;  // an introduction (GAME_DESIGN 5.2)
-    u8 hint = 0;   // its hint line
-};
-Slot calendar(int level);  // the kind of level n and its world
-
-// What a level may hold (GAME_DESIGN 5.2).
-struct Allowed {
-    bool village = false, shrine = false, post = false, fork = false, three = false, mire = false, choke = false,
-         triple = false, twin = false, key = false, depot = false;
-};
-Allowed allowedAt(int level);
-
-// One candidate level from a recipe and a seed: layout, numbers, traps. False if the recipe could not place it.
-bool generate(int level, const Slot& slot, int recipe, u64 seed, sim::LevelDef& out);
-
-// Acceptance (GAME_DESIGN 8.4) on a candidate whose best the solver has filled in. `why` gets the first failed line.
-struct Grade {
+struct Baked {
+    sim::LevelDef d;
     bool ok = false;
-    i64 best = 0;
-    int expansions = 0;
-    int randomWinPct = 0, randomThreePct = 0;
-    bool greedyWin = false;
-    bool decision = false;
-    char why[64] = "";
+    i32 botEnd = 0, botPeak = 0;
+    float m = 1;
+    int plays = 0;
+    char why[80] = "";
 };
-Grade grade(int level, sim::LevelDef& d, sim::Solver& solver, bool hand);
+// Tries seeds and dials until the bot wins inside the level's band; sets the stars from the bot's result.
+Baked bakeLevel(int n, int maxSeeds);
 
 }  // namespace pm::gen

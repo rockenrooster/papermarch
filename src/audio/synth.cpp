@@ -458,6 +458,55 @@ void Bank::build(int rate) {
         }
         make(kSndShaker, static_cast<std::vector<float>&&>(b), 0.35f);
     }
+    // ---- The battle ----
+    {  // a shot: a bright crack (band noise falling 3 to 1 kHz) on a short low thump
+        auto b = buffer(0.12f, rate);
+        Band bp;
+        float ph = 0;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            bp.set(1000.0f + 2000.0f * std::exp(-t / 0.015f), R, 1.2f);
+            ph += float(kTwoPi) * (90.0f + 140.0f * std::exp(-t / 0.01f)) / R;
+            b[i] = bp.run(n.next()) * 1.6f * std::exp(-t / 0.018f) * std::fmin(1.0f, t / 0.0008f) + std::sin(ph) * 0.7f * std::exp(-t / 0.03f);
+        }
+        make(kSndShot, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // an explosion: a falling sine thump, low rumble, crackle in the tail
+        auto b = buffer(1.1f, rate);
+        float ph = 0;
+        OnePole lp(420.0f, R), lp2(2400.0f, R);
+        Noise r;
+        r.s = 4242;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            ph += float(kTwoPi) * (42.0f + 90.0f * std::exp(-t / 0.06f)) / R;
+            const float thump = std::sin(ph) * std::exp(-t / 0.25f) * std::fmin(1.0f, t / 0.002f);
+            const float rumble = lp.run(n.next()) * 2.2f * std::exp(-t / 0.35f);
+            const float crack = (r.next() > 0.993f ? r.next() : 0.0f) * std::exp(-t / 0.4f) * (t > 0.05f ? 1.0f : 0.0f);
+            const float hiss = lp2.run(n.next()) * 0.35f * std::exp(-t / 0.08f);
+            b[i] = thump + rumble + crack * 0.8f + hiss;
+        }
+        make(kSndBoom, static_cast<std::vector<float>&&>(b), 0.9f);
+    }
+    {  // a pop: a sine sweeping up an octave, short
+        auto b = buffer(0.09f, rate);
+        float ph = 0;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            ph += float(kTwoPi) * (520.0f * std::pow(2.0f, t / 0.07f)) / R;
+            b[i] = std::sin(ph) * std::sin(3.14159f * std::fmin(1.0f, t / 0.085f));
+        }
+        make(kSndPop, static_cast<std::vector<float>&&>(b), 0.5f);
+    }
+    {  // a thwack: low-passed noise, very short, a little body
+        auto b = buffer(0.05f, rate);
+        OnePole lp(1500.0f, R);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            b[i] = lp.run(n.next()) * std::exp(-t / 0.01f) + 0.3f * std::sin(float(kTwoPi) * 240.0f * t) * std::exp(-t / 0.015f);
+        }
+        make(kSndThwack, static_cast<std::vector<float>&&>(b), 0.45f);
+    }
 }
 
 const MarchStyle& marchStyle(int world) {

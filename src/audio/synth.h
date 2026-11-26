@@ -41,6 +41,11 @@ enum SoundId {
     kSndDrone,      // an open fifth, A3 + E4
     kSndTimpani,    // the boss's pedal, A2
     kSndShaker,
+    // The battle (2026-11-26).
+    kSndShot,       // a toy musket's pop
+    kSndBoom,       // an explosion: a thump, a rumble, crackle
+    kSndPop,        // a recruit joining: a bubble rising
+    kSndThwack,     // a bullet landing on paper
     kSndCount
 };
 

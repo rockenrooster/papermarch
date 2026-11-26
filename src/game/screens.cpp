@@ -1,5 +1,5 @@
-// The screens (GAME_DESIGN 11) and the flow test (TECH_SPEC 9.4). Simple on purpose (the owner, 2026-11-26): a level,
-// its result, the next level; PAUSE, SETTINGS and LEVELS are one tap away and never in the way.
+// The screens and the flow test. Simple on purpose (the owner, 2026-11-26): a level, its result, the next level; PAUSE,
+// SETTINGS and LEVELS are one tap away and never in the way.
 #include <cctype>
 #include <cmath>
 #include <cstdio>
@@ -10,15 +10,15 @@
 #include "core/tuning.h"
 #include "game/game.h"
 #include "platform/platform.h"
-#include "sim/levels_hand.h"
 
 namespace pm {
 
 namespace {
-inline u32 bit(int i) { return 1u << u32(i); }
 
-void pauseGlyph(UiBatch& b, const Rect& r, const Layout& L, bool pressed) {
-    const Rgba c = rgba(pressed ? col::kIvory : ui::kText);
+constexpr u32 kSquadBlue = 0x2E7BF0, kHordeRed = 0xE0303A;
+
+void pauseGlyph(UiBatch& b, const Rect& r, const Layout& L) {
+    const Rgba c = rgba(ui::kText);
     b.rect(r.cx() - L.px(6), r.cy(), L.px(6), L.px(20), L.px(3), c);
     b.rect(r.cx() + L.px(6), r.cy(), L.px(6), L.px(20), L.px(3), c);
 }
@@ -27,6 +27,13 @@ Rect pauseRect(const Layout& L) {
     const float s = L.px(56);
     return {float(L.w) - L.safe.right - L.px(12) - s, L.top() + L.px(10), s, s};
 }
+
+const char* bossTitle(int world) {
+    static const char* const names[kWorldCount] = {"OGRE CHIEF", "SAND OGRE", "FROST OGRE", "EMBER OGRE", "SALT OGRE",
+                                                   "THORN OGRE", "BOG OGRE",   "CLOUD OGRE", "ASH OGRE",   "LANTERN OGRE"};
+    return names[(maxv(world, 1) - 1) % kWorldCount];
+}
+
 }  // namespace
 
 void Game::drawUi(float dt) {
@@ -49,14 +56,15 @@ void Game::drawUi(float dt) {
 void Game::drawTitle() {
     const Layout& L = layout_;
     const float a = titleFade_;
-    const float cy = L.top() + L.px(150);
-    uiBatch_.rect(float(L.w) * 0.5f + L.px(3), cy + L.px(7), L.px(330), L.px(112), L.px(24), rgba(col::kShadow, u8(80 * a)), {0, 0, 0, 0}, 0,
+    const float cy = L.top() + L.px(190);
+    uiBatch_.rect(float(L.w) * 0.5f + L.px(3), cy + L.px(7), L.px(340), L.px(120), L.px(24), rgba(col::kShadow, u8(80 * a)), {0, 0, 0, 0}, 0,
                   L.px(8));
-    uiBatch_.rect(float(L.w) * 0.5f, cy, L.px(330), L.px(112), L.px(24), rgba(ui::kCard, u8(250 * a)), rgba(col::kScarlet, u8(255 * a)), L.px(3));
-    uiBatch_.text("PAPERMARCH", float(L.w) * 0.5f, cy - L.px(14), L.px(46), rgba(col::kScarlet, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
-    uiBatch_.text("TAP A CARD, BEAT THE WAVES", float(L.w) * 0.5f, cy + L.px(30), L.px(15), rgba(ui::kText, u8(255 * a)), {0, 0, 0, 0}, 0,
+    uiBatch_.rect(float(L.w) * 0.5f, cy, L.px(340), L.px(120), L.px(24), rgba(ui::kCard, u8(250 * a)), rgba(kSquadBlue, u8(255 * a)), L.px(3));
+    uiBatch_.text("PAPERMARCH", float(L.w) * 0.5f, cy - L.px(18), L.px(46), rgba(kSquadBlue, u8(255 * a)), rgba(0x123070, u8(255 * a)), L.px(1.5f),
                   Align::Center);
-    drawUpdatePill(cy + L.px(70));
+    uiBatch_.text("GROW YOUR SQUAD. CRUSH THE HORDE.", float(L.w) * 0.5f, cy + L.px(28), L.px(15), rgba(ui::kText, u8(255 * a)), {0, 0, 0, 0}, 0,
+                  Align::Center);
+    drawUpdatePill(cy + L.px(76));
 }
 
 // The updater (docs/RELEASE_PIPELINE.md): a GitHub build asks once a launch; while the latest release is newer, a gold
@@ -86,7 +94,7 @@ void Game::drawHud() {
     if (!def_) return;
     const bool playing = screen_ == Screen::Play;
     char buf[64];
-    // Top: the level chip (it opens LEVELS) with the level's saved stars, the objective, pause.
+    // Top: the level chip (it opens LEVELS) with its saved stars, pause on the right.
     std::snprintf(buf, sizeof buf, "LEVEL %d", level_);
     const float top = L.top() + L.px(10);
     const float chipW = UiBatch::textWidth(buf, L.px(19)) + L.px(30);
@@ -99,113 +107,56 @@ void Game::drawHud() {
     }
     const int got = level_ - 1 < int(sizeof save_.stars) ? save_.stars[level_ - 1] : 0;
     for (int k = 0; k < 3; ++k)
-        uiBatch_.star5(chipX + chipW + L.px(20) + float(k) * L.px(24), top + L.px(28), L.px(10.5f),
-                       rgba(k < got ? col::kGold : 0x8A6244), rgba(col::kShadow, 90), L.px(1));
+        uiBatch_.star5(chipX + chipW + L.px(20) + float(k) * L.px(24), top + L.px(28), L.px(10.5f), rgba(k < got ? col::kGold : 0x5A4A40, 230),
+                       rgba(col::kShadow, 120), L.px(1));
     const Rect pr = pauseRect(L);
-    const char* obj = def_->boss ? nullptr : sim::objective(*def_);
-    char bossLine[48];
-    if (def_->boss) {
-        std::snprintf(bossLine, sizeof bossLine, "BOSS: %s", bossName(def_->world));
-        obj = bossLine;
-    }
-    {
-        const float size = L.px(14);
-        const float w = UiBatch::textWidth(obj, size) + L.px(26);
-        const float left = chipX + chipW + L.px(94);
-        const float x = maxv(left + w * 0.5f, minv(pr.x - L.px(10) - w * 0.5f, float(L.w) * 0.5f + L.px(70)));
-        if (x - w * 0.5f >= left - L.px(2)) {
-            uiBatch_.rect(x, top + L.px(28), w, L.px(34), L.px(17), rgba(col::kInk, 235));
-            uiBatch_.text(obj, x, top + L.px(28), size, rgba(col::kGold), {0, 0, 0, 0}, 0, Align::Center);
-        }
-    }
     if (ui_.button("#PAUSE", pr, Ui::kRound) && playing) {
         feedback_.uiTap();
         setScreen(Screen::Pause);
         return;
     }
-    pauseGlyph(uiBatch_, pr, L, false);
-    // Under the top row: the waves (GAME_DESIGN 11): beaten ones pale, the next one scarlet, the rest ink; the castle last.
-    float lineY = top + L.px(80);
-    if (def_->raidCount > 0) {
-        const sim::State& sh = scene_.shown();
-        const float size = L.px(13), h = L.px(28), gap = L.px(5);
-        char chips[sim::kMaxRaids + 1][24];
-        float widths[sim::kMaxRaids + 1], total = 0;
-        const int n = def_->raidCount;
-        for (int r = 0; r <= n; ++r) {
-            if (r < n) formatHost(def_->raids[r].strength, chips[r], sizeof chips[r]);
-            else if (def_->keep() >= 0) {
-                char v[16];
-                formatHost(sim::number(*def_, sh, def_->keep()), v, sizeof v);
-                std::snprintf(chips[r], sizeof chips[r], "CASTLE %s", v);
-            } else {
-                chips[r][0] = 0;
-            }
-            widths[r] = chips[r][0] ? UiBatch::textWidth(chips[r], size) + L.px(18) : 0;
-            total += widths[r] + (chips[r][0] ? gap : 0);
-        }
-        const float label = UiBatch::textWidth("WAVES", size) + L.px(8);
-        total += label;
-        const float avail = float(L.w) - L.safe.left - L.safe.right - L.px(24);
-        const float k = total > avail ? avail / total : 1.0f;
-        float x = float(L.w) * 0.5f - total * k * 0.5f;
-        uiBatch_.text("WAVES", x, lineY, size * k, rgba(col::kIvory), {0, 0, 0, 0}, 0, Align::Left);
-        x += label * k;
-        for (int r = 0; r <= n; ++r) {
-            if (!chips[r][0]) continue;
-            const float w = widths[r] * k;
-            const bool done = r < sh.raidNext, next = r == sh.raidNext;
-            const u32 bg = r == n ? col::kInk : done ? 0xD8CCB4 : next ? col::kScarlet : col::kInk;
-            const u32 fg = r == n ? col::kGold : done ? 0x9A8A74 : next ? col::kWhite : col::kGold;
-            const float pulse = next ? 1.0f + 0.06f * std::sin(screenTime_ * 6.0f) : 1.0f;
-            uiBatch_.rect(x + w * 0.5f, lineY, w * pulse, h * k * pulse, h * k * 0.5f, rgba(bg, 240), rgba(col::kShadow, 60), L.px(1));
-            uiBatch_.text(chips[r], x + w * 0.5f, lineY, size * k, rgba(fg), {0, 0, 0, 0}, 0, Align::Center);
-            if (done) uiBatch_.rect(x + w * 0.5f, lineY, w - L.px(10), L.px(2), L.px(1), rgba(0x9A8A74));
-            x += w + gap * k;
-        }
-        lineY += L.px(40);
+    pauseGlyph(uiBatch_, pr, L);
+    // Under it: the road to the end (the squad's progress), or once the boss is out, its strength.
+    const float barY = top + L.px(84);
+    const float barW = minv(float(L.w) - L.safe.left - L.safe.right - L.px(60), L.px(420));
+    const float x0 = float(L.w) * 0.5f - barW * 0.5f;
+    const int bi = battle_.bossIndex();
+    if (bi >= 0 && battle_.enemies[bi].z - battle_.z < 60.0f) {
+        const float frac = clampv(float(battle_.enemies[bi].hp) / float(maxv<i32>(def_->bossHp, 1)), 0.0f, 1.0f);
+        const float h = L.px(20);
+        uiBatch_.rect(float(L.w) * 0.5f, barY, barW + L.px(6), h + L.px(6), h * 0.5f + L.px(3), rgba(0x2A0A10, 220));
+        if (frac > 0) uiBatch_.rect(x0 + barW * frac * 0.5f, barY, barW * frac, h, h * 0.5f, rgba(kHordeRed), rgba(0xFF8A8A), L.px(1.5f));
+        uiBatch_.text(bossTitle(def_->world), float(L.w) * 0.5f, barY, L.px(14), rgba(col::kWhite), rgba(0x2A0A10, 200), L.px(1.2f), Align::Center);
+    } else {
+        const float p = battle_.progress();
+        const float h = L.px(12);
+        uiBatch_.rect(float(L.w) * 0.5f, barY, barW + L.px(4), h + L.px(4), h * 0.5f + L.px(2), rgba(0x1A1410, 150));
+        if (p > 0.005f) uiBatch_.rect(x0 + barW * p * 0.5f, barY, barW * p, h, h * 0.5f, rgba(kSquadBlue));
+        uiBatch_.rect(x0 + barW * p, barY, L.px(18), L.px(18), L.px(9), rgba(col::kWhite), rgba(kSquadBlue), L.px(3));
+        if (def_->bossHp > 0) uiBatch_.rect(x0 + barW, barY, L.px(22), L.px(22), L.px(11), rgba(kHordeRed), rgba(col::kWhite), L.px(2.5f));
+        else uiBatch_.star5(x0 + barW, barY, L.px(12), rgba(col::kGold), rgba(col::kShadow, 140), L.px(1.5f));
     }
-    if (deadEnd_ && !scene_.busy() && !st_.over()) {
-        const char* s = "NO WAY THROUGH FROM HERE";
-        const float w = UiBatch::textWidth(s, L.px(16)) + L.px(30);
-        uiBatch_.rect(float(L.w) * 0.5f, lineY, w, L.px(36), L.px(18), rgba(col::kScarlet, 240));
-        uiBatch_.text(s, float(L.w) * 0.5f, lineY, L.px(16), rgba(col::kWhite), {0, 0, 0, 0}, 0, Align::Center);
-    } else if (hintLineTime_ > 0 && hintShownFor_ > 0) {
+    // A level's hint line, once, under the bar.
+    if (hintLineTime_ > 0 && hintShownFor_ > 0) {
         const float a = minv(1.0f, hintLineTime_ / 0.4f);
         const char* s = sim::hintText(hintShownFor_);
-        const float w = UiBatch::textWidth(s, L.px(16)) + L.px(30);
-        uiBatch_.rect(float(L.w) * 0.5f, lineY, w, L.px(36), L.px(18), rgba(col::kInk, u8(235 * a)), rgba(col::kGold, u8(200 * a)), L.px(1.5f));
-        uiBatch_.text(s, float(L.w) * 0.5f, lineY, L.px(16), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
+        const float y = barY + L.px(40);
+        const float w = UiBatch::textWidth(s, L.px(17)) + L.px(32);
+        uiBatch_.rect(float(L.w) * 0.5f, y, w, L.px(38), L.px(19), rgba(0x123070, u8(235 * a)), rgba(col::kWhite, u8(220 * a)), L.px(1.5f));
+        uiBatch_.text(s, float(L.w) * 0.5f, y, L.px(17), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
     }
-    // Bottom: UNDO, the host plate, HINT.
-    const float rowH = L.px(64), y = L.bottom() - L.px(14) - rowH;
-    const float sideW = L.px(104);
-    const Rect undoR{L.safe.left + L.px(12), y, sideW, rowH};
-    const Rect hintR{float(L.w) - L.safe.right - L.px(12) - sideW, y, sideW, rowH};
-    if (deadEnd_ && !scene_.busy()) {  // UNDO pulses gold
-        const float p = 0.5f + 0.5f * std::sin(screenTime_ * 6.0f);
-        uiBatch_.rect(undoR.cx(), undoR.cy(), undoR.w + L.px(10), undoR.h + L.px(10), L.px(22), {0, 0, 0, 0}, rgba(col::kGold, u8(255 * p)),
+    // Before the march: DRAG TO MARCH, a hand swinging under the squad.
+    if (playing && !battle_.started && turnT_ < 0.0f && titleFade_ < 0.5f) {
+        const float y = minv(L.bottom() - L.px(70), field_.squadScreenY() + L.px(96));
+        const float pulse = 1.0f + 0.05f * std::sin(screenTime_ * 5.0f);
+        uiBatch_.text("DRAG TO MARCH", float(L.w) * 0.5f, y, L.px(30) * pulse, rgba(col::kWhite), rgba(0x123070), L.px(3), Align::Center, true,
                       L.px(4));
+        const float hx = float(L.w) * 0.5f + std::sin(screenTime_ * 2.6f) * L.px(90);
+        const float hy = y + L.px(46);
+        uiBatch_.rect(hx, hy + L.px(10), L.px(34), L.px(40), L.px(14), rgba(col::kWhite), rgba(0x123070), L.px(2.5f));
+        uiBatch_.rect(hx - L.px(4), hy - L.px(14), L.px(12), L.px(28), L.px(6), rgba(col::kWhite), rgba(0x123070), L.px(2.5f));
+        uiBatch_.rect(float(L.w) * 0.5f, hy + L.px(42), L.px(200), L.px(4), L.px(2), rgba(col::kWhite, 150));
     }
-    if (ui_.button("UNDO", undoR) && (playing || screen_ == Screen::Lose)) {
-        feedback_.uiTap();
-        undo();
-    }
-    if (ui_.button("HINT", hintR, Ui::kPrimary, 0.82f) && playing) {
-        feedback_.uiTap();
-        useHint();
-    }
-    const float plateW = minv(L.px(184), hintR.x - (undoR.x + undoR.w) - L.px(24));
-    const Rect plate{float(L.w) * 0.5f - plateW * 0.5f, y - L.px(10), plateW, rowH + L.px(20)};
-    uiBatch_.rect(plate.cx() + L.px(2), plate.cy() + L.px(5), plate.w, plate.h, L.px(22), rgba(col::kShadow, 80), {0, 0, 0, 0}, 0, L.px(5));
-    uiBatch_.rect(plate.cx(), plate.cy(), plate.w, plate.h, L.px(22), rgba(col::kIvory), rgba(col::kScarlet), L.px(3.5f));
-    uiBatch_.text("YOUR ARMY", plate.cx(), plate.y + L.px(18), L.px(13), rgba(ui::kText), {0, 0, 0, 0}, 0, Align::Center);
-    char host[32];
-    formatHost(i64(scene_.shownHost() + 0.5f), host, sizeof host);
-    float hs = L.px(40);
-    while (UiBatch::textWidth(host, hs) > plate.w - L.px(16) && hs > L.px(18)) hs *= 0.92f;
-    uiBatch_.text(host, plate.cx(), plate.y + plate.h * 0.62f, hs, rgba(col::kScarlet), {0, 0, 0, 0}, 0, Align::Center);
-    ui_.note(plate, "#HOST");
 }
 
 void Game::drawPause() {
@@ -213,7 +164,7 @@ void Game::drawPause() {
     uiBatch_.rect(float(L.w) * 0.5f, float(L.h) * 0.5f, float(L.w), float(L.h), 0, rgba(col::kShadow, 110));
     const Rect card = centered(L, float(L.h) * 0.48f, 300, 400);
     ui_.panel(card, 26);
-    ui_.text("PAUSED", float(L.w) * 0.5f, card.y + L.px(46), 34, col::kScarlet);
+    ui_.text("PAUSED", float(L.w) * 0.5f, card.y + L.px(46), 34, kSquadBlue);
     float y = card.y + L.px(118);
     if (ui_.button("RESUME", centered(L, y, 240, 64), Ui::kPrimary)) {
         feedback_.uiTap();
@@ -245,19 +196,17 @@ void Game::drawPause() {
 
 void Game::drawWin() {
     const Layout& L = layout_;
-    const float appear = tune.winPanelDelay * 0.35f;
-    if (resultTime_ < appear) return;
-    const float t = resultTime_ - appear;
+    const float t = resultTime_;
     const float in = minv(1.0f, t / 0.25f);
     ui_.opacity = in;
-    const Rect card = centered(L, L.bottom() - L.px(235) + (1.0f - in) * L.px(40), 330, 300);
+    const Rect card = centered(L, L.bottom() - L.px(255) + (1.0f - in) * L.px(40), 330, 322);
     ui_.panel(card, 26);
     const bool perfect = stars_ >= 3;
-    ui_.text(perfect ? "PERFECT!" : "MAP TAKEN!", float(L.w) * 0.5f, card.y + L.px(40), 32, perfect ? col::kGoldDark : col::kScarlet);
+    ui_.text(perfect ? "PERFECT!" : "VICTORY!", float(L.w) * 0.5f, card.y + L.px(42), 36, perfect ? col::kGoldDark : kSquadBlue);
     for (int k = 0; k < 3; ++k) {
         const float landAt = 0.25f + 0.28f * float(k);
         const float x = float(L.w) * 0.5f + float(k - 1) * L.px(70);
-        const float y = card.y + L.px(96) - (k == 1 ? L.px(10) : 0.0f);
+        const float y = card.y + L.px(100) - (k == 1 ? L.px(10) : 0.0f);
         uiBatch_.star5(x, y, L.px(29), rgba(0xD8C8A8, u8(255 * in)), rgba(col::kShadow, u8(60 * in)), L.px(1.5f));
         if (k < stars_ && t >= landAt) {
             const float s = minv(1.0f, (t - landAt) / 0.18f);
@@ -266,24 +215,22 @@ void Game::drawWin() {
             if (starsLanded_ <= k) {
                 starsLanded_ = k + 1;
                 feedback_.star(k, double(resultTime_));
-                if (k == stars_ - 1 && perfect) scene_.celebrate(true);
             }
         }
     }
-    char a[24], b[24], line[64];
-    formatHost(st_.s, a, sizeof a);
-    formatHost(def_->best, b, sizeof b);
-    std::snprintf(line, sizeof line, "ARMY %s   BEST %s", a, b);
-    ui_.text(line, float(L.w) * 0.5f, card.y + L.px(150), 17, ui::kText);
+    char a[24], line[64];
+    formatHost(battle_.squad, a, sizeof a);
+    std::snprintf(line, sizeof line, "SOLDIERS LEFT %s", a);
+    ui_.text(line, float(L.w) * 0.5f, card.y + L.px(154), 18, ui::kText);
     const bool last = level_ >= sim::levelCount();
-    if (ui_.button(last ? "FINISH" : "NEXT", centered(L, card.y + L.px(206), 250, 66), Ui::kPrimary, 1.1f)) {
+    if (ui_.button(last ? "FINISH" : "NEXT", centered(L, card.y + L.px(214), 250, 66), Ui::kPrimary, 1.1f)) {
         feedback_.uiTap();
         if (last) setScreen(Screen::End);
         else enterLevel(level_ + 1, true);
         ui_.opacity = 1;
         return;
     }
-    if (!perfect && ui_.button("RETRY", centered(L, card.y + L.px(266), 150, 48), Ui::kSecondary, 0.85f)) {
+    if (!perfect && ui_.button("RETRY", centered(L, card.y + L.px(282), 150, 48), Ui::kSecondary, 0.85f)) {
         feedback_.uiTap();
         restart();
     }
@@ -292,25 +239,25 @@ void Game::drawWin() {
 
 void Game::drawLose() {
     const Layout& L = layout_;
-    if (resultTime_ < 0.2f) return;
-    const float in = minv(1.0f, (resultTime_ - 0.2f) / 0.25f);
+    const float in = minv(1.0f, resultTime_ / 0.25f);
     ui_.opacity = in;
-    const Rect card = centered(L, L.bottom() - L.px(215), 330, 250);
+    const Rect card = centered(L, L.bottom() - L.px(225), 330, 250);
     ui_.panel(card, 26);
-    const char* why = st_.reason == sim::kLossRaid ? "THE WAVE BROKE THROUGH"
-                      : st_.reason == sim::kLossRival ? "THE WARLORD WON"
-                                                      : "TOO WEAK TO GO ON";
-    ui_.text(why, float(L.w) * 0.5f, card.y + L.px(40), 20, col::kScarletDark);
-    ui_.text("UNDO A MOVE OR TRY AGAIN", float(L.w) * 0.5f, card.y + L.px(74), 14, ui::kMuted);
-    if (ui_.button("UNDO", centered(L, card.y + L.px(136), 240, 64), Ui::kPrimary)) {
+    ui_.text("DEFEATED", float(L.w) * 0.5f, card.y + L.px(42), 34, col::kScarletDark);
+    const int pct = int(battle_.progress() * 100.0f + 0.5f);
+    char line[48];
+    std::snprintf(line, sizeof line, "YOU MARCHED %d%% OF THE ROAD", pct);
+    ui_.text(line, float(L.w) * 0.5f, card.y + L.px(80), 15, ui::kMuted);
+    if (ui_.button("RETRY", centered(L, card.y + L.px(144), 240, 64), Ui::kPrimary)) {
         feedback_.uiTap();
-        undo();
+        restart();
         ui_.opacity = 1;
         return;
     }
-    if (ui_.button("RETRY", centered(L, card.y + L.px(206), 170, 52))) {
+    if (ui_.button("LEVELS", centered(L, card.y + L.px(212), 170, 48))) {
         feedback_.uiTap();
-        restart();
+        levelsFirst_ = 0;
+        setScreen(Screen::Levels);
     }
     ui_.opacity = 1;
 }
@@ -322,16 +269,15 @@ void Game::drawSettings(float dt) {
     uiBatch_.rect(float(L.w) * 0.5f, float(L.h) * 0.5f, float(L.w), float(L.h), 0, rgba(col::kShadow, 110));
     ui_.panel(card, 24);
     float y = L.top() + L.px(48);
-    ui_.text("SETTINGS", float(L.w) * 0.5f, y, 30, col::kScarlet);
+    ui_.text("SETTINGS", float(L.w) * 0.5f, y, 30, kSquadBlue);
     const bool roomy = usable / L.dp > 740;
-    const float rowH = roomy ? 54.0f : 50.0f, gap = roomy ? 12.0f : 8.0f;
-    y += L.px(54);
+    const float rowH = roomy ? 56.0f : 52.0f, gap = roomy ? 14.0f : 10.0f;
+    y += L.px(56);
     bool changed = false;
     struct Sw {
         const char* name;
         bool* v;
-    } sws[] = {{"SOUND", &save_.sound}, {"MUSIC", &save_.music}, {"HAPTICS", &save_.haptics}, {"FAST MOVES", &save_.fast},
-               {"REDUCE EFFECTS", &save_.reduceEffects}};
+    } sws[] = {{"SOUND", &save_.sound}, {"MUSIC", &save_.music}, {"HAPTICS", &save_.haptics}, {"REDUCE EFFECTS", &save_.reduceEffects}};
     for (Sw& s : sws) {
         if (ui_.toggle(s.name, centered(L, y, 320, rowH), *s.v)) changed = true;
         y += L.px(rowH + gap);
@@ -351,7 +297,6 @@ void Game::drawSettings(float dt) {
             save_.sound = keep.sound;
             save_.music = keep.music;
             save_.haptics = keep.haptics;
-            save_.fast = keep.fast;
             save_.reduceEffects = keep.reduceEffects;
             saveNow();
             confirmReset_ = false;
@@ -392,7 +337,7 @@ void Game::drawLevels() {
     levelsFirst_ = clampv(levelsFirst_, 1, maxv(1, count - page + 1));
     const int last = minv(count, levelsFirst_ + page - 1);
     char buf[32];
-    ui_.text("LEVELS", float(L.w) * 0.5f, L.top() + L.px(38), 30, col::kScarlet);
+    ui_.text("LEVELS", float(L.w) * 0.5f, L.top() + L.px(38), 30, kSquadBlue);
     std::snprintf(buf, sizeof buf, "%d-%d OF %d", levelsFirst_, last, count);
     ui_.text(buf, float(L.w) * 0.5f, L.top() + L.px(68), 15, ui::kMuted);
     const float gap = L.px(8);
@@ -423,7 +368,7 @@ void Game::drawLevels() {
         }
     if (ui_.button("BACK", centered(L, L.bottom() - L.px(44), 220, 56), Ui::kPrimary)) {
         feedback_.uiTap();
-        setScreen(Screen::Play);
+        setScreen(battle_.won ? Screen::Win : (battle_.lost ? Screen::Lose : Screen::Play));
     }
 }
 
@@ -433,9 +378,9 @@ void Game::drawEnd() {
     const Rect card = centered(L, float(L.h) * 0.5f, 330, 360);
     ui_.panel(card, 26);
     char buf[48];
-    std::snprintf(buf, sizeof buf, "ALL %d MAPS", sim::levelCount());
-    ui_.text(buf, float(L.w) * 0.5f, card.y + L.px(48), 30, col::kScarlet);
-    ui_.text("TAKEN!", float(L.w) * 0.5f, card.y + L.px(86), 30, col::kScarlet);
+    std::snprintf(buf, sizeof buf, "ALL %d LEVELS", sim::levelCount());
+    ui_.text(buf, float(L.w) * 0.5f, card.y + L.px(48), 30, kSquadBlue);
+    ui_.text("CONQUERED!", float(L.w) * 0.5f, card.y + L.px(86), 30, kSquadBlue);
     for (int k = 0; k < 3; ++k) uiBatch_.star5(float(L.w) * 0.5f + float(k - 1) * L.px(54), card.y + L.px(136), L.px(20), rgba(col::kGold));
     std::snprintf(buf, sizeof buf, "STARS %d OF %d", save_.totalStars(), 3 * sim::levelCount());
     ui_.text(buf, float(L.w) * 0.5f, card.y + L.px(180), 18, ui::kText);
@@ -451,7 +396,7 @@ void Game::drawEnd() {
     }
 }
 
-// ---- The flow test (TECH_SPEC 9.4) ----------------------------------------------------------------------------------
+// ---- The flow test ---------------------------------------------------------------------------------------------------
 
 void Game::check(bool ok, const char* what) {
     ++flowChecks_;
@@ -480,149 +425,116 @@ void Game::flowStep() {
             flowStep_ = 100;
         }
     };
-    auto settled = [&] { return !scene_.busy() && pendingLevel_ == 0 && turnT_ < 0.0f; };
+    auto settled = [&] { return pendingLevel_ == 0 && turnT_ < 0.0f; };
     switch (flowStep_) {
         case 1:
             if (flowWait_ < 10) break;
-            check(screen_ == Screen::Play && level_ == 1, "starts playing level 1");
+            check(screen_ == Screen::Play && level_ == 1 && !battle_.started, "starts on level 1, waiting for a touch");
             next();
             break;
-        case 2: {  // a tap on a gold site takes it
-            const u32 moves = sim::takeable(*def_, st_);
-            int site = -1;
-            for (int i = 1; i < def_->siteCount && site < 0; ++i)
-                if (moves & bit(i)) site = i;
-            float x = 0, y = 0;
-            scene_.siteScreen(site, x, y);
+        case 2: {  // a drag on the road starts the march and steers the squad
+            const float x = field_.squadScreenX(), y = field_.squadScreenY();
             pointer({PtrType::Down, 5, x, y, 0, 0});
-            pointer({PtrType::Up, 5, x, y, 0, 0});
-            check(undoCount_ == 1, "a tap on a gold camp takes it");
+            pointer({PtrType::Move, 5, x + layout_.px(60), y, layout_.px(60), 0});
             next();
             break;
         }
-        case 3:  // the bot finishes the level
+        case 3:
+            if (flowWait_ < 30) break;
+            pointer({PtrType::Up, 5, field_.squadScreenX(), field_.squadScreenY(), 0, 0});
+            check(battle_.started && battle_.z > 0.5f, "a touch on the road starts the march");
+            check(steerX_ > 0.5f && battle_.x > 0.3f, "dragging right steers the squad right");
+            next();
+            break;
+        case 4:  // the bot finishes the level
             useBot_ = true;
-            std::snprintf(args_.bot, sizeof args_.bot, "best");
             if (screen_ == Screen::Win) {
                 useBot_ = false;
-                check(stars_ == 3, "the best line wins three stars");
+                check(stars_ >= 1, "level 1 is won with stars");
                 next();
             }
-            timeout(60 * 30, "level 1 is won within 30 s");
+            timeout(60 * 90, "level 1 is won within 90 s");
             break;
-        case 4:
-            if (resultTime_ < 1.5f) break;
+        case 5:
+            if (resultTime_ < 1.0f) break;
             check(press("NEXT"), "the win panel has NEXT");
             next();
             break;
-        case 5:
-            if (!settled()) break;
-            check(level_ == 2 && screen_ == Screen::Play, "NEXT plays level 2");
+        case 6:
+            if (!settled() || flowWait_ < 3) break;
+            check(level_ == 2 && screen_ == Screen::Play && !battle_.started, "NEXT plays level 2");
             next();
             break;
-        case 6:
+        case 7:
             if (flowWait_ < 3) break;
             check(press("LEVEL 2"), "the level chip is a button");
             next();
             break;
-        case 7:
+        case 8:
             if (flowWait_ < 3) break;
             check(screen_ == Screen::Levels, "the level chip opens LEVELS");
             check(press("4"), "LEVELS shows level 4");
             next();
             break;
-        case 8: {
+        case 9:
             if (!settled() || flowWait_ < 3) break;
             check(level_ == 4 && screen_ == Screen::Play, "a level's button starts it");
-            // Level 4: doubling first leaves the army one short of the first wave.
-            check(makeMove(1), "x2 can be taken first");
+            // A squad of one, steered past every gate, cannot hold the road.
+            battle_.squad = 1;
+            go_ = true;
+            steerX_ = 4.9f;
             next();
-            break;
-        }
-        case 9:
-            if (screen_ == Screen::Lose) {
-                check(st_.reason == sim::kLossRaid, "the wave breaks through a weak army");
-                next();
-            }
-            timeout(60 * 10, "a lost wave shows LOSE");
             break;
         case 10:
-            if (resultTime_ < 0.8f) break;
-            check(press("UNDO"), "LOSE offers UNDO");
-            next();
+            if (battle_.squad > 1 && !battle_.lost) battle_.squad = 1;
+            if (screen_ == Screen::Lose) {
+                check(battle_.lost, "a squad of one is beaten");
+                next();
+            }
+            timeout(60 * 90, "a beaten squad shows DEFEATED");
             break;
         case 11:
-            if (flowWait_ < 3) break;
-            check(screen_ == Screen::Play && undoCount_ == 0 && !st_.over() && !deadEnd_, "UNDO takes the move back");
+            if (resultTime_ < 0.6f) break;
+            check(press("RETRY"), "DEFEATED offers RETRY");
             next();
             break;
         case 12:
-            check(press("HINT"), "HINT is a button");
-            next();
-            break;
-        case 13:
             if (flowWait_ < 3) break;
-            check(hinted_, "HINT marks the level hinted");
-            next();
-            break;
-        case 14:
-            useBot_ = true;
-            next();
-            break;
-        case 15:
-            if (screen_ == Screen::Win) {
-                useBot_ = false;
-                check(stars_ <= 2, "a hint caps the stars at two");
-                next();
-            }
-            timeout(60 * 30, "level 4 is won after a hint");
-            break;
-        case 16:
-            if (resultTime_ < 1.5f) break;
-            check(press("RETRY"), "under three stars the win panel offers RETRY");
-            next();
-            break;
-        case 17:
-            if (flowWait_ < 3) break;
-            check(screen_ == Screen::Play && level_ == 4 && undoCount_ == 0 && !hinted_, "RETRY restarts the level");
+            check(screen_ == Screen::Play && level_ == 4 && !battle_.started && battle_.squad == def_->start, "RETRY restarts the level");
             check(press("#PAUSE"), "the pause button");
             next();
             break;
-        case 18:
+        case 13:
             if (flowWait_ < 3) break;
             check(screen_ == Screen::Pause, "pause opens PAUSE");
             check(press("SETTINGS"), "PAUSE has SETTINGS");
             next();
             break;
-        case 19: {
+        case 14:
             if (flowWait_ < 3) break;
             check(screen_ == Screen::Settings, "SETTINGS is open");
-            const bool before = save_.sound;
             press("SOUND");
-            flowChecks_ += 0;
             next();
-            (void)before;
             break;
-        }
-        case 20:
+        case 15:
             if (flowWait_ < 3) break;
             check(!save_.sound, "SOUND switches the sound off");
             press("SOUND");
             next();
             break;
-        case 21:
+        case 16:
             if (flowWait_ < 3) break;
             check(save_.sound, "and on again");
             check(press("BACK"), "SETTINGS has BACK");
             next();
             break;
-        case 22:
+        case 17:
             if (flowWait_ < 3) break;
             check(screen_ == Screen::Pause, "BACK returns to PAUSE");
             check(press("RESUME"), "PAUSE has RESUME");
             next();
             break;
-        case 23:
+        case 18:
             if (flowWait_ < 3) break;
             check(screen_ == Screen::Play, "RESUME plays on");
             next();

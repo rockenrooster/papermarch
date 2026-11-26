@@ -1,34 +1,58 @@
-// Levels (GAME_DESIGN 8): the compact text form, the baked table (src/sim/levels_baked.h, written by
-// papermarch_headless --bake-levels), and names.
+// Levels: the compact text form (the bake writes it, the app reads it), the baked table and the hint lines.
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include "sim/level.h"
-#include "sim/levels_hand.h"
+#include "sim/battle.h"
 
 namespace pm::sim {
 
 namespace {
 #include "sim/levels_baked.h"  // kBaked[], kBakedCount
 
-LevelDef g_levels[400];
+LevelDef g_levels[320];
 int g_count = 0;
 bool g_loaded = false;
+
+const char* const kHints[kHintCount] = {
+    "",
+    "DRAG TO STEER YOUR SQUAD",          // 1
+    "MARCH THROUGH THE BLUE GATES",      // 2
+    "SHOOT A GATE TO GROW IT",           // 3
+    "SHOOT BARRELS TO FREE RECRUITS",    // 4
+    ("\xC3\x97" "2 DOUBLES YOUR SQUAD"), // 5
+    "SHOOT RED BARRICADES UP",           // 6
+    "RIDERS CHARGE FAST",                // 7
+    "BRING DOWN THE BOSS",               // 8
+    "BRUTES TAKE MANY HITS",             // 9
+    "DON'T RUN INTO BARRELS",            // 10
+    "", "", "", "", "",
+};
+
+// Until the first bake: one small level, so the app always has something to play.
+void fallback(LevelDef& d) {
+    d = LevelDef();
+    d.start = 3;
+    d.length = 90;
+    d.speed = 5;
+    d.hint = 1;
+    for (int i = 0; i < 12; ++i) d.gates[d.gateCount++] = {-4.8f, -2.4f, 14.0f + 1.4f * float(i), 1, kGateAdd, 1, 3};
+    d.gates[d.gateCount++] = {-4.6f, -0.2f, 40.0f, 5, kGateAdd, 1, 15};
+    d.gates[d.gateCount++] = {0.2f, 4.6f, 40.0f, 2, kGateMul, 0, 2};
+    d.barrels[d.barrelCount++] = {2.5f, 52.0f, 12, 12};
+    d.waves[d.waveCount++] = {66.0f, -3.5f, 3.5f, 14, kFoot};
+    d.star2 = 10;
+    d.star3 = 20;
+}
 
 void load() {
     if (g_loaded) return;
     g_loaded = true;
-    g_count = 0;
     for (int i = 0; i < kBakedCount && g_count < int(sizeof g_levels / sizeof g_levels[0]); ++i)
         if (decodeLevel(kBaked[i], g_levels[g_count])) ++g_count;
-    if (g_count == 0) {  // before the first bake: the hand-made levels as they are written, solved here
-        Solver solver;
-        for (int n = 1; n <= 400 && g_count < int(sizeof g_levels / sizeof g_levels[0]); ++n)
-            if (handLevel(n, g_levels[g_count])) {
-                g_levels[g_count].best = solver.run(g_levels[g_count], start(g_levels[g_count])).best;
-                ++g_count;
-            }
+    if (g_count == 0) {
+        fallback(g_levels[0]);
+        g_count = 1;
     }
 }
 
@@ -40,13 +64,20 @@ bool num(const char*& p, i64& v) {
     return true;
 }
 
-bool expect(const char*& p, char c) {
-    if (*p != c) return false;
-    ++p;
+bool nums(const char*& p, i64* out, int n) {
+    for (int i = 0; i < n; ++i) {
+        if (i > 0) {
+            if (*p != ',') return false;
+            ++p;
+        }
+        if (!num(p, out[i])) return false;
+    }
     return true;
 }
 
 }  // namespace
+
+const char* hintText(int hint) { return hint > 0 && hint < kHintCount ? kHints[hint] : ""; }
 
 int levelCount() {
     load();
@@ -55,94 +86,43 @@ int levelCount() {
 
 const LevelDef& level(int n) {
     load();
-    if (g_count == 0) {
-        static LevelDef empty;
-        return empty;
-    }
-    if (n < 1) n = 1;
-    if (n > g_count) n = g_count;
-    return g_levels[n - 1];
+    return g_levels[clampv(n, 1, g_count) - 1];
 }
 
 bool decodeLevel(const char* text, LevelDef& out) {
     out = LevelDef();
     const char* p = text;
-    i64 v = 0, a = 0, b = 0, c = 0;
+    i64 v[8];
     while (*p) {
         while (*p == ' ') ++p;
         if (!*p) break;
         const char tag = *p++;
         switch (tag) {
-            case 'K': if (!num(p, v)) return false; out.kind = u8(v); break;
-            case 'P': if (!num(p, v)) return false; out.recipe = u8(v); break;
-            case 'W': if (!num(p, v)) return false; out.world = u8(v); break;
-            case 'X': if (!num(p, v)) return false; out.boss = u8(v); break;
-            case 'S': if (!num(p, v)) return false; out.start = i32(v); break;
-            case 'V': if (!num(p, v)) return false; out.rivalStart = i32(v); break;
-            case 'H': if (!num(p, v)) return false; out.pageH = i16(v); break;
-            case 'E': if (!num(p, v)) return false; out.seed = u32(v); break;
-            case 'B': if (!num(p, v)) return false; out.best = v; break;
-            case 'T': if (!num(p, v)) return false; out.hint = u8(v); break;
-            case 's': {
-                if (out.siteCount >= kMaxSites) return false;
-                Site& s = out.sites[out.siteCount++];
-                if (!num(p, v) || !expect(p, ',') || !num(p, a) || !expect(p, ',') || !num(p, b) || !expect(p, ',') || !num(p, c))
-                    return false;
-                s.kind = u8(v);
-                s.x = i16(a);
-                s.y = i16(b);
-                s.value = i32(c);
-                while (*p == '/') {
-                    ++p;
-                    const char k = *p++;
-                    if (k == 'f') {
-                        if (!num(p, v)) return false;
-                        s.fork = u8(v);
-                    } else if (k == 'g') {
-                        if (!num(p, v) || !expect(p, ',') || !num(p, a) || !expect(p, ',') || !num(p, b)) return false;
-                        s.perTurn = i16(v);
-                        s.lo = i32(a);
-                        s.hi = i32(b);
-                    } else if (k == 'u') {
-                        if (!num(p, v) || !expect(p, ',') || !num(p, a)) return false;
-                        s.until = i16(v);
-                        s.aux = i32(a);
-                    } else if (k == 'a') {
-                        if (!num(p, v)) return false;
-                        s.aux = i32(v);
-                    } else {
-                        return false;
-                    }
-                }
+            case 'S': if (!num(p, v[0])) return false; out.start = i32(v[0]); break;
+            case 'L': if (!num(p, v[0])) return false; out.length = float(v[0]) / 10.0f; break;
+            case 'V': if (!num(p, v[0])) return false; out.speed = float(v[0]) / 100.0f; break;
+            case 'B': if (!num(p, v[0])) return false; out.bossHp = i32(v[0]); break;
+            case 'W': if (!num(p, v[0])) return false; out.world = u8(v[0]); break;
+            case 'X': if (!num(p, v[0])) return false; out.boss = u8(v[0]); break;
+            case 'T': if (!num(p, v[0])) return false; out.hint = u8(v[0]); break;
+            case 'E': if (!num(p, v[0])) return false; out.seed = u32(v[0]); break;
+            case 'A': if (!num(p, v[0])) return false; out.star2 = i32(v[0]); break;
+            case 'C': if (!num(p, v[0])) return false; out.star3 = i32(v[0]); break;
+            case 'R': if (!num(p, v[0])) return false; out.botEnd = i32(v[0]); break;
+            case 'g': {
+                if (out.gateCount >= kMaxGates || !nums(p, v, 7)) return false;
+                out.gates[out.gateCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4]), u8(v[5]),
+                                              i32(v[6])};
                 break;
             }
-            case 'r': {
-                if (out.roadCount >= kMaxRoads) return false;
-                Road& r = out.roads[out.roadCount++];
-                if (!num(p, v) || !expect(p, ',') || !num(p, a)) return false;
-                r.a = u8(v);
-                r.b = u8(a);
-                if (*p == '/') {
-                    ++p;
-                    if (!expect(p, 'l') || !num(p, b)) return false;
-                    r.lock = u8(b);
-                }
+            case 'b': {
+                if (out.barrelCount >= kMaxBarrels || !nums(p, v, 4)) return false;
+                out.barrels[out.barrelCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, i32(v[2]), i32(v[3])};
                 break;
             }
             case 'w': {
-                if (out.raidCount >= kMaxRaids) return false;
-                Raid& r = out.raids[out.raidCount++];
-                if (!num(p, v) || !expect(p, ',') || !num(p, a) || !expect(p, ',') || !num(p, b)) return false;
-                r.turn = u8(v);
-                r.entry = u8(a);
-                r.strength = i32(b);
-                break;
-            }
-            case 'o': {
-                do {
-                    if (out.routeLen >= kMaxRoute || !num(p, v)) return false;
-                    out.route[out.routeLen++] = u8(v);
-                } while (expect(p, ','));
+                if (out.waveCount >= kMaxWaves || !nums(p, v, 5)) return false;
+                out.waves[out.waveCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4])};
                 break;
             }
             default:
@@ -150,10 +130,7 @@ bool decodeLevel(const char* text, LevelDef& out) {
         }
         if (*p && *p != ' ') return false;
     }
-    if (out.siteCount < 2 || out.sites[0].kind != kHome) return false;
-    for (int r = 0; r < out.roadCount; ++r)
-        if (out.roads[r].a >= out.siteCount || out.roads[r].b >= out.siteCount) return false;
-    return true;
+    return out.start > 0 && out.length > 10;
 }
 
 int encodeLevel(const LevelDef& d, char* out, int cap) {
@@ -164,53 +141,22 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
         if (n < 0 || n >= cap - o) o = -1;
         else o += n;
     };
-    put("K%d P%d W%d X%d S%d V%d H%d E%u B%lld T%d", d.kind, d.recipe, d.world, d.boss, d.start, d.rivalStart, d.pageH, d.seed,
-        (long long)d.best, d.hint);
-    for (int i = 0; i < d.siteCount; ++i) {
-        const Site& s = d.sites[i];
-        put(" s%d,%d,%d,%d", s.kind, s.x, s.y, s.value);
-        if (s.fork) put("/f%d", s.fork);
-        if (s.perTurn) put("/g%d,%d,%d", s.perTurn, s.lo, s.hi);
-        if (s.until >= 0) put("/u%d,%d", s.until, s.aux);
-        else if (s.aux) put("/a%d", s.aux);
+    auto t10 = [](float f) { return int(f * 10.0f + (f >= 0 ? 0.5f : -0.5f)); };
+    put("S%d L%d V%d B%d W%d X%d T%d E%u A%d C%d R%d", d.start, t10(d.length), int(d.speed * 100.0f + 0.5f), d.bossHp, d.world, d.boss,
+        d.hint, d.seed, d.star2, d.star3, d.botEnd);
+    for (int i = 0; i < d.gateCount; ++i) {
+        const GateDef& g = d.gates[i];
+        put(" g%d,%d,%d,%d,%d,%d,%d", t10(g.x0), t10(g.x1), t10(g.z), g.value, g.kind, g.grows, g.cap);
     }
-    for (int r = 0; r < d.roadCount; ++r) {
-        put(" r%d,%d", d.roads[r].a, d.roads[r].b);
-        if (d.roads[r].lock != kNoLock) put("/l%d", d.roads[r].lock);
+    for (int i = 0; i < d.barrelCount; ++i) {
+        const BarrelDef& b = d.barrels[i];
+        put(" b%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.reward);
     }
-    for (int r = 0; r < d.raidCount; ++r) put(" w%d,%d,%d", d.raids[r].turn, d.raids[r].entry, d.raids[r].strength);
-    if (d.routeLen) {
-        put(" o%d", d.route[0]);
-        for (int k = 1; k < d.routeLen; ++k) put(",%d", d.route[k]);
+    for (int i = 0; i < d.waveCount; ++i) {
+        const WaveDef& w = d.waves[i];
+        put(" w%d,%d,%d,%d,%d", t10(w.z), t10(w.x0), t10(w.x1), w.count, w.kind);
     }
     return o < 0 ? 0 : o;
-}
-
-const char* kindName(u8 kind) {
-    switch (kind) {
-        case kHome: return "HOME";
-        case kCamp: return "CAMP";
-        case kVillage: return "VILLAGE";
-        case kShrine: return "SHRINE";
-        case kPost: return "POST";
-        case kMire: return "MIRE";
-        case kDepot: return "DEPOT";
-        case kKey: return "KEY TOWER";
-        case kKeep: return "KEEP";
-        case kRivalCamp: return "WARLORD";
-        default: return "?";
-    }
-}
-
-const char* objective(const LevelDef& d) {
-    switch (d.kind) {
-        case kGauntlet: return "RUN THE GAUNTLET";
-        case kSiege: return "BREAK THE SIEGE";
-        case kRace: return "OUTMARCH THE WARLORD";
-        case kLastStand: return "HOLD THE LINE";
-        case kWaves: return "WAVE BATTLE";
-        default: return "TAKE THE KEEP";
-    }
 }
 
 }  // namespace pm::sim

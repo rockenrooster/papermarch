@@ -19,13 +19,13 @@ function Step([string]$Name, [scriptblock]$Body) {
     if ($LASTEXITCODE -ne 0) { $script:failed += $Name; Write-Host "[test] FAILED: $Name ($LASTEXITCODE)" }
 }
 
-Step 'unit tests (rules, solver = brute force, hand-made levels, the table, palettes, save)' { & (Join-Path $bin 'papermarch_tests.exe') $out }
+Step 'unit tests (the battle rules, the text form, the bot on every level, palettes, save)' { & (Join-Path $bin 'papermarch_tests.exe') $out }
 Step 'png opens in PIL' { python -I -B -c "import sys; from PIL import Image; im = Image.open(sys.argv[1]); im.load(); assert im.size == (3, 2) and im.getpixel((2, 1))[0] == 200, im.getpixel((2, 1))" (Join-Path $out 'test_png.png') }
 $headless = Join-Path $bin 'papermarch_headless.exe'
-Step 'the table: every level winnable with its best' { & $headless --sim table | Select-Object -Last 3 }
+Step 'the table: the bot wins every level as baked' { & $headless --sim table | Select-Object -Last 3 }
 if (-not $Quick) {
     $exe = Join-Path $bin 'papermarch.exe'
-    Step 'the flow test (screens, moves, undo, hint, settings)' { & $exe --flow-test --silent --offscreen --no-audio }
+    Step 'the flow test (drag to march, win, NEXT, LEVELS, defeat, RETRY, pause, settings)' { & $exe --flow-test --fixed-step --silent --offscreen --no-audio }
     Step 'the layout lint on every screen' {
         $bad = 0
         foreach ($s in 'screen_play', 'screen_pause', 'screen_settings', 'screen_levels', 'screen_end', 'screen_win', 'screen_lose', 'home_update') {

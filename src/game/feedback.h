@@ -1,9 +1,8 @@
 #pragma once
-// Feedback (GAME_DESIGN 10, 12, 13): the scene's cues become sounds for the mixer and haptic pulses, with the rate
-// limits the design asks for. No graphics.
+// Feedback: the battle's cues become sounds for the mixer and haptic pulses, with rate limits. No graphics.
 
 #include "audio/mixer.h"
-#include "game/scene.h"
+#include "game/field.h"
 
 namespace pm {
 
@@ -33,7 +32,8 @@ private:
     int hapticHead_ = 0;
     int pending_[16] = {};
     int pendingCount_ = 0;
-    double lastFlip_ = -1;
+    int growStep_ = 0;
+    double lastGrow_ = -1;
     u32 rng_ = 12345;
 };
 

@@ -3,23 +3,22 @@
 // start-up in the app and the headless tool. Values are floats.
 
 #define PM_TUNING(X)                                                                                                  \
-    /* ---- rules and stars (GAME_DESIGN 7) ---- */                                                                  \
-    X(star2Pct, 70.0f)          /* two stars at this share of the best final host */                                 \
-    X(deadNudge, 1.0f)          /* 1: say so when no line wins any more */                                           \
-    /* ---- feel (GAME_DESIGN 10) ---- */                                                                            \
-    X(marchSpeed, 90.0f)        /* map units a second */                                                             \
-    X(fastFactor, 2.5f)         /* the clock with a move queued, or FAST MOVES */                                    \
-    X(turnSeconds, 0.65f)       /* the page turn */                                                                  \
+    /* ---- the camera over the road (src/game/field.cpp) ---- */                                                    \
+    X(camPitch, 34.0f)          /* degrees below the horizon */                                                      \
+    X(camHeight, 20.0f)         /* road units */                                                                     \
+    X(camBack, 6.0f)            /* how far ahead of the camera's foot the squad marches */                           \
+    X(camRoad, 0.92f)           /* the road's width at the squad: this share of the screen's width, */               \
+    X(camRoadH, 0.44f)          /* and at most this share of its height */                                           \
+    X(camSquadY, 0.80f)         /* the squad's place on the screen, from the top */                                  \
+    /* ---- feel ---- */                                                                                             \
+    X(steer, 1.25f)             /* road widths the squad moves for a drag across the road's width on screen */       \
+    X(soldiersShown, 150.0f)    /* soldiers drawn at most (the badge counts them all) */                             \
+    X(turnSeconds, 0.65f)       /* the page turn between levels */                                                   \
     X(tagScale, 1.0f)                                                                                                \
-    X(winPanelDelay, 1.6f)      /* seconds after the win before the panel */                                         \
-    /* ---- look (GAME_DESIGN 9) ---- */                                                                             \
-    X(shadowStrength, 0.42f)                                                                                         \
+    X(winPanelDelay, 1.3f)      /* seconds after the win before the panel */                                         \
+    /* ---- look ---- */                                                                                             \
+    X(shadowStrength, 0.38f)                                                                                         \
     X(grain, 0.045f)                                                                                                 \
-    /* ---- music (GAME_DESIGN 12.1): the host's share of its goal at which each layer joins ---- */                 \
-    X(layer1, 0.10f)                                                                                                 \
-    X(layer2, 0.30f)                                                                                                 \
-    X(layer3, 0.60f)                                                                                                 \
-    X(layer4, 1.00f)                                                                                                 \
     X(musicGain, 1.0f)                                                                                               \
     X(debugReadout, 0.0f)
 
