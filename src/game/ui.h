@@ -3,9 +3,9 @@
 // touch that begins on a control belongs to the UI until it ends. Every control is recorded for the layout lint and
 // for the flow test, which finds controls by label.
 
-#include "game/hud.h"
+#include "game/layout.h"
 
-namespace gt {
+namespace pm {
 
 struct UiControl {
     Rect r;
@@ -17,7 +17,7 @@ struct UiControl {
 
 class Ui {
 public:
-    static constexpr int kMaxControls = 64;  // the level selector draws 47
+    static constexpr int kMaxControls = 72;  // the level selector draws 47
     void begin(UiBatch* batch, const Layout& L, float opacity = 1.0f);
     // Pointer events (frame pixels). Returns true if the UI takes this touch.
     bool pointerDown(i64 id, float x, float y);
@@ -61,4 +61,4 @@ private:
     float holdTime_ = 0;
 };
 
-}  // namespace gt
+}  // namespace pm

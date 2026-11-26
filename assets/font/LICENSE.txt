@@ -1,6 +1,6 @@
 Roboto (Roboto-Black.ttf) - Copyright 2011 Google Inc. All Rights Reserved.
 Distributed with the Android SDK (AOSP), licensed under the Apache License, Version 2.0, reproduced below.
-GLOWTIDE ships only a signed-distance-field atlas rendered from it, with its corners rounded.
+PAPERMARCH ships only a signed-distance-field atlas rendered from it, with its corners rounded.
 
                               Apache License
                         Version 2.0, January 2004

@@ -1,5 +1,5 @@
 // The in-app updater (docs/RELEASE_PIPELINE.md), adapted from Trueform's docs/in-app-updater.md.
-package dev.glowtide.game;
+package dev.papermarch.game;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;

@@ -1,7 +1,7 @@
 #pragma once
-// Logging: stdout on the desktop, logcat on Android. Tags: GLOWTIDE (everything), GTBENCH, GTSIM, GTLIFE, FLOW.
+// Logging: stdout on the desktop, logcat on Android. Tags: PAPERMARCH (everything), PMBENCH, PMSIM, PMLIFE, FLOW.
 
-namespace gt {
+namespace pm {
 
 enum class LogLevel { Info, Warn, Error };
 void logf(LogLevel level, const char* tag, const char* fmt, ...) __attribute__((format(printf, 3, 4)));
@@ -9,9 +9,9 @@ void logf(LogLevel level, const char* tag, const char* fmt, ...) __attribute__((
 // Warnings and errors logged so far (exit code 3 in debug builds counts GL messages separately).
 int logWarningCount();
 
-}  // namespace gt
+}  // namespace pm
 
-#define GT_LOG(...) ::gt::logf(::gt::LogLevel::Info, "GLOWTIDE", __VA_ARGS__)
-#define GT_WARN(...) ::gt::logf(::gt::LogLevel::Warn, "GLOWTIDE", __VA_ARGS__)
-#define GT_ERR(...) ::gt::logf(::gt::LogLevel::Error, "GLOWTIDE", __VA_ARGS__)
-#define GT_TAG(tag, ...) ::gt::logf(::gt::LogLevel::Info, tag, __VA_ARGS__)
+#define PM_LOG(...) ::pm::logf(::pm::LogLevel::Info, "PAPERMARCH", __VA_ARGS__)
+#define PM_WARN(...) ::pm::logf(::pm::LogLevel::Warn, "PAPERMARCH", __VA_ARGS__)
+#define PM_ERR(...) ::pm::logf(::pm::LogLevel::Error, "PAPERMARCH", __VA_ARGS__)
+#define PM_TAG(tag, ...) ::pm::logf(::pm::LogLevel::Info, tag, __VA_ARGS__)

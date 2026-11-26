@@ -2,43 +2,43 @@ plugins {
     id 'com.android.application'
 }
 
-// GLOWTIDE (TECH_SPEC 2.4): the native code is the root CMake tree; SDL's Java glue comes from the pinned checkout.
-// The GitHub release's build number (the workflow's GT_BUILD_NUMBER, the commit count; HOME compares it with the latest
+// PAPERMARCH (TECH_SPEC 2.4): the native code is the root CMake tree; SDL's Java glue comes from the pinned checkout.
+// The GitHub release's build number (the workflow's PM_BUILD_NUMBER, the commit count; HOME compares it with the latest
 // release's, docs/RELEASE_PIPELINE.md); 0 for a local build, which never asks.
-def gtBuildNumber = providers.environmentVariable('GT_BUILD_NUMBER').orNull ?: '0'
+def pmBuildNumber = providers.environmentVariable('PM_BUILD_NUMBER').orNull ?: '0'
 // The release key, when the workflow's secrets (or a local run) set it; else the debug key.
-def gtKeystore = providers.environmentVariable('GT_KEYSTORE').orNull
+def pmKeystore = providers.environmentVariable('PM_KEYSTORE').orNull
 android {
-    namespace 'dev.glowtide.game'
+    namespace 'dev.papermarch.game'
     compileSdk 36
     ndkVersion '29.0.14206865'
 
     defaultConfig {
-        applicationId 'dev.glowtide.game'
+        applicationId 'dev.papermarch.game'
         minSdk 29
         targetSdk 36
         // GitHub builds number themselves (the commit count): Android and the in-app updater know "newer" by it. Local
         // builds stay at 1 and never ask GitHub.
-        versionCode((gtBuildNumber as int) > 0 ? (gtBuildNumber as int) : 1)
-        versionName '0.2.0'  // (CMakeLists.txt's project VERSION)
+        versionCode((pmBuildNumber as int) > 0 ? (pmBuildNumber as int) : 1)
+        versionName '0.1.0'  // (CMakeLists.txt's project VERSION)
         ndk {
             abiFilters 'arm64-v8a'
         }
         externalNativeBuild {
             cmake {
-                arguments '-DANDROID_STL=c++_static', '-DGT_BUILD_NUMBER=' + gtBuildNumber
+                arguments '-DANDROID_STL=c++_static', '-DPM_BUILD_NUMBER=' + pmBuildNumber
                 abiFilters 'arm64-v8a'
             }
         }
     }
 
     signingConfigs {
-        if (gtKeystore) {
+        if (pmKeystore) {
             release {
-                storeFile file(gtKeystore)
-                storePassword providers.environmentVariable('GT_KEYSTORE_PASSWORD').orNull
-                keyAlias providers.environmentVariable('GT_KEY_ALIAS').orNull
-                keyPassword providers.environmentVariable('GT_KEY_PASSWORD').orNull
+                storeFile file(pmKeystore)
+                storePassword providers.environmentVariable('PM_KEYSTORE_PASSWORD').orNull
+                keyAlias providers.environmentVariable('PM_KEY_ALIAS').orNull
+                keyPassword providers.environmentVariable('PM_KEY_PASSWORD').orNull
             }
         }
     }
@@ -52,16 +52,16 @@ android {
         dev {
             debuggable true
             signingConfig signingConfigs.debug
-            // GT_APP_ID_SUFFIX (e.g. .dev): a dev build that installs beside a GitHub build on a device (another signature).
-            applicationIdSuffix providers.environmentVariable('GT_APP_ID_SUFFIX').orNull ?: ''
+            // PM_APP_ID_SUFFIX (e.g. .dev): a dev build that installs beside a GitHub build on a device (another signature).
+            applicationIdSuffix providers.environmentVariable('PM_APP_ID_SUFFIX').orNull ?: ''
             externalNativeBuild { cmake { arguments '-DCMAKE_BUILD_TYPE=RelWithDebInfo' } }
         }
-        // Native Release, not debuggable, no app arguments; signed with the release key GT_KEYSTORE names (the GitHub
+        // Native Release, not debuggable, no app arguments; signed with the release key PM_KEYSTORE names (the GitHub
         // workflow's secrets), else the debug key.
         release {
             debuggable false
             minifyEnabled false
-            signingConfig gtKeystore ? signingConfigs.release : signingConfigs.debug
+            signingConfig pmKeystore ? signingConfigs.release : signingConfigs.debug
             externalNativeBuild { cmake { arguments '-DCMAKE_BUILD_TYPE=Release' } }
         }
     }
@@ -78,7 +78,7 @@ android {
             java.srcDirs += ['../../third_party/SDL/android-project/app/src/main/java']
         }
         // A GitHub release (built with a build number) adds the in-app updater's permission and receiver.
-        if ((gtBuildNumber as int) > 0) {
+        if ((pmBuildNumber as int) > 0) {
             release {
                 manifest.srcFile 'src/github/AndroidManifest.xml'
             }

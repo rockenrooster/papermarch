@@ -6,7 +6,7 @@
 #include "core/types.h"
 
 namespace {
-thread_local gt::u64 t_allocations = 0;  // trivial type: no TLS constructor, safe inside operator new
+thread_local pm::u64 t_allocations = 0;  // trivial type: no TLS constructor, safe inside operator new
 
 void* countedAlloc(std::size_t size) {
     ++t_allocations;
@@ -15,7 +15,7 @@ void* countedAlloc(std::size_t size) {
 }
 }  // namespace
 
-gt::u64 gt::allocationCount() { return t_allocations; }
+pm::u64 pm::allocationCount() { return t_allocations; }
 
 void* operator new(std::size_t size) {
     void* p = countedAlloc(size);

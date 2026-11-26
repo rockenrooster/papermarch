@@ -7,7 +7,7 @@
 #include <ctime>
 #endif
 
-namespace gt {
+namespace pm {
 
 double threadCpuSeconds() {
 #if defined(_WIN32)
@@ -23,4 +23,4 @@ double threadCpuSeconds() {
 #endif
 }
 
-}  // namespace gt
+}  // namespace pm

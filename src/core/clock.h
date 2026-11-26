@@ -6,7 +6,7 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 inline double nowSeconds() {
     using namespace std::chrono;
@@ -24,4 +24,4 @@ inline float percentile(float* v, int n, float p) {
     return v[i];
 }
 
-}  // namespace gt
+}  // namespace pm

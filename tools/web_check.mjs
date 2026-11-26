@@ -1,8 +1,8 @@
-// Drives a headless, muted Chrome at an iPhone-sized touch viewport (390 x 844 CSS px, 3x) against GLOWTIDE's web build
+// Drives a headless, muted Chrome at an iPhone-sized touch viewport (390 x 844 CSS px, 3x) against PAPERMARCH's web build
 // (scripts\serve-web.ps1 serving it).
-//   node tools\web_check.mjs http://localhost:8091/ captures\web flow|play|reload
-// flow: the game's own flow test (--flow-test), its FLOW lines. play: HOME, the level selector, level 5 picked and
-// played by touch, frames a second, the save in localStorage. reload: that save read back, then an iPhone's notch and
+//   node tools\web_check.mjs http://localhost:8092/ captures\web flow|play|reload
+// flow: the game's own flow test (--flow-test), its FLOW lines. play: level 1 won by touch, NEXT, the frame rate while
+// the best line plays, the save in localStorage. reload: that save read back, then an iPhone's notch and
 // home bar (safe-area insets 59 and 34 CSS px) reaching the game. Screenshots in the out folder.
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -75,30 +75,43 @@ await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints
 
 if (mode === 'flow') {
   console.log('started:', await load('--no-audio --flow-test'));
-  const done = await waitLog(/FLOW done/, 8 * 60000);
-  for (const l of logs) if (/FLOW (FAIL|done)|EXCEPTION|stopped/.test(l)) console.log(l);
+  const done = await waitLog(/FLOW \d+ checks/, 8 * 60000);
+  for (const l of logs) if (/FLOW (FAIL|\d+ checks)|EXCEPTION|stopped/.test(l)) console.log(l);
   if (!done) console.log('flow test did not finish; last lines:\n' + logs.slice(-8).join('\n'));
   await shot('flow_end');
 } else if (mode === 'play') {
-  console.log('started:', await load('--silent'));
+  // A level played by touch: the game logs where the sites it can take are (--log-sites); the first gold one is tapped
+  // until the level is won, then NEXT. Then the frame rate while the best line plays on (--bot best).
+  console.log('started:', await load('--silent --fresh --log-sites --level 1'));
   await sleep(1500);
   console.log('canvas:', JSON.stringify(await evaluate(`(() => { const c = document.getElementById('canvas'); const r = c.getBoundingClientRect();
-    return { css: [r.width, r.height], buffer: [c.width, c.height], status: getComputedStyle(document.getElementById('status')).display }; })()`)));
-  await shot('1_home');
-  await tap(50, 32);  // HOME's LEVEL chip
-  await sleep(500);
-  await shot('2_levels');
-  await tap(335, 108);  // level 5: the first row's fifth button (8 rows of 5 at 390 x 844)
-  await sleep(800);
-  await shot('3_home_level5');
-  await drag(195, 600, 140, 600, 4000);  // start the level and pour while steering left
-  await sleep(500);
-  await shot('4_play');
-  console.log('frames a second while playing:', await fps());
-  await sleep(20000);
-  await shot('5_after_20s');
+    return { css: [r.width, r.height], buffer: [c.width, c.height], dpr: devicePixelRatio, status: getComputedStyle(document.getElementById('status')).display }; })()`)));
+  await shot('1_level1');
+  const dpr = await evaluate('devicePixelRatio');
+  let won = false;
+  for (let k = 0; k < 24 && !won; ++k) {
+    const line = [...logs].reverse().find((l) => /PMSITES/.test(l));
+    const m = line && /(\w+):(\d+),(\d+)/.exec(line.slice(line.indexOf('PMSITES') + 7));
+    if (m) await tap(Number(m[2]) / dpr, Number(m[3]) / dpr);
+    await sleep(1700);
+    won = logs.some((l) => /won level 1/.test(l));
+  }
+  console.log('level 1 won by touch:', won);
+  await shot('2_won');
+  await sleep(1500);
+  const next = [...logs].reverse().find((l) => /PMSITES NEXT:/.test(l));
+  const n = next && /NEXT:(\d+),(\d+)/.exec(next);
+  if (n) await tap(Number(n[1]) / dpr, Number(n[2]) / dpr);
+  console.log('NEXT tapped:', !!n, 'level 2 started:', await waitLog(/level 2 \(/, 8000));
+  await sleep(1500);
+  await shot('3_level2');
   console.log('localStorage:', JSON.stringify(await evaluate(`Object.keys(localStorage).map(k => k + '=' + localStorage.getItem(k).length + ' chars')`)));
-  for (const l of logs) if (/EXCEPTION|error|stopped|audio:|save:|frame /i.test(l)) console.log(l);
+  console.log('started (bot):', await load('--silent --bot best --level 7'));
+  await sleep(1500);
+  console.log('frames a second while the best line plays:', await fps());
+  await sleep(6000);
+  await shot('4_bot');
+  for (const l of logs) if (/EXCEPTION|error|stopped|audio:|won level|frame /i.test(l)) console.log(l);
 } else if (mode === 'reload') {
   // The save of an earlier run in this profile, read back; then an iPhone's notch and home bar (59 and 34 CSS px).
   console.log('started:', await load('--silent'));

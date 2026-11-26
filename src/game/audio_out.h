@@ -10,7 +10,7 @@
 
 struct SDL_AudioStream;
 
-namespace gt {
+namespace pm {
 
 using AudioFill = void (*)(void* user, float* stereo, int frames);
 
@@ -51,4 +51,4 @@ private:
     float buf_[2 * 4096];
 };
 
-}  // namespace gt
+}  // namespace pm

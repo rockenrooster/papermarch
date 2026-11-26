@@ -1,3 +1,3 @@
 precision mediump float;
 precision highp int;
-#define GT_FRAG 1
+#define PM_FRAG 1

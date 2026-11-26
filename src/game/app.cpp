@@ -16,7 +16,7 @@
 #include <emscripten.h>
 #endif
 
-namespace gt {
+namespace pm {
 
 namespace {
 
@@ -49,15 +49,15 @@ int App::run(int argc, char** argv) {
 int App::start(int argc, char** argv) {
     if (!parseArgs(argc, argv, args_)) return 2;
     startTime_ = nowSeconds();
-    GT_LOG("GLOWTIDE %s (%s, %s), scenario %s", GT_VERSION, GT_COMMIT, GT_BUILD_DATE, args_.scenario);
+    PM_LOG("PAPERMARCH %s (%s, %s), scenario %s", PM_VERSION, PM_COMMIT, PM_BUILD_DATE, args_.scenario);
 
     SDL_SetHint(SDL_HINT_ORIENTATIONS, "Portrait");
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
     SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
     SDL_SetHint(SDL_HINT_MOUSE_TOUCH_EVENTS, "0");
-    SDL_SetAppMetadata("GLOWTIDE", GT_VERSION, "dev.glowtide.game");
+    SDL_SetAppMetadata("PAPERMARCH", PM_VERSION, "dev.papermarch.game");
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
-        GT_ERR("SDL_Init: %s", SDL_GetError());
+        PM_ERR("SDL_Init: %s", SDL_GetError());
         return 1;
     }
     if (!initWindow() || !initGl()) {
@@ -67,15 +67,15 @@ int App::start(int argc, char** argv) {
     platform::init(window_);
     platform::presentInit(window_);
     char cpus[64];
-    if (platform::pinToFastCores(cpus, sizeof cpus)) GT_LOG("cpu: main thread pinned to the fast cores %s", cpus);
+    if (platform::pinToFastCores(cpus, sizeof cpus)) PM_LOG("cpu: main thread pinned to the fast cores %s", cpus);
     refreshHz_ = platform::refreshRateHz(window_);
     readFrameGeometry();
-    GT_LOG("frame %dx%d px, dp scale %.3f, safe top %.0f bottom %.0f px, refresh %.1f Hz", frameW_, frameH_, dpScale_,
+    PM_LOG("frame %dx%d px, dp scale %.3f, safe top %.0f bottom %.0f px, refresh %.1f Hz", frameW_, frameH_, dpScale_,
            safe_.top, safe_.bottom, refreshHz_);
 
     GameEnv env{frameW_, frameH_, dpScale_, safe_, platform::isAndroid(), refreshHz_};
     if (!game_.init(args_, env) || !game_.initGraphics()) {
-        GT_ERR("start-up failed");
+        PM_ERR("start-up failed");
         SDL_Quit();
         return 1;
     }
@@ -117,7 +117,7 @@ void App::frame() {
         bf.phase[kPhaseEvents] = float(t1 - t0);
 
         if (args_.rebuildGlAt > 0 && frameIndex_ + 1 == args_.rebuildGlAt) {
-            GT_LOG("rebuilding every GL object (--rebuild-gl-at %d)", args_.rebuildGlAt);
+            PM_LOG("rebuilding every GL object (--rebuild-gl-at %d)", args_.rebuildGlAt);
             game_.destroyGraphics();
             if (!game_.initGraphics()) {
                 exitCode_ = 1;
@@ -166,7 +166,7 @@ void App::frame() {
             if (frameIndex_ == shotFrame) {
                 if (platform::isAndroid() && args_.picture[0]) {
                     pictureHeld_ = true;  // a device keeps showing the picture for adb screencap
-                    GT_LOG("picture: holding frame %d", shotFrame);
+                    PM_LOG("picture: holding frame %d", shotFrame);
                 } else {
                     running_ = false;
                 }
@@ -192,9 +192,9 @@ void App::frame() {
         double presents[64];
         const int np = platform::presentCollect(presents, 64);
         game_.frameShown(float(t6 - t0));
-        if (frameIndex_ == 1) GT_TAG("GTLIFE", "first frame swapped %.0f ms after main", (t6 - startTime_) * 1000.0);
+        if (frameIndex_ == 1) PM_TAG("PMLIFE", "first frame swapped %.0f ms after main", (t6 - startTime_) * 1000.0);
         if (firstFrameAfterResume_) {
-            GT_TAG("GTLIFE", "first frame after resume (frame %d)", frameIndex_);
+            PM_TAG("PMLIFE", "first frame after resume (frame %d)", frameIndex_);
             firstFrameAfterResume_ = false;
         }
 
@@ -203,14 +203,14 @@ void App::frame() {
                 bench_.begin(args_.scenario, args_.seconds, now);
                 audio_.resetStats();
                 benchStarted_ = true;
-                GT_LOG("bench: measuring %s for %.0f s", args_.scenario, double(args_.seconds));
+                PM_LOG("bench: measuring %s for %.0f s", args_.scenario, double(args_.seconds));
             }
             if (bench_.active()) {
                 if (benchT0_ == 0) benchT0_ = now;
                 bf.interval = float(t6 - t0);
-                bf.wisps = game_.wisps();
-                bf.glooms = game_.glooms();
-                bf.particles = game_.particles();
+                bf.stickers = game_.stickers();
+                bf.figures = game_.figures();
+                bf.confetti = game_.confetti();
                 bf.drawCalls = game_.drawCalls();
                 bench_.addFrame(bf);
                 bench_.addPresents(presents, np);
@@ -230,13 +230,13 @@ void App::frame() {
 int App::finish() {
     SDL_RemoveEventWatch(&App::eventWatch, this);
     audio_.close();
-    GT_LOG("haptics: %d sent, at most %d in one second", game_.hapticsSent(), game_.hapticPeakPerSecond());
+    PM_LOG("haptics: %d sent, at most %d in one second", game_.hapticsSent(), game_.hapticPeakPerSecond());
     if (exitCode_ == 0 && game_.lintRan() && game_.lintProblems() > 0) {
-        GT_ERR("layout lint: %d problems", game_.lintProblems());
+        PM_ERR("layout lint: %d problems", game_.lintProblems());
         exitCode_ = 7;
     }
     if (exitCode_ == 0 && glDebugMessageCount() > 0) {
-        GT_ERR("%d GL errors or debug messages were reported", glDebugMessageCount());
+        PM_ERR("%d GL errors or debug messages were reported", glDebugMessageCount());
         exitCode_ = 3;
     }
     game_.destroyGraphics();
@@ -244,7 +244,7 @@ int App::finish() {
     if (gl_) SDL_GL_DestroyContext(gl_);
     if (window_) SDL_DestroyWindow(window_);
     SDL_Quit();
-    GT_LOG("exit %d after %d frames", exitCode_, frameIndex_);
+    PM_LOG("exit %d after %d frames", exitCode_, frameIndex_);
     return exitCode_;
 }
 
@@ -264,11 +264,11 @@ bool App::initWindow() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_DEBUG_FLAG);
 #endif
     if (platform::isAndroid()) {
-        window_ = SDL_CreateWindow("GLOWTIDE", 1080, 2400, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
+        window_ = SDL_CreateWindow("PAPERMARCH", 1080, 2400, SDL_WINDOW_OPENGL | SDL_WINDOW_FULLSCREEN);
         std::snprintf(device_, sizeof device_, "android");
     } else if (platform::isWeb()) {
         // The page's canvas (web/shell.html sizes it with CSS); its drawing buffer follows (readFrameGeometry).
-        window_ = SDL_CreateWindow("GLOWTIDE", 432, 960, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+        window_ = SDL_CreateWindow("PAPERMARCH", 432, 960, SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
         std::snprintf(device_, sizeof device_, "web");
     } else {
         // The frame (--res) is rendered into a framebuffer object; the window only shows it, scaled to fit.
@@ -282,14 +282,14 @@ bool App::initWindow() {
         }
         SDL_WindowFlags flags = SDL_WINDOW_OPENGL;
         if (args_.offscreen) flags |= SDL_WINDOW_HIDDEN | SDL_WINDOW_UTILITY | SDL_WINDOW_NOT_FOCUSABLE;
-        window_ = SDL_CreateWindow("GLOWTIDE", ww, wh, flags);
+        window_ = SDL_CreateWindow("PAPERMARCH", ww, wh, flags);
         if (window_ && args_.offscreen) {
             SDL_SetWindowPosition(window_, -ww - 400, 0);
-            GT_LOG("window: off screen and hidden (--offscreen)");
+            PM_LOG("window: off screen and hidden (--offscreen)");
         }
     }
     if (!window_) {
-        GT_ERR("window: %s", SDL_GetError());
+        PM_ERR("window: %s", SDL_GetError());
         return false;
     }
     return true;
@@ -298,7 +298,7 @@ bool App::initWindow() {
 bool App::initGl() {
     gl_ = SDL_GL_CreateContext(window_);
     if (!gl_ && !platform::isAndroid()) {
-        GT_WARN("no OpenGL ES 3.0 context (%s); trying OpenGL 3.3 core", SDL_GetError());
+        PM_WARN("no OpenGL ES 3.0 context (%s); trying OpenGL 3.3 core", SDL_GetError());
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -307,7 +307,7 @@ bool App::initGl() {
         setGlslVersionLine("#version 330 core\n");
     }
     if (!gl_) {
-        GT_ERR("GL context: %s", SDL_GetError());
+        PM_ERR("GL context: %s", SDL_GetError());
         return false;
     }
     SDL_GL_MakeCurrent(window_, gl_);
@@ -322,7 +322,7 @@ bool App::initGl() {
         if (*p == '"' || *p == '\\') *p = ' ';
     for (char* p = glVersion_; *p; ++p)
         if (*p == '"' || *p == '\\') *p = ' ';
-    GT_LOG("GL: %s context; vendor %s; renderer %s; version %s; GLSL %s", esContext_ ? "ES 3.0" : "OpenGL 3.3 core",
+    PM_LOG("GL: %s context; vendor %s; renderer %s; version %s; GLSL %s", esContext_ ? "ES 3.0" : "OpenGL 3.3 core",
            glGetString(GL_VENDOR), glRenderer_, glVersion_, glGetString(GL_SHADING_LANGUAGE_VERSION));
     GLint n = 0;
     glGetIntegerv(GL_NUM_EXTENSIONS, &n);
@@ -332,12 +332,12 @@ bool App::initGl() {
         const char* e = reinterpret_cast<const char*>(glGetStringi(GL_EXTENSIONS, GLuint(i)));
         const int len = int(std::strlen(e));
         if (o + len + 2 >= int(sizeof line)) {
-            GT_LOG("GL extensions: %s", line);
+            PM_LOG("GL extensions: %s", line);
             o = 0;
         }
         o += std::snprintf(line + o, sizeof line - size_t(o), "%s ", e);
     }
-    if (o) GT_LOG("GL extensions: %s", line);
+    if (o) PM_LOG("GL extensions: %s", line);
     return true;
 }
 
@@ -358,7 +358,7 @@ void App::readFrameGeometry() {
         }
         const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window_));
         if (mode) {
-            GT_LOG("surface %dx%d %s the display mode %dx%d", frameW_, frameH_,
+            PM_LOG("surface %dx%d %s the display mode %dx%d", frameW_, frameH_,
                    (mode->w == frameW_ && mode->h == frameH_) || (mode->w == frameH_ && mode->h == frameW_) ? "matches"
                                                                                                             : "DIFFERS from",
                    mode->w, mode->h);
@@ -395,23 +395,23 @@ bool SDLCALL App::eventWatch(void* user, SDL_Event* e) {
     App* self = static_cast<App*>(user);
     switch (e->type) {
         case SDL_EVENT_WILL_ENTER_BACKGROUND:
-            GT_TAG("GTLIFE", "will enter background");
+            PM_TAG("PMLIFE", "will enter background");
             self->background_ = true;
             self->game_.background();
             self->audio_.pause(true);
             if (self->bench_.active()) {
                 self->bench_.focusLost();
-                GT_WARN("bench: the app went to the background; the run is invalid");
+                PM_WARN("bench: the app went to the background; the run is invalid");
             }
             break;
         case SDL_EVENT_DID_ENTER_BACKGROUND:
-            GT_TAG("GTLIFE", "background");
+            PM_TAG("PMLIFE", "background");
             break;
         case SDL_EVENT_WILL_ENTER_FOREGROUND:
-            GT_TAG("GTLIFE", "will enter foreground");
+            PM_TAG("PMLIFE", "will enter foreground");
             break;
         case SDL_EVENT_DID_ENTER_FOREGROUND:
-            GT_TAG("GTLIFE", "foreground");
+            PM_TAG("PMLIFE", "foreground");
             self->background_ = false;
             self->firstFrameAfterResume_ = true;
             self->game_.foreground();
@@ -431,7 +431,7 @@ void App::handleEvent(const SDL_Event& e) {
             running_ = false;
             break;
         case SDL_EVENT_RENDER_DEVICE_RESET:
-            GT_TAG("GTLIFE", "GL context was lost: rebuilding every GL object");
+            PM_TAG("PMLIFE", "GL context was lost: rebuilding every GL object");
             game_.destroyGraphics();
             if (!game_.initGraphics()) {
                 exitCode_ = 1;
@@ -441,7 +441,7 @@ void App::handleEvent(const SDL_Event& e) {
         case SDL_EVENT_WINDOW_FOCUS_LOST:
             if (bench_.active()) {
                 bench_.focusLost();
-                GT_WARN("bench: focus lost; the run is invalid");
+                PM_WARN("bench: focus lost; the run is invalid");
             }
             break;
         case SDL_EVENT_WINDOW_RESIZED:  // a page: the browser's window, a phone turned, Safari's bars shown or hidden
@@ -453,7 +453,7 @@ void App::handleEvent(const SDL_Event& e) {
                 readFrameGeometry();
                 game_.resize({frameW_, frameH_, dpScale_, safe_, platform::isAndroid(), refreshHz_});
                 // Again, with the insets the window has now: the device picture check reads the last such line.
-                GT_LOG("frame %dx%d px, dp scale %.3f, safe top %.0f bottom %.0f px, refresh %.1f Hz", frameW_, frameH_, dpScale_,
+                PM_LOG("frame %dx%d px, dp scale %.3f, safe top %.0f bottom %.0f px, refresh %.1f Hz", frameW_, frameH_, dpScale_,
                        safe_.top, safe_.bottom, refreshHz_);
             }
             break;
@@ -555,4 +555,4 @@ void App::finishBench() {
     if (!bench_.valid()) exitCode_ = 4;
 }
 
-}  // namespace gt
+}  // namespace pm

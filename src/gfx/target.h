@@ -3,7 +3,7 @@
 
 #include "gfx/gl.h"
 
-namespace gt {
+namespace pm {
 
 struct Target {
     GLuint fbo = 0, color = 0, depth = 0;
@@ -17,4 +17,4 @@ struct Target {
 // Reads the bound framebuffer (RGBA8) into a PNG. Desktop targets are bottom-up.
 bool captureBound(const char* path, int w, int h);
 
-}  // namespace gt
+}  // namespace pm

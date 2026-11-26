@@ -3,7 +3,7 @@
 // from the next level on, remembered in the save. A frame is late when it is shown two or more periods after the one
 // before (the contract's rule, PLAN 5).
 
-namespace gt {
+namespace pm {
 
 inline bool lateFrame(float intervalSeconds, float refreshHz) {
     const float period = 1.0f / (refreshHz > 1.0f ? refreshHz : 60.0f);
@@ -15,4 +15,4 @@ inline bool shouldFallBackTo60(float refreshHz, int frames, int late) {
     return refreshHz > 61.0f && frames >= int(2.0f * refreshHz) && late * 20 > frames;
 }
 
-}  // namespace gt
+}  // namespace pm

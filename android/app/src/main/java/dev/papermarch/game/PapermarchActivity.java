@@ -1,4 +1,4 @@
-package dev.glowtide.game;
+package dev.papermarch.game;
 
 import android.app.Activity;
 import android.content.Context;
@@ -17,19 +17,19 @@ import android.view.WindowManager;
 import org.libsdl.app.SDLActivity;
 
 /**
- * GLOWTIDE's activity (TECH_SPEC 2.4). SDL runs the native SDL_main() from libmain.so on its own thread; this class only
+ * PAPERMARCH's activity (TECH_SPEC 2.4). SDL runs the native SDL_main() from libmain.so on its own thread; this class only
  * adds arguments from the intent (debuggable builds), immersive full screen over the whole panel, the display mode with
  * the wanted refresh rate, haptics, and a clean process exit when the game quits.
  */
-public class GlowtideActivity extends SDLActivity {
-    private static final String TAG = "GLOWTIDE";
+public class PapermarchActivity extends SDLActivity {
+    private static final String TAG = "PAPERMARCH";
 
     @Override
     protected String[] getLibraries() {
         return new String[] {"SDL3", "main"};
     }
 
-    /** adb shell am start -n dev.glowtide.game/.GlowtideActivity --es args '--scenario bench_idle --seconds 30' */
+    /** adb shell am start -n dev.papermarch.game/.PapermarchActivity --es args '--scenario bench_idle --seconds 30' */
     @Override
     protected String[] getArguments() {
         if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) == 0) {
@@ -132,7 +132,7 @@ public class GlowtideActivity extends SDLActivity {
     // The updater (docs/RELEASE_PIPELINE.md): a build with a number reads the latest GitHub release's tag (build-<n>) once a
     // launch, on a thread of its own, and hands n to native code; HOME shows UPDATE while it is higher than its own. Nothing is
     // sent but the request (no account: GitHub allows an address 60 such requests an hour); no answer means no button.
-    private static final String LATEST_RELEASE = "https://api.github.com/repos/rockenrooster/glowtide/releases/latest";
+    private static final String LATEST_RELEASE = "https://api.github.com/repos/rockenrooster/papermarch/releases/latest";
     private static final long UPDATE_GAP_MS = 60000;
     private static volatile boolean sUpdateBusy;
     private static volatile long sUpdateAskedAt;
@@ -154,7 +154,7 @@ public class GlowtideActivity extends SDLActivity {
                     connection.setConnectTimeout(8000);
                     connection.setReadTimeout(8000);
                     connection.setRequestProperty("Accept", "application/vnd.github+json");
-                    connection.setRequestProperty("User-Agent", "glowtide-updater");
+                    connection.setRequestProperty("User-Agent", "papermarch-updater");
                     if (connection.getResponseCode() == 200) {
                         java.io.InputStream in = connection.getInputStream();
                         java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
@@ -185,7 +185,7 @@ public class GlowtideActivity extends SDLActivity {
                 }
                 sUpdateBusy = false;
             }
-        }, "glowtide-update").start();
+        }, "papermarch-update").start();
     }
 
     static native void nativeUpdateFound(int build);
@@ -199,7 +199,7 @@ public class GlowtideActivity extends SDLActivity {
         activity.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                ApkUpdater.downloadAndInstall(activity, "rockenrooster/glowtide", "glowtide.apk", new ApkUpdater.Listener() {
+                ApkUpdater.downloadAndInstall(activity, "rockenrooster/papermarch", "papermarch.apk", new ApkUpdater.Listener() {
                     @Override
                     public void onProgress(float fraction) {
                         nativeUpdateProgress(fraction);

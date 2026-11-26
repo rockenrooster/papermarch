@@ -10,7 +10,7 @@
 #include "core/log.h"
 #include "platform/platform.h"
 
-namespace gt {
+namespace pm {
 
 void Bench::begin(const char* scenario, float seconds, double now) {
     if (!frames_) {
@@ -64,9 +64,9 @@ void Bench::finish(const char* device, const char* glRenderer, const char* glVer
     for (int p = 0; p < kPhaseCount; ++p) stats([p](const BenchFrame& f) { return f.phase[p]; }, phases[p]);
     int maxW = 0, maxG = 0, maxP = 0, maxDraws = 0;
     for (int i = 0; i < n; ++i) {
-        maxW = maxv(maxW, frames_[i].wisps);
-        maxG = maxv(maxG, frames_[i].glooms);
-        maxP = maxv(maxP, frames_[i].particles);
+        maxW = maxv(maxW, frames_[i].stickers);
+        maxG = maxv(maxG, frames_[i].figures);
+        maxP = maxv(maxP, frames_[i].confetti);
         maxDraws = maxv(maxDraws, frames_[i].drawCalls);
     }
 
@@ -110,9 +110,9 @@ void Bench::finish(const char* device, const char* glRenderer, const char* glVer
         "\"refresh_hz\":%.2f,\"seconds\":%.1f,\"frames\":%d,\"presents\":%d,\"present_timestamps\":%s,"
         "\"late_share\":%.4f,\"worst_ms\":%.2f,\"contract_pass\":%s,\"valid\":%s,"
         "\"display_ms\":[%.2f,%.2f,%.2f,%.2f],\"interval_ms\":[%.2f,%.2f,%.2f,%.2f],\"cpu_ms\":[%.2f,%.2f,%.2f,%.2f],"
-        "\"tick_ms\":[%.3f,%.3f,%.3f,%.3f],\"heap_allocs\":%llu,\"max_wisps\":%d,\"max_glooms\":%d,\"max_particles\":%d,"
+        "\"tick_ms\":[%.3f,%.3f,%.3f,%.3f],\"heap_allocs\":%llu,\"max_stickers\":%d,\"max_figures\":%d,\"max_confetti\":%d,"
         "\"phases_p95_ms\":{\"events\":%.3f,\"sim\":%.3f,\"view\":%.3f,\"build\":%.3f,\"submit\":%.3f,\"swap\":%.3f}",
-        scenario_, device, GT_VERSION, GT_COMMIT, GT_BUILD_DATE, glRenderer, glVersion, refreshHz, double(seconds_), n,
+        scenario_, device, PM_VERSION, PM_COMMIT, PM_BUILD_DATE, glRenderer, glVersion, refreshHz, double(seconds_), n,
         presentCount_, havePresents ? "true" : "false", lateShare, worst * 1000.0, pass ? "true" : "false",
         valid_ ? "true" : "false", display[0], display[1], display[2], display[3], interval[0], interval[1], interval[2],
         interval[3], cpu[0], cpu[1], cpu[2], cpu[3], tick[0], tick[1], tick[2], tick[3], (unsigned long long)allocs, maxW,
@@ -121,7 +121,7 @@ void Bench::finish(const char* device, const char* glRenderer, const char* glVer
     if (o < int(sizeof json) - 40) o += std::snprintf(json + o, sizeof json - size_t(o), ",\"draw_calls\":%d", maxDraws);
     if (extra && o < int(sizeof json) - 2) o += std::snprintf(json + o, sizeof json - size_t(o), "%s", extra);
     if (o < int(sizeof json) - 2) std::snprintf(json + o, sizeof json - size_t(o), "}");
-    GT_TAG("GTBENCH", "%s", json);
+    PM_TAG("PMBENCH", "%s", json);
 
     char name[64], path[512];
     std::snprintf(name, sizeof name, "bench_%s.json", scenario_);
@@ -130,8 +130,8 @@ void Bench::finish(const char* device, const char* glRenderer, const char* glVer
         std::fputs(json, f);
         std::fputs("\n", f);
         std::fclose(f);
-        GT_LOG("bench: wrote %s", path);
+        PM_LOG("bench: wrote %s", path);
     }
 }
 
-}  // namespace gt
+}  // namespace pm

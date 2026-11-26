@@ -7,7 +7,7 @@
 #include "core/log.h"
 #include "core/tuning.h"
 
-namespace gt {
+namespace pm {
 
 namespace {
 
@@ -37,7 +37,7 @@ bool parseArgs(int argc, char** argv, Args& a) {
         const char* v = i + 1 < argc ? argv[i + 1] : nullptr;
         auto need = [&](void) -> bool {
             if (!v) {
-                GT_ERR("args: %s needs a value", k);
+                PM_ERR("args: %s needs a value", k);
                 return false;
             }
             ++i;
@@ -47,11 +47,11 @@ bool parseArgs(int argc, char** argv, Args& a) {
         float fv = 0;
         if (!std::strcmp(k, "--scenario")) {
             if (!need() || !copyStr(a.scenario, sizeof a.scenario, v)) return false;
-            const char* ok[] = {"play", "touch_test", "bench_idle", "bench_flood", "bench_play", "sim_hash"};
+            const char* ok[] = {"play", "bench_idle", "bench_battle", "bench_play", "sim_hash"};
             bool known = false;
             for (const char* s : ok) known = known || !std::strcmp(s, a.scenario);
             if (!known) {
-                GT_ERR("args: unknown scenario %s", a.scenario);
+                PM_ERR("args: unknown scenario %s", a.scenario);
                 return false;
             }
         } else if (!std::strcmp(k, "--level")) {
@@ -60,24 +60,20 @@ bool parseArgs(int argc, char** argv, Args& a) {
         } else if (!std::strcmp(k, "--seed")) {
             if (!need() || !toInt(v, iv)) return false;
             a.seed = iv;
-        } else if (!std::strcmp(k, "--recipe")) {
-            if (!need() || !toInt(v, iv) || iv < 0) return false;
-            a.recipe = int(iv);
         } else if (!std::strcmp(k, "--world")) {
             if (!need() || !toInt(v, iv) || iv < 1 || iv > 10) return false;
             a.world = int(iv);
-        } else if (!std::strcmp(k, "--palette-alt")) {
-            if (!need() || !toInt(v, iv) || iv < 0 || iv > 2) return false;
-            a.paletteAlt = int(iv);
         } else if (!std::strcmp(k, "--bot")) {
             if (!need() || !copyStr(a.bot, sizeof a.bot, v)) return false;
-            if (std::strcmp(v, "greedy") && std::strcmp(v, "naive") && std::strcmp(v, "sweep") && std::strcmp(v, "idle")) {
-                GT_ERR("args: unknown bot %s", v);
+            if (std::strcmp(v, "best") && std::strcmp(v, "greedy") && std::strcmp(v, "random")) {
+                PM_ERR("args: unknown bot %s", v);
                 return false;
             }
         } else if (!std::strcmp(k, "--picture")) {
             if (!need() || !copyStr(a.picture, sizeof a.picture, v)) return false;
             a.fixedStep = true;
+        } else if (!std::strcmp(k, "--moves")) {
+            if (!need() || !copyStr(a.moves, sizeof a.moves, v)) return false;
         } else if (!std::strcmp(k, "--screenshot")) {
             if (!need() || !copyStr(a.screenshot, sizeof a.screenshot, v)) return false;
         } else if (!std::strcmp(k, "--frames")) {
@@ -103,7 +99,7 @@ bool parseArgs(int argc, char** argv, Args& a) {
         } else if (!std::strcmp(k, "--res")) {
             int w = 0, h = 0;
             if (!need() || std::sscanf(v, "%dx%d", &w, &h) != 2 || w < 64 || h < 64 || w > 8192 || h > 8192) {
-                GT_ERR("args: --res WxH");
+                PM_ERR("args: --res WxH");
                 return false;
             }
             a.resW = w;
@@ -117,7 +113,7 @@ bool parseArgs(int argc, char** argv, Args& a) {
         } else if (!std::strcmp(k, "--set")) {
             if (!need() || a.setCount >= 24 || !copyStr(a.sets[a.setCount], 64, v)) return false;
             if (!setTuningPair(v)) {
-                GT_ERR("args: --set %s: unknown name or bad value", v);
+                PM_ERR("args: --set %s: unknown name or bad value", v);
                 return false;
             }
             ++a.setCount;
@@ -141,16 +137,14 @@ bool parseArgs(int argc, char** argv, Args& a) {
         } else if (!std::strcmp(k, "--fps")) {
             if (!need() || !toFloat(v, fv) || fv <= 0) return false;
             a.fps = fv;
-        } else if (!std::strcmp(k, "--tone")) {
-            a.tone = true;
-        } else if (!std::strcmp(k, "--alternate")) {
-            a.alternate = true;
         } else if (!std::strcmp(k, "--lint")) {
             a.lint = true;
+        } else if (!std::strcmp(k, "--log-sites")) {
+            a.logSites = true;
         } else if (!std::strcmp(k, "--fresh")) {
             a.fresh = true;
         } else {
-            GT_ERR("args: unknown argument %s", k);
+            PM_ERR("args: unknown argument %s", k);
             return false;
         }
     }
@@ -159,4 +153,4 @@ bool parseArgs(int argc, char** argv, Args& a) {
     return true;
 }
 
-}  // namespace gt
+}  // namespace pm

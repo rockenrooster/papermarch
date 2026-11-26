@@ -5,7 +5,7 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 struct V2 {
     float x = 0, y = 0;
@@ -119,4 +119,4 @@ inline float mixf(float a, float b, float t) { return a + (b - a) * t; }
 
 constexpr float kPi = 3.14159265358979f;
 
-}  // namespace gt
+}  // namespace pm

@@ -1,19 +1,19 @@
 # Serves the browser build to phones on this PC's network (an iPhone opens the address it prints in Safari).
-#   scripts\serve-web.ps1 [-Port 8091] [-Build] [-MoveTo https://glowtide.netlify.app/]
-# -Build runs scripts\build-web.ps1 first. Ctrl+C stops the server. Port 8091 (RAVEFORM's web build uses 8080).
+#   scripts\serve-web.ps1 [-Port 8092] [-Build] [-MoveTo https://papermarch.netlify.app/]
+# -Build runs scripts\build-web.ps1 first. Ctrl+C stops the server. Port 8092 (RAVEFORM's web build uses 8080).
 # -MoveTo: the game is hosted elsewhere now; every visit here is sent there with the save this address kept.
 # Phones reach it only once Windows Firewall lets the port in (this PC does not ask): once, in an administrator
-# PowerShell: New-NetFirewallRule -DisplayName 'GLOWTIDE web server (8091)' -Direction Inbound -Protocol TCP
-#   -LocalPort 8091 -Action Allow -Profile Private
+# PowerShell: New-NetFirewallRule -DisplayName 'PAPERMARCH web server (8092)' -Direction Inbound -Protocol TCP
+#   -LocalPort 8092 -Action Allow -Profile Private
 param(
-    [int]$Port = 8091,
+    [int]$Port = 8092,
     [switch]$Build,
     [string]$MoveTo
 )
 . "$PSScriptRoot\env.ps1"
 if ($Build) { & "$PSScriptRoot\build-web.ps1" }
 if ($MoveTo) {
-    & python -I -B (Join-Path $GT_ROOT 'tools\serve_web.py') --port $Port --move-to $MoveTo
+    & python -I -B (Join-Path $PM_ROOT 'tools\serve_web.py') --port $Port --move-to $MoveTo
     exit $LASTEXITCODE
 }
 
@@ -24,4 +24,4 @@ Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
         $category = (Get-NetConnectionProfile -InterfaceAlias $_.InterfaceAlias -ErrorAction SilentlyContinue).NetworkCategory
         Write-Host ("[serve] on a phone on the network of {0} ({1}): http://{2}:{3}/" -f $_.InterfaceAlias, $category, $_.IPAddress, $Port)
     }
-& python -I -B (Join-Path $GT_ROOT 'tools\serve_web.py') --port $Port
+& python -I -B (Join-Path $PM_ROOT 'tools\serve_web.py') --port $Port

@@ -3,7 +3,7 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 struct Rng {
     u64 state = 0x853c49e6748fea9bULL;
@@ -41,4 +41,4 @@ inline u64 hash64(u64 x) {
     return x ^ (x >> 31);
 }
 
-}  // namespace gt
+}  // namespace pm

@@ -16,16 +16,16 @@ $task = ':app:assemble' + $Config.Substring(0, 1).ToUpper() + $Config.Substring(
 $tasks = @()
 if ($Clean) { $tasks += ':app:clean' }
 $tasks += $task
-$errorFile = Join-Path $GT_ROOT 'android\.gradle\hs_err_daemon.log'
-$gradleArgs = @('--console=plain', "--max-workers=$GT_JOBS",
-                "-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 -XX:ActiveProcessorCount=$GT_JOBS -XX:ErrorFile=$errorFile")
+$errorFile = Join-Path $PM_ROOT 'android\.gradle\hs_err_daemon.log'
+$gradleArgs = @('--console=plain', "--max-workers=$PM_JOBS",
+                "-Dorg.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8 -XX:ActiveProcessorCount=$PM_JOBS -XX:ErrorFile=$errorFile")
 if ($Offline) { $gradleArgs += '--offline' }
-Push-Location (Join-Path $GT_ROOT 'android')
+Push-Location (Join-Path $PM_ROOT 'android')
 try {
     & .\gradlew.bat @tasks @gradleArgs
     if ($LASTEXITCODE -ne 0) { throw "gradle $($tasks -join ' ') failed ($LASTEXITCODE)" }
 } finally {
     Pop-Location
 }
-$apk = Join-Path $GT_ROOT "android\app\build\outputs\apk\$Config\app-$Config.apk"
+$apk = Join-Path $PM_ROOT "android\app\build\outputs\apk\$Config\app-$Config.apk"
 Write-Host "[build] $apk ($([math]::Round((Get-Item $apk).Length / 1MB, 2)) MB)"

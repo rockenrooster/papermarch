@@ -5,7 +5,7 @@
 
 #include "core/log.h"
 
-namespace gt {
+namespace pm {
 
 namespace {
 
@@ -22,7 +22,7 @@ const char* g_version = "#version 300 es\n";
 GLuint compile(GLenum stage, const char* name) {
     const char* body = shaderSource(name);
     if (!body) {
-        GT_ERR("shader: %s is not embedded", name);
+        PM_ERR("shader: %s is not embedded", name);
         return 0;
     }
     const char* parts[4] = {g_version, shaderSource(stage == GL_VERTEX_SHADER ? "prelude_vert.glsl" : "prelude_frag.glsl"),
@@ -36,11 +36,11 @@ GLuint compile(GLenum stage, const char* name) {
     char log[2048] = "";
     if (len > 1) glGetShaderInfoLog(s, sizeof log, nullptr, log);
     if (!ok) {
-        GT_ERR("shader %s failed to compile:\n%s", name, log);
+        PM_ERR("shader %s failed to compile:\n%s", name, log);
         glDeleteShader(s);
         return 0;
     }
-    if (len > 1 && log[0]) GT_WARN("shader %s compiled with a message: %s", name, log);
+    if (len > 1 && log[0]) PM_WARN("shader %s compiled with a message: %s", name, log);
     return s;
 }
 
@@ -74,11 +74,11 @@ GLuint buildProgram(const char* vertName, const char* fragName, const char* cons
     char log[2048] = "";
     if (len > 1) glGetProgramInfoLog(p, sizeof log, nullptr, log);
     if (!ok) {
-        GT_ERR("program %s + %s failed to link:\n%s", vertName, fragName, log);
+        PM_ERR("program %s + %s failed to link:\n%s", vertName, fragName, log);
         glDeleteProgram(p);
         return 0;
     }
-    if (len > 1 && log[0]) GT_WARN("program %s + %s linked with a message: %s", vertName, fragName, log);
+    if (len > 1 && log[0]) PM_WARN("program %s + %s linked with a message: %s", vertName, fragName, log);
     const GLuint block = glGetUniformBlockIndex(p, "Frame");
     if (block != GL_INVALID_INDEX) glUniformBlockBinding(p, block, kFrameBinding);
     if (samplerCount > 0) {
@@ -92,4 +92,4 @@ GLuint buildProgram(const char* vertName, const char* fragName, const char* cons
     return p;
 }
 
-}  // namespace gt
+}  // namespace pm

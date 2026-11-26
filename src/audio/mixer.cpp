@@ -3,90 +3,50 @@
 #include <cmath>
 #include <cstring>
 
-#include "core/clock.h"
-#include "core/log.h"
-
-namespace gt::audio {
+namespace pm::audio {
 
 namespace {
 
-// Voice limits by sound (GAME_DESIGN 12: "each sound has its own voice limit").
+constexpr float kEffectsGain = 0.42f;
+constexpr float kMusicGain = 0.50f;
+constexpr int kLoop = 64;  // eight bars of 2/4 in sixteenths
+
+// The theme (GAME_DESIGN 12.1): the degree (1 = the tonic, 8 = its octave) starting at each sixteenth, 0 none.
+const int kTheme[kLoop] = {
+    1, 0, 1, 2, 3, 0, 5, 0,   // bar 1: 1(2) 1(1) 2(1) 3(2) 5(2)
+    6, 0, 5, 0, 3, 0, 0, 0,   // bar 2: 6(2) 5(2) 3(4)
+    4, 0, 4, 5, 6, 0, 8, 0,   // bar 3: 4(2) 4(1) 5(1) 6(2) 8(2)
+    7, 0, 5, 0, 5, 0, 0, 0,   // bar 4: 7(2) 5(2) 5(4)
+    8, 0, 8, 7, 6, 0, 5, 0,   // bar 5: 8(2) 8(1) 7(1) 6(2) 5(2)
+    6, 0, 4, 0, 2, 0, 0, 0,   // bar 6: 6(2) 4(2) 2(4)
+    3, 0, 5, 0, 4, 0, 2, 0,   // bar 7: 3(2) 5(2) 4(2) 2(2)
+    1, 0, 0, 0, 0, 0, 0, 0,   // bar 8: 1(8)
+};
+// The chord of each bar, as its root's degree (0-based): I I IV V I IV V I.
+const int kChord[8] = {0, 0, 3, 4, 0, 3, 4, 0};
+
 int limitOf(int s) {
-    if (s >= kSndLadder0 && s < kSndLadder0 + 11) return 8;
-    if (s >= kSndPluck0 && s < kSndPluck0 + 11) return 6;
     switch (s) {
-        case kSndPip: return 4;
-        case kSndTick: return 6;
-        case kSndShatterBig: case kSndWinChord: case kSndLose: return 1;
-        case kSndPulse: return 2;
-        default: return 3;
+        case kSndWood: return 6;
+        case kSndFlip: return 6;
+        case kSndGlock: return 10;
+        case kSndStep: return 3;
+        case kSndRatchet: return 4;
+        case kSndFanfare: case kSndLoseHorn: case kSndChoir: return 1;
+        default: return 4;
     }
 }
 
-int categoryOf(int s) {
-    if (s >= kSndLadder0 && s < kSndLadder0 + 11) return 1000;
-    if (s >= kSndPluck0 && s < kSndPluck0 + 11) return 1001;
-    return s;
-}
-
-bool isMusic(int s) { return s == kSndPulse || (s >= kSndPluck0 && s < kSndPluck0 + 11); }
-
-constexpr float kEffectsGain = 0.33f;  // the flood render lands near -17 LUFS (GAME_DESIGN 12: -20 to -14)
-
 }  // namespace
 
-Mixer::PadSet* Mixer::makePad(int rate, int world) {
-    PadSet* p = new PadSet;
-    const MusicStyle& m = worldMusic(world);
-    buildPad(rate, m, p->dark, p->bright);
-    p->world = world;
-    p->step = 30.0f / m.bpm;
-    for (int c = 0; c < 2; ++c)
-        for (int k = 0; k < 11 && p->noteCount[c] < 6; ++k)
-            for (int j = 0; j < 3; ++j)
-                if (kLadderMidi[k] % 12 == m.chords[c][j] % 12) {
-                    p->notes[c][p->noteCount[c]++] = k;
-                    break;
-                }
-    return p;
-}
-
-Mixer::~Mixer() {
-    if (worker_.joinable()) worker_.join();
-    delete pad_;
-    delete pending_.exchange(nullptr);
-    delete retired_.exchange(nullptr);
-}
-
-void Mixer::init(int sampleRate, int timbre, int world) {
+void Mixer::init(int sampleRate) {
     rate_ = sampleRate;
-    bank_.build(sampleRate, timbre);
+    bank_.build(sampleRate);
     for (Voice& v : voices_) v.sound = -1;
-    delete pad_;
-    pad_ = makePad(sampleRate, world);
-    wantWorld_ = world;
-}
-
-void Mixer::setWorld(int world, bool boss) {
-    boss_.store(boss);
-    delete retired_.exchange(nullptr);
-    if (world == wantWorld_) return;
-    wantWorld_ = world;
-    if (worker_.joinable()) worker_.join();
-    delete pending_.exchange(nullptr);  // a pad the seam has not taken yet: this one replaces it
-    const int rate = rate_;
-#if defined(__EMSCRIPTEN__)
-    // A page served over plain HTTP has no threads (no SharedArrayBuffer): the pad is built here, at a world's first level.
-    const double t0 = nowSeconds();
-    pending_.store(makePad(rate, world));
-    GT_LOG("audio: world %d's pad built in %.0f ms", world, (nowSeconds() - t0) * 1000.0);
-#else
-    worker_ = std::thread([this, rate, world] {
-        const double t0 = nowSeconds();
-        pending_.store(makePad(rate, world));
-        GT_LOG("audio: world %d's pad built in %.0f ms (a worker thread)", world, (nowSeconds() - t0) * 1000.0);
-    });
-#endif
+    const MarchStyle& m = marchStyle(world_);
+    stepLen_ = double(rate_) * 60.0 / double(m.bpm) / 4.0;
+    toNext_ = 0;
+    step_ = 0;
 }
 
 bool Mixer::push(const Command& c) {
@@ -101,14 +61,40 @@ bool Mixer::push(const Command& c) {
     return true;
 }
 
-void Mixer::play(int sound, float gain, float pan, float pitch, float delay) {
+void Mixer::play(int sound, float gain, float pan, float pitch, float delay, bool onBeat) {
     Command c;
     c.type = 0;
     c.sound = u8(sound);
+    c.flags = onBeat ? 1 : 0;
     c.gain = gain;
     c.pan = pan;
     c.pitch = pitch;
     c.delay = delay;
+    push(c);
+}
+
+void Mixer::ladder(int step, bool down, float gain, float pan) {
+    Command c;
+    c.type = 5;
+    c.a = float(step);
+    c.b = down ? 1.0f : 0.0f;
+    c.gain = gain;
+    c.pan = pan;
+    push(c);
+}
+
+void Mixer::setWorld(int world, bool boss) {
+    Command c;
+    c.type = 3;
+    c.a = float(world);
+    c.b = boss ? 1.0f : 0.0f;
+    push(c);
+}
+
+void Mixer::setLayers(int layers) {
+    Command c;
+    c.type = 4;
+    c.a = float(layers);
     push(c);
 }
 
@@ -127,109 +113,183 @@ void Mixer::setEnabled(bool effects, bool music) {
     push(c);
 }
 
-void Mixer::start(const Command& c) {
-    const int s = c.sound;
+float Mixer::noteRatio(int sound, int degree, int octaveShift) const {
+    const MarchStyle& m = marchStyle(world_);
+    int oct = degree >= 0 ? degree / 7 : -((-degree + 6) / 7);
+    const int d = degree - oct * 7;
+    const float midi = float(m.tonic + m.mode[d] + 12 * (oct + octaveShift)) - (boss_ ? 7.0f : 0.0f);
+    return midiHz(midi) / baseHz(sound);
+}
+
+void Mixer::start(int s, float gain, float pan, float pitch, int delayFrames, bool music, u8 choke) {
     if (s < 0 || s >= kSndCount) return;
-    if (!isMusic(s) && !effectsOn_) return;
-    if (isMusic(s) && !musicOn_) return;
-    const int cat = categoryOf(s), limit = limitOf(s);
-    int count = 0, oldestCat = -1, freeV = -1, oldest = -1;
-    u32 oldestCatAge = ~0u, oldestAge = ~0u;
+    if (!music && !effectsOn_) return;
+    if (music && !musicOn_) return;
+    if (choke)
+        for (Voice& v : voices_)
+            if (v.sound >= 0 && v.choke == choke && v.fadeStep == 0) v.fadeStep = -1.0f / (0.012f * float(rate_));
+    const int limit = music ? kVoices : limitOf(s);
+    int count = 0, oldestSame = -1, freeV = -1, oldest = -1;
+    u32 oldestSameAge = ~0u, oldestAge = ~0u;
     for (int i = 0; i < kVoices; ++i) {
         const Voice& v = voices_[i];
         if (v.sound < 0) {
             if (freeV < 0) freeV = i;
             continue;
         }
-        if (categoryOf(v.sound) == cat) {
+        if (v.sound == s) {
             ++count;
-            if (v.age < oldestCatAge) {
-                oldestCatAge = v.age;
-                oldestCat = i;
+            if (v.age < oldestSameAge) {
+                oldestSameAge = v.age;
+                oldestSame = i;
             }
         }
-        if (v.age < oldestAge && !isMusic(v.sound)) {
+        if (v.age < oldestAge) {
             oldestAge = v.age;
             oldest = i;
         }
     }
-    int slot = count >= limit ? oldestCat : (freeV >= 0 ? freeV : oldest);
+    const int slot = count >= limit ? oldestSame : (freeV >= 0 ? freeV : oldest);
     if (slot < 0) return;
     Voice& v = voices_[slot];
     v.sound = s;
     v.pos = 0;
-    v.step = c.pitch * float(bank_.rate()) / float(rate_);
-    const float a = (clampv(c.pan, -1.0f, 1.0f) + 1.0f) * 0.25f * 3.14159265f;
-    const float g = c.gain * (isMusic(s) ? musicGain_ : kEffectsGain);
+    v.step = pitch * float(bank_.rate()) / float(rate_);
+    const float a = (clampv(pan, -1.0f, 1.0f) + 1.0f) * 0.25f * 3.14159265f;
+    const float g = gain * (music ? kMusicGain : kEffectsGain);
     v.gl = g * std::cos(a);
     v.gr = g * std::sin(a);
-    v.delay = int(c.delay * float(rate_));
+    v.delay = maxv(0, delayFrames);
     v.age = ++voiceAge_;
+    v.music = music;
+    v.choke = choke;
+    v.fade = 1;
+    v.fadeStep = 0;
 }
 
-void Mixer::musicStep(int frames) {
-    const float dt = float(frames) / float(rate_);
-    // Below zero: HUSH (VARIETY_DESIGN 13): the pad alone, no pulse and no plucks.
-    const float want = intensity_.load();
-    const bool padOnly = want < 0;
-    intensityNow_ += (maxv(0.0f, want) - intensityNow_) * minv(1.0f, dt * 2.0f);
-    if (duckHold_ > 0) {
-        duckHold_ -= dt;
-        if (duckHold_ <= 0) duckTarget_ = 1.0f;
+// One sixteenth of the march (GAME_DESIGN 12.1): what each layer plays on it.
+void Mixer::playStep(int s, int offset) {
+    const MarchStyle& m = marchStyle(world_);
+    const int bar = s / 8, pos = s % 8;
+    const int root = kChord[bar];
+    const float d = duck_;
+    // Layer 0: a soft frame drum on the beat, the open fifth every two bars.
+    if (layerGain_[0] > 0.01f) {
+        const float g = layerGain_[0] * d;
+        if (pos == 0) start(kSndFrameDrum, 0.75f * g, -0.1f, 1.0f, offset, true);
+        if (pos == 4) start(kSndFrameDrum, 0.55f * g, 0.1f, 1.08f, offset, true);
+        if (s % 16 == 0) start(kSndDrone, 0.5f * g, 0.0f, noteRatio(kSndDrone, 0, -1), offset, true);
+        if (boss_ && (pos == 0 || pos == 4)) start(kSndTimpani, 0.7f * g, 0.0f, noteRatio(kSndTimpani, 0, -2), offset, true);
     }
-    duck_ += (duckTarget_ - duck_) * minv(1.0f, dt / 0.05f);
+    // Layer 1: rim clicks and ghost notes, a low tom on one; a snare roll into the loop's seam.
+    if (layerGain_[1] > 0.01f) {
+        const float g = layerGain_[1] * d;
+        if (pos == 2 || pos == 6) start(kSndRim, 0.45f * g, 0.25f, 1.0f, offset, true);
+        if (pos == 7) start(kSndSnare, 0.16f * g, 0.2f, 1.0f, offset, true);
+        if (pos == 0) start(kSndTom, 0.42f * g, -0.25f, 1.0f, offset, true);
+        if (s >= 60) start(kSndSnare, (0.3f + 0.1f * float(s - 60)) * g, 0.15f, 1.0f, offset, true);
+        if (pos % 2 == 1) start(kSndShaker, 0.25f * g, 0.4f, 1.0f, offset, true);
+    }
+    // Layer 2: the bass, oom-pah: the root on one, the fifth on two, a brass "pah" on the offbeats.
+    if (layerGain_[2] > 0.01f) {
+        const float g = layerGain_[2] * d;
+        if (pos == 0) start(kSndBass, 0.8f * g, 0.0f, noteRatio(kSndBass, root, -2), offset, true);
+        if (pos == 4) start(kSndBass, 0.65f * g, 0.0f, noteRatio(kSndBass, root + 4 - 7, -2), offset, true);
+        if (pos == 2 || pos == 6) {
+            start(kSndBrass, 0.14f * g, -0.3f, noteRatio(kSndBrass, root + 2, -1), offset, true);
+            start(kSndBrass, 0.12f * g, 0.3f, noteRatio(kSndBrass, root + 4, -1), offset, true);
+        }
+    }
+    // Layer 3: the melody, doubled by a glockenspiel an octave up.
+    if (layerGain_[3] > 0.01f && kTheme[s] > 0) {
+        const float g = layerGain_[3] * d;
+        const int deg = kTheme[s] - 1;
+        switch (m.lead) {
+            case 1: start(kSndGlock, 0.55f * g, -0.1f, noteRatio(kSndGlock, deg, -1), offset, true, 1); break;
+            case 2: start(kSndBrass, 0.5f * g, -0.1f, noteRatio(kSndBrass, deg, 0), offset, true, 1); break;
+            case 3: start(kSndGlock, 0.6f * g, -0.1f, noteRatio(kSndGlock, deg, 0), offset, true, 1); break;
+            default: start(kSndFife, 0.6f * g, -0.1f, noteRatio(kSndFife, deg, 0), offset, true, 1); break;
+        }
+        if (m.lead != 3) start(kSndGlock, 0.22f * g, 0.2f, noteRatio(kSndGlock, deg, 1), offset, true);
+    }
+    // Layer 4: brass harmony on each bar, a cymbal swelling into the seam: you can take the Keep now.
+    if (layerGain_[4] > 0.01f) {
+        const float g = layerGain_[4] * d;
+        if (pos == 0)
+            for (int k = 0; k < 3; ++k) start(kSndBrass, 0.2f * g, float(k - 1) * 0.35f, noteRatio(kSndBrass, root + 2 * k, 0), offset, true);
+        if (s == 56) start(kSndCymbalSwell, 0.5f * g, 0.0f, 1.0f, offset, true);
+        if (s == 0) start(kSndCrash, 0.35f * g, 0.3f, 1.0f, offset, true);
+    }
+}
+
+void Mixer::sequence(int frames, float* out) {
+    (void)out;
     if (!musicOn_) return;
-    musicClock_ += double(dt);
-    // Eighth-note steps: the low pulse on beats one and three (a boss: every beat), sparse plucks from the chord's notes.
-    const float kStep = pad_->step;
-    while (musicClock_ >= double(nextStep_) * double(kStep)) {
-        const int step = nextStep_ % 32;
-        const int bar = step / 8;
-        if (step % (boss_.load(std::memory_order_relaxed) ? 2 : 4) == 0 && !padOnly) {
-            Command c;
-            c.sound = kSndPulse;
-            c.gain = 0.55f * duck_;
-            start(c);
-        }
-        pluckRng_ = pluckRng_ * 1664525u + 1013904223u;
-        const float roll = float(pluckRng_ >> 8) / 16777216.0f;
-        if (!padOnly && roll < 0.10f + 0.45f * intensityNow_ && step % 2 == (bar & 1)) {
-            const int chord = bar < 2 ? 0 : 1;
-            pluckRng_ = pluckRng_ * 1664525u + 1013904223u;
-            const int k = int((pluckRng_ >> 16) % u32(maxv(1, pad_->noteCount[chord])));
-            Command c;
-            c.sound = u8(kSndPluck0 + pad_->notes[chord][k]);
-            c.gain = (0.35f + 0.25f * intensityNow_) * duck_;
-            c.pan = (float(int((pluckRng_ >> 8) % 100u)) / 50.0f - 1.0f) * 0.6f;
-            start(c);
-        }
-        ++nextStep_;
-        if (nextStep_ >= 32 * 1000) {  // keep the clock small
-            nextStep_ -= 32 * 1000;
-            musicClock_ -= double(32 * 1000) * double(kStep);
-        }
+    const MarchStyle& m = marchStyle(world_);
+    // Layer gains follow what is wanted, over about a bar.
+    const float rate = float(frames) / float(stepLen_ * 8.0);
+    for (int l = 0; l < kLayers; ++l) {
+        const float want = l < layersWanted_ ? 1.0f : 0.0f;
+        layerGain_[l] += clampv(want - layerGain_[l], -rate, rate);
     }
+    double pos = 0;
+    while (pos + toNext_ < double(frames)) {
+        pos += toNext_;
+        playStep(step_, int(pos));
+        step_ = (step_ + 1) % kLoop;
+        // Swing: the even sixteenths (the "and"s) come late.
+        const double swing = double(m.swing) * stepLen_;
+        toNext_ = step_ % 2 == 1 ? stepLen_ + swing : stepLen_ - swing;
+    }
+    toNext_ -= double(frames) - pos;
 }
 
 void Mixer::mix(float* out, int frames) {
-    // Commands from the game thread.
     u32 t = tail_.load(std::memory_order_relaxed);
     const u32 h = head_.load(std::memory_order_acquire);
     while (t != h) {
         const Command& c = ring_[t % kRing];
-        if (c.type == 0) {
-            start(c);
-        } else if (c.type == 1) {
-            duckTarget_ = 0.5f;  // -6 dB
-            duckHold_ = c.a;
-        } else if (c.type == 2) {
-            effectsOn_ = c.a > 0.5f;
-            musicOn_ = c.b > 0.5f;
+        switch (c.type) {
+            case 0: {
+                const int delay = int(c.delay * float(rate_)) + (c.flags & 1 ? int(toNext_) : 0);
+                start(c.sound, c.gain, c.pan, c.pitch, delay, false);
+                break;
+            }
+            case 1:
+                duckTarget_ = 0.45f;
+                duckHold_ = c.a;
+                break;
+            case 2:
+                effectsOn_ = c.a > 0.5f;
+                musicOn_ = c.b > 0.5f;
+                break;
+            case 3: {
+                const int w = int(c.a);
+                const bool b = c.b > 0.5f;
+                if (w != world_ || b != boss_) {
+                    world_ = w;
+                    boss_ = b;
+                    const MarchStyle& m = marchStyle(world_);
+                    stepLen_ = double(rate_) * 60.0 / double(m.bpm) / 4.0;
+                    step_ = 0;
+                    toNext_ = stepLen_;
+                }
+                break;
+            }
+            case 4: layersWanted_ = clampv(int(c.a), 0, kLayers); break;
+            case 5: {
+                // Up (or down) the world's scale from the current chord's root: 24 ticks climb two octaves.
+                const int k = int(c.a);
+                const int root = kChord[step_ / 8];
+                const int deg = c.b > 0.5f ? root + 7 - (k * 14) / 24 : root + (k * 14) / 24;
+                start(kSndWood, c.gain, c.pan, noteRatio(kSndWood, deg, 0), 0, false);
+                break;
+            }
+            default: break;
         }
         ++t;
     }
     tail_.store(t, std::memory_order_release);
-    // Any length (the offline renders ask for seconds at once): chunks of at most kChunk frames.
     for (int done = 0; done < frames; done += kChunk) mixChunk(out + done * 2, minv(kChunk, frames - done));
     musicLevelOut_.store(musicLevel_, std::memory_order_relaxed);
     mixCalls_.fetch_add(1, std::memory_order_relaxed);
@@ -237,10 +297,14 @@ void Mixer::mix(float* out, int frames) {
 
 void Mixer::mixChunk(float* out, int frames) {
     std::memset(out, 0, sizeof(float) * 2 * size_t(frames));
-    // Music events in blocks of 64 frames, then every voice.
-    for (int base = 0; base < frames; base += 64) musicStep(minv(64, frames - base));
-    // The music's level glides to the MUSIC switch in about 0.1 s, so switching it off stops the bed without a
-    // click; once silent the music voices are let go.
+    const float dt = float(frames) / float(rate_);
+    if (duckHold_ > 0) {
+        duckHold_ -= dt;
+        if (duckHold_ <= 0) duckTarget_ = 1.0f;
+    }
+    duck_ += (duckTarget_ - duck_) * minv(1.0f, dt / 0.08f);
+    sequence(frames, out);
+    // The music's level glides to the MUSIC switch in about 0.1 s; once silent its voices are let go.
     const float glide = 1.0f - std::exp(-1.0f / (0.1f * float(rate_)));
     const float target = musicOn_ ? 1.0f : 0.0f;
     for (int i = 0; i < frames; ++i) {
@@ -251,8 +315,7 @@ void Mixer::mixChunk(float* out, int frames) {
     int inUse = 0;
     for (Voice& v : voices_) {
         if (v.sound < 0) continue;
-        const bool music = isMusic(v.sound);
-        if (music && musicSilent) {
+        if (v.music && musicSilent) {
             v.sound = -1;
             continue;
         }
@@ -266,55 +329,23 @@ void Mixer::mixChunk(float* out, int frames) {
         }
         for (; i < frames; ++i) {
             const int k = int(v.pos);
-            if (k + 1 >= s.len) {
+            if (k + 1 >= s.len || v.fade <= 0) {
                 v.sound = -1;
                 break;
             }
             const float f = v.pos - float(k);
-            const float x = (s.data[k] + (s.data[k + 1] - s.data[k]) * f) * (music ? musicEnv_[i] : 1.0f);
+            float x = (s.data[k] + (s.data[k + 1] - s.data[k]) * f) * (v.music ? musicEnv_[i] : 1.0f);
+            if (v.fadeStep != 0) {
+                x *= v.fade;
+                v.fade += v.fadeStep;
+            }
             out[i * 2] += x * v.gl;
             out[i * 2 + 1] += x * v.gr;
             v.pos += v.step;
         }
     }
     voicesInUse_.store(inUse);
-    // The pad, crossfaded dark to bright with the tide; ducked under the win and lose.
-    if (!musicSilent) {
-        const float g = musicGain_ * 0.55f * duck_;
-        const float b = intensityNow_;
-        for (int i = 0; i < frames; ++i) {
-            const float* dark = pad_->dark.data();
-            const float* bright = pad_->bright.data();
-            const int k = int(padPos_);
-            const float x = (dark[k] + (bright[k] - dark[k]) * b) * g * musicEnv_[i];
-            out[i * 2] += x;
-            out[i * 2 + 1] += x;
-            padPos_ += 1.0;
-            if (padPos_ >= double(pad_->dark.size())) {
-                padPos_ = 0;
-                // The seam: a new world's pad comes in here, and its clock starts with it.
-                if (PadSet* p = pending_.exchange(nullptr)) {
-                    PadSet* old = retired_.exchange(pad_);
-                    (void)old;  // the game thread frees one at a time; a second swap before it does is not possible (one build at a time)
-                    pad_ = p;
-                    musicClock_ = 0;
-                    nextStep_ = 0;
-                }
-            }
-        }
-    }
-    if (tone_.load()) {
-        const double step = 440.0 * 6.283185307179586 / double(rate_);
-        for (int i = 0; i < frames; ++i) {
-            const float s = 0.12f * float(std::sin(tonePhase_));
-            tonePhase_ += step;
-            if (tonePhase_ > 6.283185307179586) tonePhase_ -= 6.283185307179586;
-            out[i * 2] += s;
-            out[i * 2 + 1] += s;
-        }
-    }
-    // A soft limiter holds the output under -1 dBFS true peak: samples held at -1.5 dBFS leave room for the overs
-    // between samples. Instant attack, ~100 ms release.
+    // A soft limiter holds the output under -1 dBFS true peak: samples held at -1.5 dBFS. Instant attack, ~100 ms release.
     const float thr = 0.841f;
     const float release = 1.0f - std::exp(-1.0f / (0.1f * float(rate_)));
     for (int i = 0; i < frames; ++i) {
@@ -326,4 +357,4 @@ void Mixer::mixChunk(float* out, int frames) {
     }
 }
 
-}  // namespace gt::audio
+}  // namespace pm::audio

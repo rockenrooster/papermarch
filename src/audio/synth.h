@@ -1,20 +1,47 @@
 #pragma once
-// Every sound of GAME_DESIGN 12, synthesized once at start-up from small recipes into mono float buffers (TECH_SPEC 6).
+// Every sound of GAME_DESIGN 12, synthesized once at start-up from small recipes into mono float buffers (TECH_SPEC 7):
+// wood, paper, drums and brass, a toy marching band. Pitched instruments are one note each, played at other pitches by
+// the mixer's resampling.
 
 #include <vector>
 
 #include "core/types.h"
 
-namespace gt::audio {
+namespace pm::audio {
 
 enum SoundId {
-    kSndPip, kSndTick, kSndPff, kSndChip, kSndShatterSmall, kSndShatterBig, kSndThump, kSndCrack, kSndPopLow, kSndCoreHit,
-    kSndWinChord, kSndStar0, kSndStar1, kSndStar2, kSndLose, kSndUiTap, kSndPulse,
-    kSndTink,        // a geode hit: a short glass pluck at C5, played up the ladder as its health falls
-    kSndGeodeOpen,   // a bright crack and three glass notes rising
-    kSndLadder0,  // eleven ladder notes: C4 D4 E4 G4 A4 C5 D5 E5 G5 A5 C6
-    kSndPluck0 = kSndLadder0 + 11,  // the music's plucks: the same eleven notes, softer
-    kSndCount = kSndPluck0 + 11
+    // Effects.
+    kSndWood,       // the count ladder's wood block (D5)
+    kSndFlip,       // a paper flip
+    kSndClash,      // drum, a metal ring and a shout
+    kSndGlock,      // a glockenspiel note (A5): village chimes, the shrine's run, stars
+    kSndCoin,
+    kSndReed,       // the mire: a low reed falling a fourth
+    kSndKnock,      // a refused tap: two low knocks
+    kSndCrackle,    // a fork's bridge burning
+    kSndHorn,       // a raid or the rival: two low horn notes
+    kSndDeepDrum,
+    kSndFanfare,    // the win: a brass arpeggio into a chord
+    kSndChoir,
+    kSndLoseHorn,   // a horn falling a fifth, then paper tearing
+    kSndSwish,      // the page turn
+    kSndRatchet,    // a pop-up standing
+    kSndTap,        // a UI tap
+    kSndStep,       // a footstep
+    // The march (GAME_DESIGN 12.1).
+    kSndFrameDrum,
+    kSndSnare,
+    kSndRim,
+    kSndTom,
+    kSndCymbalSwell,
+    kSndCrash,
+    kSndBass,       // tuba-like, A2
+    kSndFife,       // the melody, A4
+    kSndBrass,      // harmony, A3
+    kSndDrone,      // an open fifth, A3 + E4
+    kSndTimpani,    // the boss's pedal, A2
+    kSndShaker,
+    kSndCount
 };
 
 struct Sound {
@@ -24,8 +51,7 @@ struct Sound {
 
 class Bank {
 public:
-    // timbre: 0 kalimba, 1 glass, 2 bell (the ladder; GAME_DESIGN 12, P4 owner checkpoint).
-    void build(int sampleRate, int timbre);
+    void build(int sampleRate);
     const Sound& get(int id) const { return s_[id]; }
     int rate() const { return rate_; }
 
@@ -35,17 +61,18 @@ private:
     Sound s_[kSndCount];
 };
 
-// A world's music (VARIETY_DESIGN 15): two chords, each two bars of the four-bar loop, and a tempo of 70 to 84 beats a
-// minute. Every note is in C major pentatonic (the ladder's family), voiced from A3 up: a phone speaker has no bass.
-struct MusicStyle {
-    int chords[2][5];
-    float bpm;
-};
-const MusicStyle& worldMusic(int world);  // 1..10
-// A style's pad: the four-bar loop, dark and bright (the tide crossfades them); allocates, so not on the audio thread.
-void buildPad(int rate, const MusicStyle& m, std::vector<float>& dark, std::vector<float>& bright);
-
+// The base pitch of a pitched sound (Hz): the mixer's pitch ratio for a target frequency is target / base.
+float baseHz(int sound);
 float midiHz(float midi);
-extern const int kLadderMidi[11];
 
-}  // namespace gt::audio
+// A world's march (GAME_DESIGN 12.1): its mode (semitones of the seven degrees), tonic (MIDI), tempo, swing, lead.
+struct MarchStyle {
+    int mode[7];
+    int tonic;      // MIDI note of degree 1 for the lead (an octave above the bass's)
+    float bpm;
+    float swing;    // 0 straight .. 0.33 a triplet feel
+    int lead;       // 0 fife, 1 plucked, 2 reed, 3 bell
+};
+const MarchStyle& marchStyle(int world);  // 1..10
+
+}  // namespace pm::audio

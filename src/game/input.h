@@ -3,7 +3,7 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 enum class PtrType { Down, Move, Up };
 
@@ -20,4 +20,4 @@ struct SafeArea {
     float top = 0, bottom = 0, left = 0, right = 0;  // pixels
 };
 
-}  // namespace gt
+}  // namespace pm

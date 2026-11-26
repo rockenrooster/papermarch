@@ -8,7 +8,7 @@
 #include "core/clock.h"
 #include "core/log.h"
 
-namespace gt {
+namespace pm {
 
 namespace {
 
@@ -38,7 +38,7 @@ bool AudioOut::open(bool silent, AudioFill fill, void* user) {
     fill_ = fill;
     user_ = user;
     if (!SDL_InitSubSystem(SDL_INIT_AUDIO)) {
-        GT_WARN("audio: %s", SDL_GetError());
+        PM_WARN("audio: %s", SDL_GetError());
         return false;
     }
     SDL_AudioSpec spec;
@@ -47,14 +47,14 @@ bool AudioOut::open(bool silent, AudioFill fill, void* user) {
     spec.freq = 48000;
     stream_ = SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, &AudioOut::callback, this);
     if (!stream_) {
-        GT_WARN("audio: no device (%s)", SDL_GetError());
+        PM_WARN("audio: no device (%s)", SDL_GetError());
         return false;
     }
     int frames = 0;
     SDL_AudioSpec dev;
     if (SDL_GetAudioDeviceFormat(SDL_GetAudioStreamDevice(stream_), &dev, &frames)) {
         bufferSeconds_ = frames > 0 && dev.freq > 0 ? float(frames) / float(dev.freq) : 0.01f;
-        GT_LOG("audio: device %d Hz, %d channels, %d frames a buffer%s", dev.freq, dev.channels, frames,
+        PM_LOG("audio: device %d Hz, %d channels, %d frames a buffer%s", dev.freq, dev.channels, frames,
                silent_ ? " (silent: output zeroed)" : "");
     }
     SDL_ResumeAudioStreamDevice(stream_);
@@ -64,10 +64,10 @@ bool AudioOut::open(bool silent, AudioFill fill, void* user) {
 void AudioOut::close() {
     if (stream_) {
         const AudioStats s = stats();
-        GT_LOG("audio: %d callbacks, fill p99 %.2f max %.2f ms, gap max %.1f ms, %d late, period %.1f ms", s.callbacks,
+        PM_LOG("audio: %d callbacks, fill p99 %.2f max %.2f ms, gap max %.1f ms, %d late, period %.1f ms", s.callbacks,
                double(s.fillMs[1]), double(s.fillMs[2]), double(s.gapMs[2]), s.late, double(s.periodMs));
         if (silent_)
-            GT_LOG("audio: silent: peak before the mute %.3f, %lld non-zero samples handed to the device", double(s.peakBeforeMute),
+            PM_LOG("audio: silent: peak before the mute %.3f, %lld non-zero samples handed to the device", double(s.peakBeforeMute),
                    s.nonZeroHanded);
         SDL_DestroyAudioStream(stream_);
     }
@@ -141,4 +141,4 @@ void AudioOut::callback(void* user, SDL_AudioStream* stream, int additional, int
     if (fill > self->maxFill_) self->maxFill_ = fill;
 }
 
-}  // namespace gt
+}  // namespace pm

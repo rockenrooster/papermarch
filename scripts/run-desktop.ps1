@@ -17,7 +17,7 @@ param(
 . "$PSScriptRoot\env.ps1"
 
 if (-not $NoBuild) { & "$PSScriptRoot\build-desktop.ps1" -Config $Config }
-$exe = Join-Path $GT_ROOT "build\desktop-$Config\glowtide.exe"
+$exe = Join-Path $PM_ROOT "build\desktop-$Config\papermarch.exe"
 if (-not (Test-Path $exe)) { throw "missing $exe - build first" }
 
 $argv = @()
@@ -37,5 +37,5 @@ if ($Frames -gt 0) { $argv += @('--frames', "$Frames") }
 Write-Host "[run] $exe $($argv -join ' ')"
 & $exe @argv
 $code = $LASTEXITCODE
-if ($shot -and $Small -and (Test-Path $shot)) { python -I -B (Join-Path $GT_ROOT 'tools\shrink_png.py') $shot }
+if ($shot -and $Small -and (Test-Path $shot)) { python -I -B (Join-Path $PM_ROOT 'tools\shrink_png.py') $shot }
 exit $code

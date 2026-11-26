@@ -7,8 +7,8 @@ param(
 )
 . "$PSScriptRoot\env.ps1"
 if (-not $NoBuild) { & "$PSScriptRoot\build-desktop.ps1" -Config $Config }
-$exe = Join-Path $GT_ROOT "build\desktop-$Config\glowtide.exe"
-$root = Join-Path $GT_ROOT 'captures\flash'
+$exe = Join-Path $PM_ROOT "build\desktop-$Config\papermarch.exe"
+$root = Join-Path $PM_ROOT 'captures\flash'
 $strips = [ordered]@{ win_strip = 210; boss_win_strip = 210; lose_strip = 150; core_hit_strip = 120; geode_strip = 60; ward_strip = 60
             kindle_strip = 60; comet_strip = 60; twist_eclipse = 150; dawn_strip = 120; colossus_fall_strip = 90 }
 $failed = 0
@@ -24,7 +24,7 @@ foreach ($mode in 'normal', 'reduced') {
         & $exe @argv | Out-Null
         if ($LASTEXITCODE -ne 0) { Write-Host "[flash] $mode ${name}: run failed ($LASTEXITCODE)"; ++$failed; continue }
         Write-Host -NoNewline "[$mode] "
-        python -I -B (Join-Path $GT_ROOT 'tools\flash_audit.py') $name $dir
+        python -I -B (Join-Path $PM_ROOT 'tools\flash_audit.py') $name $dir
         if ($LASTEXITCODE -ne 0) { ++$failed }
     }
 }

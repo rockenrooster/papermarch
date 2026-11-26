@@ -4,19 +4,20 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 struct SaveData {
     int version = 1;
     int level = 1;              // the level HOME shows
     u8 stars[1000] = {};        // best stars per level (index = level - 1)
-    bool sound = true, music = true, haptics = true, autoFire = false, reduceEffects = false;
+    bool sound = true, music = true, haptics = true, fast = false, reduceEffects = false;
+    bool finished = false;      // all the levels were won once (the end screen was seen)
     bool refresh60 = false;     // the one-way 60 Hz fallback (TECH_SPEC 5.10)
-    u32 hints = 0;              // bit per hint shown
+    u32 hints = 0;              // bit per hint line shown (sim::hintText)
     int totalStars() const;
 };
 
 bool loadSave(const char* path, SaveData& out);  // false (and defaults) if missing or damaged
 bool writeSave(const char* path, const SaveData& s);
 
-}  // namespace gt
+}  // namespace pm

@@ -4,7 +4,7 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 struct FontGlyph {
     u16 code, x, y, w, h;
@@ -38,6 +38,7 @@ public:
               float shadow = 0);
     void rectRotated(float cx, float cy, float w, float h, float radius, float angle, Rgba fill);  // angle in radians
     void star(float cx, float cy, float r, Rgba fill, Rgba stroke = {0, 0, 0, 0}, float strokeW = 0);
+    void star5(float cx, float cy, float r, Rgba fill, Rgba stroke = {0, 0, 0, 0}, float strokeW = 0);  // five points, up
     // `size` is the em size in pixels; y is the baseline unless `centerY` (then the cap height is centred on y).
     // Returns the width drawn.
     float text(const char* s, float x, float y, float size, Rgba fill, Rgba stroke, float strokeW, Align align = Align::Left,
@@ -58,4 +59,4 @@ const unsigned char* fontAtlas(int& w, int& h);
 float fontSpread();       // atlas px
 float fontAtlasPxPerEm();
 
-}  // namespace gt
+}  // namespace pm

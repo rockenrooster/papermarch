@@ -1,6 +1,6 @@
-# Builds and runs every check that needs no device (TECH_SPEC 8.4). Exit 0 = all passed.
+# Builds and runs every check that needs no device (TECH_SPEC 9.4). Exit 0 = all passed.
 #   scripts\test.ps1 [-Config debug|dev] [-NoBuild] [-Quick]
-# -Quick skips the long headless runs (the bake acceptance and the soak).
+# -Quick skips the flow test and the table report.
 param(
     [ValidateSet('debug', 'dev')][string]$Config = 'dev',
     [switch]$NoBuild,
@@ -8,8 +8,8 @@ param(
 )
 . "$PSScriptRoot\env.ps1"
 if (-not $NoBuild) { & "$PSScriptRoot\build-desktop.ps1" -Config $Config }
-$bin = Join-Path $GT_ROOT "build\desktop-$Config"
-$out = Join-Path $GT_ROOT 'captures\tests'
+$bin = Join-Path $PM_ROOT "build\desktop-$Config"
+$out = Join-Path $PM_ROOT 'captures\tests'
 New-Item -ItemType Directory -Force $out | Out-Null
 $failed = @()
 
@@ -19,17 +19,23 @@ function Step([string]$Name, [scriptblock]$Body) {
     if ($LASTEXITCODE -ne 0) { $script:failed += $Name; Write-Host "[test] FAILED: $Name ($LASTEXITCODE)" }
 }
 
-Step 'unit tests' { & (Join-Path $bin 'glowtide_tests.exe') $out }
+Step 'unit tests (rules, solver = brute force, hand-made levels, the table, palettes, save)' { & (Join-Path $bin 'papermarch_tests.exe') $out }
 Step 'png opens in PIL' { python -I -B -c "import sys; from PIL import Image; im = Image.open(sys.argv[1]); im.load(); assert im.size == (3, 2) and im.getpixel((2, 1))[0] == 200, im.getpixel((2, 1))" (Join-Path $out 'test_png.png') }
-$headless = Join-Path $bin 'glowtide_headless.exe'
-Step 'determinism, levels 1-5' { & $headless --sim determinism --from 1 --to 5 --seconds 60 }
-Step 'determinism, the hash levels (geode levels, each kind, each recipe introduction, a set piece, a replay)' {
-    & $headless --sim determinism --hash-levels --seconds 60
-}
-Step 'variety: the no-repeat rule and the counts on the baked table (VARIETY_PLAN 5)' { & $headless --sim variety --from 1 --to 600 }
+$headless = Join-Path $bin 'papermarch_headless.exe'
+Step 'the table: every level winnable with its best' { & $headless --sim table | Select-Object -Last 3 }
 if (-not $Quick) {
-    Step 'acceptance, levels 1-5' { & $headless --sim accept --from 1 --to 5 }
-    Step 'soak, levels 1-5 (greedy, sweep)' { & $headless --sim soak --from 1 --to 5 --bots greedy,sweep }
+    $exe = Join-Path $bin 'papermarch.exe'
+    Step 'the flow test (screens, moves, undo, hint, settings)' { & $exe --flow-test --silent --offscreen --no-audio }
+    Step 'the layout lint on every screen' {
+        $bad = 0
+        foreach ($s in 'screen_play', 'screen_pause', 'screen_settings', 'screen_levels', 'screen_end', 'screen_win', 'screen_lose', 'home_update') {
+            foreach ($res in '1080x2400', '540x1200', '1200x1920', '1080x1440') {
+                & $exe --picture $s --lint --frames 90 --res $res --silent --offscreen --no-audio | Out-Null
+                if ($LASTEXITCODE -ne 0) { Write-Host "[test] lint failed: $s at $res"; $bad++ }
+            }
+        }
+        $global:LASTEXITCODE = [int]($bad -gt 0)
+    }
 }
 if ($failed.Count) { Write-Host "[test] $($failed.Count) failed: $($failed -join ', ')"; exit 1 }
 Write-Host "[test] all passed"

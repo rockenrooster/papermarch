@@ -4,14 +4,14 @@
 # Back the keystore and its password up: a build signed with another key cannot update an installed copy.
 #   scripts\release-key.ps1 [-Keystore <path>] [-SecretsOnly] [-NoBuild]
 param(
-    [string]$Keystore = (Join-Path (Split-Path $PSScriptRoot) 'keys\glowtide-release.keystore'),
-    [string]$Alias = 'glowtide',
-    [string]$Repo = 'rockenrooster/glowtide',
+    [string]$Keystore = (Join-Path (Split-Path $PSScriptRoot) 'keys\papermarch-release.keystore'),
+    [string]$Alias = 'papermarch',
+    [string]$Repo = 'rockenrooster/papermarch',
     [switch]$SecretsOnly,  # the keystore exists: only set the secrets again
     [switch]$NoBuild       # set the secrets without starting a build
 )
 . "$PSScriptRoot\env.ps1"
-$keytool = Join-Path $GT_JDK 'bin\keytool.exe'
+$keytool = Join-Path $PM_JDK 'bin\keytool.exe'
 $gh = (Get-Command gh -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 
 function Set-GhSecret([string]$Name, [string]$Value) {
@@ -31,7 +31,7 @@ if (-not $SecretsOnly) {
     if (Test-Path $Keystore) { throw "$Keystore exists and may be the key in use: keep it (-SecretsOnly uploads it again)" }
     New-Item -ItemType Directory -Force (Split-Path $Keystore) | Out-Null
     Write-Host "[key] creating $Keystore (keytool asks for a new password, twice)"
-    & $keytool -genkeypair -keystore $Keystore -storetype PKCS12 -alias $Alias -keyalg RSA -keysize 4096 -validity 10000 -dname 'CN=GLOWTIDE'
+    & $keytool -genkeypair -keystore $Keystore -storetype PKCS12 -alias $Alias -keyalg RSA -keysize 4096 -validity 10000 -dname 'CN=PAPERMARCH'
     if ($LASTEXITCODE -ne 0) { throw 'keytool failed' }
 }
 if (-not (Test-Path $Keystore)) { throw "no keystore at $Keystore" }
@@ -39,15 +39,15 @@ if (-not (Test-Path $Keystore)) { throw "no keystore at $Keystore" }
 $secure = Read-Host -AsSecureString "[key] the keystore's password, once more, for GitHub"
 $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
 try {
-    $env:GT_KEY_CHECK = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-    $cert = & $keytool -list -v -keystore $Keystore -storepass:env GT_KEY_CHECK -alias $Alias 2>&1
+    $env:PM_KEY_CHECK = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+    $cert = & $keytool -list -v -keystore $Keystore -storepass:env PM_KEY_CHECK -alias $Alias 2>&1
     if ($LASTEXITCODE -ne 0) { throw "that password does not open $Keystore (or it has no key '$Alias')" }
-    Set-GhSecret 'GT_KEYSTORE_BASE64' ([Convert]::ToBase64String([IO.File]::ReadAllBytes($Keystore)))
-    Set-GhSecret 'GT_KEYSTORE_PASSWORD' $env:GT_KEY_CHECK
-    Set-GhSecret 'GT_KEY_PASSWORD' $env:GT_KEY_CHECK  # (a PKCS12 keystore's key has the keystore's password)
-    Set-GhSecret 'GT_KEY_ALIAS' $Alias
+    Set-GhSecret 'PM_KEYSTORE_BASE64' ([Convert]::ToBase64String([IO.File]::ReadAllBytes($Keystore)))
+    Set-GhSecret 'PM_KEYSTORE_PASSWORD' $env:PM_KEY_CHECK
+    Set-GhSecret 'PM_KEY_PASSWORD' $env:PM_KEY_CHECK  # (a PKCS12 keystore's key has the keystore's password)
+    Set-GhSecret 'PM_KEY_ALIAS' $Alias
 } finally {
-    Remove-Item Env:GT_KEY_CHECK -ErrorAction SilentlyContinue
+    Remove-Item Env:PM_KEY_CHECK -ErrorAction SilentlyContinue
     [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
 }
 $sha = ($cert | Select-String -Pattern 'SHA256:\s*(\S+)' | Select-Object -First 1).Matches.Groups[1].Value

@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace gt {
+namespace pm {
 
 int SaveData::totalStars() const {
     int t = 0;
@@ -48,7 +48,8 @@ bool loadSave(const char* path, SaveData& out) {
         } else if (!std::strcmp(k, "sound")) flag(s.sound);
         else if (!std::strcmp(k, "music")) flag(s.music);
         else if (!std::strcmp(k, "haptics")) flag(s.haptics);
-        else if (!std::strcmp(k, "autofire")) flag(s.autoFire);
+        else if (!std::strcmp(k, "fast")) flag(s.fast);
+        else if (!std::strcmp(k, "finished")) flag(s.finished);
         else if (!std::strcmp(k, "reduce_effects")) flag(s.reduceEffects);
         else if (!std::strcmp(k, "refresh60")) flag(s.refresh60);
         else if (!std::strcmp(k, "hints")) {
@@ -74,8 +75,8 @@ bool writeSave(const char* path, const SaveData& s) {
     char stars[1001];
     for (int i = 0; i < last; ++i) stars[i] = char('0' + s.stars[i]);
     stars[last] = 0;
-    std::fprintf(f, "version=%d\nlevel=%d\nstars=%s\nsound=%d\nmusic=%d\nhaptics=%d\nautofire=%d\nreduce_effects=%d\nrefresh60=%d\nhints=%u\n",
-                 s.version, s.level, stars, s.sound, s.music, s.haptics, s.autoFire, s.reduceEffects, s.refresh60, s.hints);
+    std::fprintf(f, "version=%d\nlevel=%d\nstars=%s\nsound=%d\nmusic=%d\nhaptics=%d\nfast=%d\nreduce_effects=%d\nrefresh60=%d\nfinished=%d\nhints=%u\n",
+                 s.version, s.level, stars, s.sound, s.music, s.haptics, s.fast, s.reduceEffects, s.refresh60, s.finished, s.hints);
     const bool ok = std::fflush(f) == 0;
     std::fclose(f);
     if (!ok) return false;
@@ -85,4 +86,4 @@ bool writeSave(const char* path, const SaveData& s) {
     return std::rename(tmp, path) == 0;
 }
 
-}  // namespace gt
+}  // namespace pm

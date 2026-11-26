@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace gt {
+namespace pm {
 
 using u8 = std::uint8_t;
 using u16 = std::uint16_t;
@@ -29,4 +29,4 @@ constexpr T maxv(T a, T b) { return a > b ? a : b; }
 // tests read it before and after a window that must not allocate.
 u64 allocationCount();
 
-}  // namespace gt
+}  // namespace pm

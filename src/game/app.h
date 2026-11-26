@@ -10,7 +10,7 @@
 #include "game/game.h"
 #include "gfx/target.h"
 
-namespace gt {
+namespace pm {
 
 class App {
 public:
@@ -61,4 +61,4 @@ private:
     float lastMouseX_ = 0, lastMouseY_ = 0;
 };
 
-}  // namespace gt
+}  // namespace pm

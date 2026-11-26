@@ -8,7 +8,7 @@
 
 struct SDL_Window;
 
-namespace gt::platform {
+namespace pm::platform {
 
 bool isAndroid();
 // Pins the calling thread to the CPUs with the highest capacity (Android big cores); returns how many (0: none).
@@ -30,7 +30,7 @@ int latestBuild();
 // fraction, or -1 while nothing downloads.
 void startUpdate();
 float updateProgress();
-constexpr const char* kReleasesUrl = "https://github.com/rockenrooster/glowtide/releases/latest";
+constexpr const char* kReleasesUrl = "https://github.com/rockenrooster/papermarch/releases/latest";
 
 // A browser build (Emscripten, web/shell.html). webCanvas() sets the page canvas's drawing buffer to its CSS size times
 // devicePixelRatio and returns both sizes, the ratio and the safe area's insets (top, right, bottom, left; CSS pixels:
@@ -53,4 +53,4 @@ bool presentAvailable();
 void presentBeforeSwap();
 int presentCollect(double* out, int max);
 
-}  // namespace gt::platform
+}  // namespace pm::platform

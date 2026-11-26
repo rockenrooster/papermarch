@@ -11,15 +11,15 @@ param(
 )
 . "$PSScriptRoot\env.ps1"
 
-$Serial = Resolve-GtSerial $Serial
-Assert-GtDevice $Serial
-$id = Get-GtDeviceId $Serial
-$model = "$(& $GT_ADB -s $Serial shell getprop ro.product.model)".Trim()
-$android = "$(& $GT_ADB -s $Serial shell getprop ro.build.version.release)".Trim()
-$size = "$((& $GT_ADB -s $Serial shell wm size) | Select-Object -Last 1)".Trim() -replace '.*:\s*', ''
-$modes = (& $GT_ADB -s $Serial shell dumpsys display) | Select-String 'fps=([\d.]+)' -AllMatches |
+$Serial = Resolve-PmSerial $Serial
+Assert-PmDevice $Serial
+$id = Get-PmDeviceId $Serial
+$model = "$(& $PM_ADB -s $Serial shell getprop ro.product.model)".Trim()
+$android = "$(& $PM_ADB -s $Serial shell getprop ro.build.version.release)".Trim()
+$size = "$((& $PM_ADB -s $Serial shell wm size) | Select-Object -Last 1)".Trim() -replace '.*:\s*', ''
+$modes = (& $PM_ADB -s $Serial shell dumpsys display) | Select-String 'fps=([\d.]+)' -AllMatches |
     ForEach-Object { $_.Matches } | ForEach-Object { [double]$_.Groups[1].Value } | Sort-Object -Unique
-$outDir = Join-Path $GT_ROOT 'captures\matrix'
+$outDir = Join-Path $PM_ROOT 'captures\matrix'
 New-Item -ItemType Directory -Force $outDir | Out-Null
 $report = Join-Path $outDir "$id.md"
 $rows = @()
@@ -34,8 +34,8 @@ function Invoke-Step([string]$script, [string[]]$argv) {
 
 Write-Host "[matrix] $model ($id), Android $android, $size, panel modes: $($modes -join ', ') Hz"
 # A phone that sleeps locks (and then nothing can come to the front): start awake and unlocked, and stay awake.
-Assert-GtUnlocked $Serial
-$keepAwake = Start-GtKeepAwake $Serial
+Assert-PmUnlocked $Serial
+$keepAwake = Start-PmKeepAwake $Serial
 try {
 if (-not $NoInstall) {
     $r = Invoke-Step 'deploy-android.ps1' @('-Serial', $Serial, '-NoBuild', '-NoLaunch')
@@ -64,11 +64,11 @@ foreach ($b in @(@('bench_flood', @('-Seconds', '60', '-Warmup', '60')), @('benc
     Add-Row "$($b[0])$(if ($b[0] -eq 'bench_play') { ' level 87' })" ($r.code -eq 0 -and $line -match 'PASS') "$line"
 }
 # The refresh rate the game asked for and got (TECH_SPEC 5.10): the activity's log line and the benchmark's figure.
-$display = (& $GT_ADB -s $Serial logcat -d -s GLOWTIDE:I GTLIFE:I) | Select-String 'display: mode|refresh:' | Select-Object -Last 2
+$display = (& $PM_ADB -s $Serial logcat -d -s PAPERMARCH:I PMLIFE:I) | Select-String 'display: mode|refresh:' | Select-Object -Last 2
 Add-Row 'Refresh rate' $true "panel modes $($modes -join '/') Hz; $(($display | ForEach-Object { "$_" -replace '^.*?: ', '' }) -join '; ')"
 
 } finally {
-    Stop-GtKeepAwake $keepAwake
+    Stop-PmKeepAwake $keepAwake
 }
 
 $text = @("# Device matrix: $model ($id)", '', "Android $android, $size, panel modes $($modes -join ', ') Hz. $(Get-Date -Format 'yyyy-MM-dd HH:mm').",

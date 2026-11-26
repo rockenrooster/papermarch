@@ -16,12 +16,12 @@ param(
 )
 . "$PSScriptRoot\env.ps1"
 if (-not $NoBuild) { & "$PSScriptRoot\build-desktop.ps1" -Config $Config }
-$exe = Join-Path $GT_ROOT "build\desktop-$Config\glowtide.exe"
+$exe = Join-Path $PM_ROOT "build\desktop-$Config\papermarch.exe"
 
 if ($Set -eq 'p4') {
     # Sound (P4): offline renders through the headless tool (never a device), then one table of their numbers.
-    $headless = Join-Path $GT_ROOT "build\desktop-$Config\glowtide_headless.exe"
-    $out = Join-Path $GT_ROOT 'captures\p4'
+    $headless = Join-Path $PM_ROOT "build\desktop-$Config\papermarch_headless.exe"
+    $out = Join-Path $PM_ROOT 'captures\p4'
     New-Item -ItemType Directory -Force $out | Out-Null
     foreach ($scene in 'ladder', 'flood', 'geodes', 'ui', 'win', 'lose', 'music', 'timbres') {
         & $headless --render-audio $scene --out (Join-Path $out "$scene.wav")
@@ -29,10 +29,10 @@ if ($Set -eq 'p4') {
     }
     $wavs = 'flood', 'geodes', 'music', 'ladder', 'ui', 'win', 'lose', 'timbres_kalimba', 'timbres_glass', 'timbres_bell' |
         ForEach-Object { Join-Path $out "$_.wav" }
-    python -I -B (Join-Path $GT_ROOT 'tools\wav_metrics.py') @wavs --ladder (Join-Path $out 'ladder.wav') --table (Join-Path $out 'metrics.md')
+    python -I -B (Join-Path $PM_ROOT 'tools\wav_metrics.py') @wavs --ladder (Join-Path $out 'ladder.wav') --table (Join-Path $out 'metrics.md')
     exit $LASTEXITCODE
 }
-$out = Join-Path $GT_ROOT "captures\$Set"
+$out = Join-Path $PM_ROOT "captures\$Set"
 New-Item -ItemType Directory -Force $out | Out-Null
 
 # name -> app arguments (frames default 120)
@@ -181,22 +181,22 @@ foreach ($name in $list.Keys) {
     & $exe @argv | Out-Null
     $code = $LASTEXITCODE
     if ($code -ne 0) { $failed += "$name ($code)"; Write-Host "[review] $name FAILED ($code)"; continue }
-    python -I -B (Join-Path $GT_ROOT 'tools\shrink_png.py') $png | Out-Null
+    python -I -B (Join-Path $PM_ROOT 'tools\shrink_png.py') $png | Out-Null
     $smalls += ($png -replace '\.png$', '.small.png')
-    if ($a -match '--strip') { python -I -B (Join-Path $GT_ROOT 'tools\contact.py') strip (Join-Path $out "${name}_sheet.png") $png | Out-Null }
+    if ($a -match '--strip') { python -I -B (Join-Path $PM_ROOT 'tools\contact.py') strip (Join-Path $out "${name}_sheet.png") $png | Out-Null }
     Write-Host "[review] $name"
 }
 if ($smalls.Count -and $Set -eq 'recipes') {
     $sheet = if ($Recipe -ge 0) { 'sheet_recipe_{0:D2}.png' -f $Recipe } else { 'sheet_recipes.png' }
     $cols = if ($Recipe -ge 0) { 10 } else { 12 }
-    python -I -B (Join-Path $GT_ROOT 'tools\contact.py') sheet (Join-Path $out $sheet) @smalls --cols ([math]::Min($cols, $smalls.Count)) --height 520
+    python -I -B (Join-Path $PM_ROOT 'tools\contact.py') sheet (Join-Path $out $sheet) @smalls --cols ([math]::Min($cols, $smalls.Count)) --height 520
 } elseif ($smalls.Count -and $Set -eq 'levels' -and ($From -gt 0 -or $Levels.Count)) {
     $sheet = if ($Levels.Count) { 'sheet_levels.png' } else { "sheet_${From}_$($From + $Count - 1).png" }
-    python -I -B (Join-Path $GT_ROOT 'tools\contact.py') sheet (Join-Path $out $sheet) @smalls --cols ([math]::Min(10, $smalls.Count)) --height 520
+    python -I -B (Join-Path $PM_ROOT 'tools\contact.py') sheet (Join-Path $out $sheet) @smalls --cols ([math]::Min(10, $smalls.Count)) --height 520
 } elseif ($smalls.Count -and $Set -eq 'levels') {
     # Sixty thumbnails: two sheets of thirty, readable at review size.
-    python -I -B (Join-Path $GT_ROOT 'tools\contact.py') sheet (Join-Path $out 'contact_1.png') @($smalls | Select-Object -First 30) --cols 10 --height 520
-    python -I -B (Join-Path $GT_ROOT 'tools\contact.py') sheet (Join-Path $out 'contact_2.png') @($smalls | Select-Object -Skip 30) --cols 10 --height 520
-} elseif ($smalls.Count) { python -I -B (Join-Path $GT_ROOT 'tools\contact.py') sheet (Join-Path $out 'contact.png') @smalls --cols 5 --height 560 }
+    python -I -B (Join-Path $PM_ROOT 'tools\contact.py') sheet (Join-Path $out 'contact_1.png') @($smalls | Select-Object -First 30) --cols 10 --height 520
+    python -I -B (Join-Path $PM_ROOT 'tools\contact.py') sheet (Join-Path $out 'contact_2.png') @($smalls | Select-Object -Skip 30) --cols 10 --height 520
+} elseif ($smalls.Count) { python -I -B (Join-Path $PM_ROOT 'tools\contact.py') sheet (Join-Path $out 'contact.png') @smalls --cols 5 --height 560 }
 if ($failed.Count) { Write-Host "[review] $($failed.Count) failed: $($failed -join ', ')"; exit 1 }
 exit 0

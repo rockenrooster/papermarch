@@ -4,7 +4,7 @@
 
 . "$PSScriptRoot\env.ps1"
 
-$tp = Join-Path $GT_ROOT 'third_party'
+$tp = Join-Path $PM_ROOT 'third_party'
 New-Item -ItemType Directory -Force $tp | Out-Null
 
 $sdlTag = 'release-3.4.20'
@@ -22,7 +22,7 @@ if (Test-Path (Join-Path $sdl 'CMakeLists.txt')) {
         Write-Host "[deps] cloning SDL $sdlTag from GitHub"
         $url = 'https://github.com/libsdl-org/SDL.git'
     }
-    & $GT_GIT -c advice.detachedHead=false clone --quiet --depth 1 --branch $sdlTag $url $sdl
+    & $PM_GIT -c advice.detachedHead=false clone --quiet --depth 1 --branch $sdlTag $url $sdl
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[deps] clone failed; copying the tree instead"
         if (Test-Path $sdl) { Remove-Item -Recurse -Force $sdl }
@@ -31,7 +31,7 @@ if (Test-Path (Join-Path $sdl 'CMakeLists.txt')) {
     }
 }
 if (Test-Path (Join-Path $sdl '.git')) {
-    $head = (& $GT_GIT -C $sdl rev-parse HEAD).Trim()
+    $head = (& $PM_GIT -C $sdl rev-parse HEAD).Trim()
     if ($head -ne $sdlCommit) { throw "[deps] SDL is at $head, expected $sdlCommit ($sdlTag): delete third_party\SDL and run again" }
     Write-Host "[deps] SDL verified at $sdlCommit"
 } elseif ((Get-Content (Join-Path $tp 'SDL.commit') -ErrorAction SilentlyContinue) -ne $sdlCommit) {
@@ -40,7 +40,7 @@ if (Test-Path (Join-Path $sdl '.git')) {
 
 # Khronos headers (desktop only; Android compiles against the NDK sysroot's own copies).
 $kh = Join-Path $tp 'khronos'
-$sysroot = Join-Path $GT_NDK 'toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\include'
+$sysroot = Join-Path $PM_NDK 'toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\include'
 foreach ($h in @('GLES3\gl3.h', 'GLES3\gl3platform.h', 'KHR\khrplatform.h')) {
     $dst = Join-Path $kh $h
     if (-not (Test-Path $dst)) {

@@ -11,15 +11,15 @@
 #endif
 
 // Constants outside ES 3.0 core that the debug callback uses (KHR_debug, same values on desktop GL).
-#define GT_GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
-#define GT_GL_DEBUG_OUTPUT 0x92E0
-#define GT_GL_DEBUG_SEVERITY_HIGH 0x9146
-#define GT_GL_DEBUG_SEVERITY_MEDIUM 0x9147
-#define GT_GL_DEBUG_SEVERITY_LOW 0x9148
-#define GT_GL_DEBUG_SEVERITY_NOTIFICATION 0x826B
-#define GT_GL_CONTEXT_FLAGS 0x821E
+#define PM_GL_DEBUG_OUTPUT_SYNCHRONOUS 0x8242
+#define PM_GL_DEBUG_OUTPUT 0x92E0
+#define PM_GL_DEBUG_SEVERITY_HIGH 0x9146
+#define PM_GL_DEBUG_SEVERITY_MEDIUM 0x9147
+#define PM_GL_DEBUG_SEVERITY_LOW 0x9148
+#define PM_GL_DEBUG_SEVERITY_NOTIFICATION 0x826B
+#define PM_GL_CONTEXT_FLAGS 0x821E
 
-#define GT_GL_FUNCS(X)                                                                                         \
+#define PM_GL_FUNCS(X)                                                                                         \
     X(PFNGLACTIVETEXTUREPROC, glActiveTexture)                                                                 \
     X(PFNGLATTACHSHADERPROC, glAttachShader)                                                                   \
     X(PFNGLBINDBUFFERPROC, glBindBuffer)                                                                       \
@@ -100,12 +100,12 @@
     X(PFNGLVIEWPORTPROC, glViewport)
 
 #if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
-#define GT_GL_DECLARE(type, name) extern type name;
-GT_GL_FUNCS(GT_GL_DECLARE)
-#undef GT_GL_DECLARE
+#define PM_GL_DECLARE(type, name) extern type name;
+PM_GL_FUNCS(PM_GL_DECLARE)
+#undef PM_GL_DECLARE
 #endif
 
-namespace gt {
+namespace pm {
 
 // Resolves the entry points (desktop). Returns false and logs the first missing one. Android: always true.
 bool loadGl(void* (*getProc)(const char*));
@@ -115,4 +115,4 @@ int glDebugMessageCount();
 // glGetError once; logs and counts a non-zero result with `where`.
 void checkGl(const char* where);
 
-}  // namespace gt
+}  // namespace pm

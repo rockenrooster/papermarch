@@ -4,6 +4,6 @@
 #include "game/app.h"
 
 int main(int argc, char* argv[]) {
-    static gt::App app;
+    static pm::App app;
     return app.run(argc, argv);
 }

@@ -5,7 +5,7 @@
 #include "core/log.h"
 #include "core/png.h"
 
-namespace gt {
+namespace pm {
 
 bool Target::create(int width, int height, bool withDepth, bool linear) {
     destroy();
@@ -30,7 +30,7 @@ bool Target::create(int width, int height, bool withDepth, bool linear) {
     const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     if (status != GL_FRAMEBUFFER_COMPLETE) {
-        GT_ERR("target %dx%d incomplete (0x%x)", w, h, status);
+        PM_ERR("target %dx%d incomplete (0x%x)", w, h, status);
         return false;
     }
     return true;
@@ -55,8 +55,8 @@ bool captureBound(const char* path, int w, int h) {
     glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px);
     const bool ok = writePng(path, px, u32(w), u32(h), true);
     std::free(px);
-    if (ok) GT_LOG("capture: wrote %s (%dx%d)", path, w, h);
+    if (ok) PM_LOG("capture: wrote %s (%dx%d)", path, w, h);
     return ok;
 }
 
-}  // namespace gt
+}  // namespace pm

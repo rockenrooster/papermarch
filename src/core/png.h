@@ -4,9 +4,9 @@
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 // `rgba` is tightly packed RGBA8. `bottomUp`: rows are stored bottom first (glReadPixels order).
 bool writePng(const char* path, const u8* rgba, u32 width, u32 height, bool bottomUp);
 
-}  // namespace gt
+}  // namespace pm

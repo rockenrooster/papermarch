@@ -2,19 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- GLOWTIDE in a browser (scripts/build-web.ps1 builds it into build/web/site, scripts/serve-web.ps1 serves it).
+<!-- PAPERMARCH in a browser (scripts/build-web.ps1 builds it into build/web/site, scripts/serve-web.ps1 serves it).
      A phone held upright gets the whole screen, notch and home bar included (the game keeps its controls out of them:
      the safe area comes from env(safe-area-inset-*) through the CSS variables below); a wider screen gets a column. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="GLOWTIDE">
-<meta name="theme-color" content="#0e0e2e">
+<meta name="apple-mobile-web-app-title" content="PAPERMARCH">
+<meta name="theme-color" content="#45281b">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
-<title>GLOWTIDE</title>
+<title>PAPERMARCH</title>
 <style>
   :root {
     --sat: env(safe-area-inset-top, 0px);
@@ -26,7 +26,7 @@
     margin: 0;
     height: 100%;
     overflow: hidden;
-    background: #0e0e2e;
+    background: #5a3822;
     overscroll-behavior: none;
     touch-action: none;
     -webkit-user-select: none;
@@ -64,9 +64,9 @@
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   #status { pointer-events: none; }
-  #status .name { color: #ffc654; font-size: 44px; font-weight: 900; letter-spacing: 2px; text-shadow: 0 3px 0 #5a2a08; }
-  #status #msg { color: #e8e0ff; font-size: 16px; font-weight: 600; margin-top: 16px; max-width: 420px; line-height: 1.4; }
-  #turn { display: none; background: #0e0e2e; color: #ffffff; font-size: 20px; font-weight: 700; z-index: 2; }
+  #status .name { color: #f03a4c; font-size: 40px; font-weight: 900; letter-spacing: 2px; background: #fff4d6; padding: 14px 26px; border-radius: 18px; box-shadow: 0 8px 18px rgba(38,20,10,0.45); }
+  #status #msg { color: #fff4d6; font-size: 16px; font-weight: 600; margin-top: 16px; max-width: 420px; line-height: 1.4; }
+  #turn { display: none; background: #5a3822; color: #ffffff; font-size: 20px; font-weight: 700; z-index: 2; }
   @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
     #turn { display: flex; }
   }
@@ -74,27 +74,10 @@
 </head>
 <body>
 <canvas id="canvas" tabindex="-1"></canvas>
-<div id="status"><div class="name">GLOWTIDE</div><div id="msg">Loading&hellip;</div></div>
+<div id="status"><div class="name">PAPERMARCH</div><div id="msg">Loading&hellip;</div></div>
 <div id="turn">Turn your phone upright to play</div>
 <script>
-  // Saves brought from the game's earlier address (localStorage is per address): tools\serve_web.py --move-to sends its
-  // players here with their glowtide:* keys as JSON in the fragment, #import=... A save replaces the one kept here only
-  // if it has more stars; the fragment then leaves the address bar.
-  if (location.hash.indexOf('#import=') === 0) {
-    try {
-      var moved = JSON.parse(decodeURIComponent(location.hash.slice(8)));
-      var stars = function (save) {
-        var m = /^stars=([0-3]*)$/m.exec(save || '');
-        return m ? m[1].split('').reduce(function (n, c) { return n + Number(c); }, 0) : -1;
-      };
-      Object.keys(moved).forEach(function (key) {
-        var kept = localStorage.getItem(key);
-        if (key.indexOf('glowtide:') === 0 && (kept === null || stars(moved[key]) > stars(kept))) localStorage.setItem(key, moved[key]);
-      });
-    } catch (e) {}
-    history.replaceState(null, '', location.pathname + location.search);
-  }
-  // ?args=--level%2068 passes the game its command line (TECH_SPEC 2.5): tests on a PC use ?args=--no-audio.
+  // ?args=--level%2012 passes the game its command line (TECH_SPEC 2.5): tests on a PC use ?args=--no-audio.
   var params = new URLSearchParams(location.search);
   function show(text) {
     document.getElementById('status').style.display = 'flex';
@@ -105,13 +88,13 @@
     arguments: params.has('args') ? params.get('args').split(/\s+/).filter(Boolean) : [],
     print: function (text) { console.log(text); },
     printErr: function (text) { console.warn(text); },
-    onAbort: function (what) { show('GLOWTIDE stopped (' + what + '). Reload the page to try again.'); }
+    onAbort: function (what) { show('PAPERMARCH stopped (' + what + '). Reload the page to try again.'); }
   };
   if (!document.createElement('canvas').getContext('webgl2')) {
-    show('This browser has no WebGL 2, which GLOWTIDE needs. Safari on iOS 15 or later, or a recent Chrome, Edge or Firefox, has it.');
+    show('This browser has no WebGL 2, which PAPERMARCH needs. Safari on iOS 15 or later, or a recent Chrome, Edge or Firefox, has it.');
   }
   // The game calls this once its first level is ready (platform::webReady).
-  window.gtReady = function () { document.getElementById('status').style.display = 'none'; };
+  window.pmReady = function () { document.getElementById('status').style.display = 'none'; };
 
   // Sound: a browser starts its audio only inside a touch, a click or a key, and iOS stops it when the page is left, so
   // every such gesture resumes it. The screen stays on while the game is in front (where the browser lets it).

@@ -32,7 +32,7 @@
             android:resource="@xml/game_mode_config" />
 
         <activity
-            android:name=".GlowtideActivity"
+            android:name=".PapermarchActivity"
             android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleInstance"

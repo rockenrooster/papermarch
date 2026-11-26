@@ -453,18 +453,22 @@ Confetti budget: 600 scraps alive at once.
 
 ## 11. Screens and flow
 
-GLOWTIDE's flow (its GAME_DESIGN 11), restyled as paper: every panel is a cream card with a soft shadow; primary
-buttons are gold with dark text, secondary ivory; a pressed button sinks 2 dp and darkens to a contrast of at least
-4:1 against its label.
+**The owner's rule (2026-11-26): menus stay simple and the game always goes on to the next level by itself. No world
+map, no hub, no level-select map between levels: level after level, 1 to 300, until the game is finished.** Every panel
+is a cream card with a soft shadow; primary buttons are gold with dark text, secondary ivory; a pressed button sinks
+2 dp and darkens to a contrast of at least 4:1 against its label.
 
-- **HOME**: the level's map already on the table, the title as cut letters, `LEVEL N` chip (opens LEVELS), stars
-  total, SETTINGS, the UPDATE pill when a newer build exists. A touch anywhere else starts the level.
-- **PLAY HUD**: top: the level chip with the level's saved stars, the objective chip, pause. Bottom: UNDO, the host
-  plate (`YOUR HOST` and the number, the largest text on screen), HINT. The dead-end slip and the hint line sit under
-  the top row.
-- **PAUSE**: RESUME, RESTART, HOME, SETTINGS.
-- **WIN**: stars, `HOST n · BEST m`, NEXT (primary), RETRY when under three stars.
-- **LOSE**: what happened in four words (`THE HOST IS STRANDED`), UNDO (primary), RETRY.
+- **Launch**: straight onto the saved level, playable at once. On a cold start the title (cut letters) and the UPDATE
+  pill (when a newer build exists) sit over the page; the first touch anywhere fades them and counts as play.
+- **PLAY HUD**: top: the level chip with the level's saved stars (a tap opens LEVELS), the objective chip, pause.
+  Bottom: UNDO, the host plate (`YOUR HOST` and the number, the largest text on screen), HINT. The dead-end slip and the
+  hint line sit under the top row.
+- **WIN**: the win sequence, the stars land, `HOST n  BEST m`, and NEXT (primary: the page turns to the next level;
+  the owner said NEXT taps are fine, 2026-11-26), with a small RETRY under three stars. Nothing else between levels.
+- **LOSE**: what happened in four words (`THE HOST IS STRANDED`), UNDO (primary), RETRY. (A loss needs a choice.)
+- **PAUSE**: RESUME, RESTART, LEVELS, SETTINGS.
+- **THE END** (after level 300 is won): `ALL 300 MAPS TAKEN`, the star total, and `PLAY AGAIN FROM 1` and LEVELS. The
+  save remembers the game was finished.
 - **SETTINGS**: sound, music, haptics, fast moves, reduce effects, the version and build line, credits.
 - **LEVELS**: GLOWTIDE's selector unchanged in behaviour (five a row, stars under each, the current one gold, `-100`,
   `PREV`, `NEXT`, `+100`, BACK, every level open).

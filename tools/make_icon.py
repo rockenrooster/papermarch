@@ -1,4 +1,4 @@
-"""GLOWTIDE app icon: a gold wisp on the twilight gradient (P6), as Android adaptive icon layers and legacy PNGs.
+"""PAPERMARCH app icon: a gold wisp on the twilight gradient (P6), as Android adaptive icon layers and legacy PNGs.
 
     python -I -B tools/make_icon.py
 

@@ -5,31 +5,31 @@
 #include "core/log.h"
 
 #if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
-#define GT_GL_DEFINE(type, name) type name = nullptr;
-GT_GL_FUNCS(GT_GL_DEFINE)
-#undef GT_GL_DEFINE
+#define PM_GL_DEFINE(type, name) type name = nullptr;
+PM_GL_FUNCS(PM_GL_DEFINE)
+#undef PM_GL_DEFINE
 #endif
 
-namespace gt {
+namespace pm {
 
 namespace {
 std::atomic<int> g_debugMessages{0};
 
 #if defined(_WIN32)
-#define GT_GL_CALLBACK __stdcall
+#define PM_GL_CALLBACK __stdcall
 #else
-#define GT_GL_CALLBACK
+#define PM_GL_CALLBACK
 #endif
 
-void GT_GL_CALLBACK onGlDebug(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei, const GLchar* message,
+void PM_GL_CALLBACK onGlDebug(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei, const GLchar* message,
                                const void*) {
-    if (severity == GT_GL_DEBUG_SEVERITY_NOTIFICATION) return;
+    if (severity == PM_GL_DEBUG_SEVERITY_NOTIFICATION) return;
     g_debugMessages.fetch_add(1);
-    GT_WARN("gl debug: source 0x%x type 0x%x id %u severity 0x%x: %s", source, type, id, severity, message);
+    PM_WARN("gl debug: source 0x%x type 0x%x id %u severity 0x%x: %s", source, type, id, severity, message);
 }
 
-using DebugProc = void(GT_GL_CALLBACK*)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, const void*);
-using DebugMessageCallback = void(GT_GL_CALLBACK*)(DebugProc, const void*);
+using DebugProc = void(PM_GL_CALLBACK*)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar*, const void*);
+using DebugMessageCallback = void(PM_GL_CALLBACK*)(DebugProc, const void*);
 }  // namespace
 
 bool loadGl(void* (*getProc)(const char*)) {
@@ -37,14 +37,14 @@ bool loadGl(void* (*getProc)(const char*)) {
     (void)getProc;
     return true;
 #else
-#define GT_GL_LOAD(type, name)                                     \
+#define PM_GL_LOAD(type, name)                                     \
     name = reinterpret_cast<type>(getProc(#name));                 \
     if (!name) {                                                   \
-        GT_ERR("gl: the context lacks %s", #name);                 \
+        PM_ERR("gl: the context lacks %s", #name);                 \
         return false;                                              \
     }
-    GT_GL_FUNCS(GT_GL_LOAD)
-#undef GT_GL_LOAD
+    PM_GL_FUNCS(PM_GL_LOAD)
+#undef PM_GL_LOAD
     return true;
 #endif
 }
@@ -53,15 +53,15 @@ void installGlDebug(void* (*getProc)(const char*)) {
     auto fn = reinterpret_cast<DebugMessageCallback>(getProc("glDebugMessageCallback"));
     if (!fn) fn = reinterpret_cast<DebugMessageCallback>(getProc("glDebugMessageCallbackKHR"));
     if (!fn) {
-        GT_LOG("gl: no debug callback in this context");
+        PM_LOG("gl: no debug callback in this context");
         return;
     }
-    glEnable(GT_GL_DEBUG_OUTPUT);
-    glEnable(GT_GL_DEBUG_OUTPUT_SYNCHRONOUS);
+    glEnable(PM_GL_DEBUG_OUTPUT);
+    glEnable(PM_GL_DEBUG_OUTPUT_SYNCHRONOUS);
     fn(onGlDebug, nullptr);
     while (glGetError() != GL_NO_ERROR) {
     }
-    GT_LOG("gl: debug callback installed");
+    PM_LOG("gl: debug callback installed");
 }
 
 int glDebugMessageCount() { return g_debugMessages.load(); }
@@ -70,8 +70,8 @@ void checkGl(const char* where) {
     const GLenum e = glGetError();
     if (e != GL_NO_ERROR) {
         g_debugMessages.fetch_add(1);
-        GT_WARN("gl error 0x%x at %s", e, where);
+        PM_WARN("gl error 0x%x at %s", e, where);
     }
 }
 
-}  // namespace gt
+}  // namespace pm

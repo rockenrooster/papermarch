@@ -2,15 +2,13 @@
 
 #include <cmath>
 
-namespace gt::audio {
-
-const int kLadderMidi[11] = {60, 62, 64, 67, 69, 72, 74, 76, 79, 81, 84};  // C major pentatonic, C4..C6
+namespace pm::audio {
 
 float midiHz(float midi) { return 440.0f * std::pow(2.0f, (midi - 69.0f) / 12.0f); }
 
 namespace {
 
-constexpr float kTwoPi = 6.283185307f;
+constexpr double kTwoPi = 6.283185307179586;
 
 struct Noise {
     u32 s = 0x1234567u;
@@ -22,26 +20,12 @@ struct Noise {
     }
 };
 
-// One-pole low-pass with cutoff in Hz.
-struct OnePole {
-    float y = 0;
-    float run(float x, float hz, float rate) {
-        const float a = 1.0f - std::exp(-kTwoPi * hz / rate);
-        y += (x - y) * a;
-        return y;
-    }
-    // A fixed cutoff: the coefficient computed once.
-    float runA(float x, float a) {
-        y += (x - y) * a;
-        return y;
-    }
-};
-
-// A sine by rotation (double precision: no drift over a whole buffer) and an exponential decay by multiplication.
+// A sine by rotation (no drift over a buffer) and an exponential decay by multiplication: cheap enough for the Moto
+// (GLOWTIDE's PROGRESS, "Synthesis cost").
 struct Osc {
     double c, s, cr, sr;
     Osc(double hz, double rate, double phase = 0) : c(std::cos(phase)), s(std::sin(phase)) {
-        const double w = 6.283185307179586 * hz / rate;
+        const double w = kTwoPi * hz / rate;
         cr = std::cos(w);
         sr = std::sin(w);
     }
@@ -62,6 +46,30 @@ struct Decay {
         return out;
     }
 };
+struct OnePole {
+    float y = 0, a = 1;
+    OnePole() = default;
+    OnePole(float hz, float rate) { set(hz, rate); }
+    void set(float hz, float rate) { a = 1.0f - std::exp(-float(kTwoPi) * hz / rate); }
+    float run(float x) {
+        y += (x - y) * a;
+        return y;
+    }
+};
+// A two-pole band-pass (state variable), for formants and noise colours.
+struct Band {
+    float lp = 0, bp = 0, f = 0.1f, q = 0.5f;
+    void set(float hz, float rate, float res) {
+        f = 2.0f * std::sin(3.14159265f * std::fmin(hz, rate * 0.24f) / rate);
+        q = 1.0f / res;
+    }
+    float run(float x) {
+        lp += f * bp;
+        const float hp = x - lp - q * bp;
+        bp += f * hp;
+        return bp;
+    }
+};
 
 std::vector<float> buffer(float seconds, int rate) { return std::vector<float>(size_t(seconds * float(rate)) + 1, 0.0f); }
 
@@ -73,269 +81,399 @@ void normalize(std::vector<float>& b, float peak) {
     for (float& v : b) v *= k;
 }
 
-// A plucked tone in one of three timbres; amplitude 1 peak before normalization.
-void pluck(std::vector<float>& b, int rate, float f, int timbre, float decay, float start = 0, float gain = 1.0f) {
-    Noise n;
-    const double R = double(rate);
-    const int s0 = int(start * float(rate));
-    // Partials (ratio, level, decay seconds) per timbre.
-    struct Partial {
-        double ratio;
-        float level;
-        double decay;
-    };
-    Partial parts[4];
-    int np = 0;
-    if (timbre == 1) {         // glass: inharmonic, bright, long
-        parts[np++] = {1.0, 1.0f, double(decay) * 1.8};
-        parts[np++] = {2.76, 0.35f, 0.15};
-        parts[np++] = {5.4, 0.15f, 0.07};
-    } else if (timbre == 2) {  // bell
-        parts[np++] = {1.0, 1.0f, double(decay) * 2.6};
-        parts[np++] = {2.0, 0.45f, 0.3};
-        parts[np++] = {3.01, 0.25f, 0.2};
-        parts[np++] = {4.2, 0.12f, 0.12};
-    } else {                   // kalimba: fundamental, a quiet fourth harmonic, a 2 ms click
-        parts[np++] = {1.0, 1.0f, double(decay)};
-        parts[np++] = {4.0, 0.25f, 0.06};
+// Additive partials (ratio, level, decay seconds) from `start`, with an attack.
+struct Partial {
+    double ratio;
+    float level;
+    double decay;
+};
+void partials(std::vector<float>& b, int rate, double f, const Partial* p, int n, float attack, float start = 0, float gain = 1.0f) {
+    const double R = rate;
+    const size_t s0 = size_t(start * float(rate));
+    for (int k = 0; k < n; ++k) {
+        if (f * p[k].ratio > R * 0.45) continue;
+        Osc o(f * p[k].ratio, R, double(k) * 0.7);
+        Decay e(p[k].decay, R);
+        const int att = maxv(1, int(attack * float(rate)));
+        for (size_t i = s0; i < b.size(); ++i) {
+            const int j = int(i - s0);
+            const float a = j < att ? float(j) / float(att) : 1.0f;
+            const float ev = e.next();
+            if (ev < 1e-5f) break;
+            b[i] += p[k].level * o.next() * ev * a * gain;
+        }
     }
-    Osc osc[4] = {Osc(f * parts[0].ratio, R), Osc(f * parts[1].ratio, R), Osc(np > 2 ? f * parts[2].ratio : 1.0, R),
-                  Osc(np > 3 ? f * parts[3].ratio : 1.0, R)};
-    Decay env[4] = {Decay(parts[0].decay, R), Decay(parts[1].decay, R), Decay(np > 2 ? parts[2].decay : 1.0, R),
-                    Decay(np > 3 ? parts[3].decay : 1.0, R)};
-    const int attack = int(0.002 * R);
-    for (size_t i = size_t(s0); i < b.size(); ++i) {
-        const int j = int(i - size_t(s0));
-        float v = 0;
-        for (int k = 0; k < np; ++k) v += parts[k].level * osc[k].next() * env[k].next();
-        const float att = j < attack ? float(j) / float(attack) : 1.0f;
-        if (timbre == 0 && j < attack) v += n.next() * 0.3f * (1.0f - float(j) / float(attack));
-        b[i] += v * att * gain;
+}
+
+// A band-limited buzzy tone (odd or all harmonics) with an envelope: brass, tuba, reed. Each harmonic is a rotating
+// phasor whose step is updated every 64 samples (a glide), so no sin() per sample.
+void buzz(std::vector<float>& b, int rate, double f, bool oddOnly, int harmonics, float bright, float attack, float hold,
+          float release, float start = 0, float gain = 1.0f, double glideTo = 0) {
+    const double R = rate;
+    const size_t s0 = size_t(start * float(rate));
+    struct H {
+        double c, s, cr, sr;
+        float lvl;
+        int h;
+        bool on;
+    } hs[24];
+    int nh = 0;
+    for (int h = 1; h <= minv(harmonics, 24); ++h) {
+        if (oddOnly && h % 2 == 0) continue;
+        hs[nh++] = {1.0, 0.0, 1.0, 0.0, std::pow(float(h), -bright), h, true};
+    }
+    const size_t end = minv(b.size(), s0 + size_t(double(attack + hold + release * 7.0f) * R));
+    for (size_t blk = s0; blk < end; blk += 64) {
+        const float t = float(blk - s0) / float(rate);
+        const double ff = glideTo > 0 ? f * std::pow(glideTo / f, std::fmin(1.0, double(t) / double(hold + release))) : f;
+        for (int k = 0; k < nh; ++k) {
+            const double w = kTwoPi * ff * double(hs[k].h) / R;
+            hs[k].on = ff * double(hs[k].h) < R * 0.45;
+            hs[k].cr = std::cos(w);
+            hs[k].sr = std::sin(w);
+        }
+        const size_t stop = minv(end, blk + 64);
+        for (size_t i = blk; i < stop; ++i) {
+            const float tt = float(i - s0) / float(rate);
+            const float env = tt < attack ? tt / attack : (tt < attack + hold ? 1.0f : std::exp(-(tt - attack - hold) / release));
+            float v = 0;
+            for (int k = 0; k < nh; ++k) {
+                H& o = hs[k];
+                if (o.on) v += o.lvl * float(o.s);
+                const double nc = o.c * o.cr - o.s * o.sr;
+                o.s = o.s * o.cr + o.c * o.sr;
+                o.c = nc;
+            }
+            b[i] += v * env * gain;
+        }
     }
 }
 
 }  // namespace
 
-void Bank::build(int rate, int timbre) {
+float baseHz(int sound) {
+    switch (sound) {
+        case kSndWood: return midiHz(74);       // D5
+        case kSndGlock: return midiHz(81);      // A5
+        case kSndBass: case kSndTimpani: return midiHz(45);  // A2
+        case kSndFife: return midiHz(69);       // A4
+        case kSndBrass: case kSndDrone: return midiHz(57);   // A3
+        default: return 440.0f;
+    }
+}
+
+void Bank::build(int rate) {
     rate_ = rate;
     const float R = float(rate);
     Noise n;
     auto make = [&](int id, std::vector<float>&& v, float peak) {
         normalize(v, peak);
-        store_[id] = std::move(v);
+        store_[id] = static_cast<std::vector<float>&&>(v);
         s_[id] = {store_[id].data(), int(store_[id].size())};
     };
-    {  // pip: sine 880 Hz, 2 ms attack, 35 ms decay
-        auto b = buffer(0.15f, rate);
+    {  // the wood block: a damped sine, a bright partial, a 2 ms click
+        auto b = buffer(0.16f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.055}, {2.71, 0.45f, 0.018}, {4.1, 0.18f, 0.01}};
+        partials(b, rate, baseHz(kSndWood), p, 3, 0.001f);
+        for (int i = 0; i < int(0.002f * R); ++i) b[size_t(i)] += n.next() * 0.4f * (1.0f - float(i) / (0.002f * R));
+        make(kSndWood, static_cast<std::vector<float>&&>(b), 0.8f);
+    }
+    {  // a paper flip: 40 ms of noise through a band sweeping 2 to 6 kHz
+        auto b = buffer(0.06f, rate);
+        Band bp;
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
-            b[i] = std::sin(kTwoPi * 880.0f * t) * std::fmin(1.0f, t / 0.002f) * std::exp(-t / 0.035f);
+            bp.set(2000.0f + 4000.0f * (t / 0.05f), R, 1.4f);
+            b[i] = bp.run(n.next()) * std::exp(-t / 0.02f) * std::fmin(1.0f, t / 0.003f);
         }
-        make(kSndPip, std::move(b), 0.5f);
+        make(kSndFlip, static_cast<std::vector<float>&&>(b), 0.55f);
     }
-    for (int k = 0; k < 11; ++k) {  // the ladder and the music's plucks
-        auto b = buffer(timbre == 0 ? 0.9f : 1.6f, rate);
-        pluck(b, rate, midiHz(float(kLadderMidi[k])), timbre, 0.18f);
-        make(kSndLadder0 + k, std::move(b), 0.9f);
-        auto p = buffer(0.9f, rate);
-        pluck(p, rate, midiHz(float(kLadderMidi[k])), 0, 0.25f);
-        make(kSndPluck0 + k, std::move(p), 0.6f);
+    {  // the clash: a drum, a metal ring, a shout
+        auto b = buffer(0.5f, rate);
+        float ph = 0;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            const float f = 70.0f + 60.0f * std::exp(-t / 0.03f);
+            ph += float(kTwoPi) * f / R;
+            b[i] = std::sin(ph) * std::exp(-t / 0.12f) * std::fmin(1.0f, t / 0.002f) * 0.9f;
+        }
+        const Partial ring[] = {{523.0, 0.25f, 0.3}, {1187.0, 0.2f, 0.25}, {1622.0, 0.15f, 0.2}, {2210.0, 0.12f, 0.15}};
+        partials(b, rate, 1.0, ring, 4, 0.001f, 0.01f);
+        Band f1, f2;
+        f1.set(720.0f, R, 4.0f);
+        f2.set(1180.0f, R, 4.0f);
+        for (size_t i = size_t(0.02f * R); i < size_t(0.14f * R) && i < b.size(); ++i) {
+            const float t = float(i) / R - 0.02f;
+            const float x = n.next();
+            b[i] += (f1.run(x) + 0.7f * f2.run(x)) * std::sin(3.14159f * t / 0.12f) * 0.9f;
+        }
+        make(kSndClash, static_cast<std::vector<float>&&>(b), 0.9f);
     }
-    {  // tick: band-passed noise at ~3 kHz, 12 ms
+    {  // a glockenspiel note
+        auto b = buffer(1.2f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.7}, {2.76, 0.32f, 0.14}, {5.4, 0.12f, 0.05}, {8.9, 0.05f, 0.03}};
+        partials(b, rate, baseHz(kSndGlock), p, 4, 0.001f);
+        make(kSndGlock, static_cast<std::vector<float>&&>(b), 0.75f);
+    }
+    {  // coins: three clinks falling
+        auto b = buffer(0.5f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.12}, {1.5, 0.6f, 0.09}, {2.37, 0.35f, 0.06}};
+        for (int k = 0; k < 3; ++k) partials(b, rate, 2093.0 * std::pow(0.89, k), p, 3, 0.001f, 0.08f * float(k), 0.8f);
+        make(kSndCoin, static_cast<std::vector<float>&&>(b), 0.6f);
+    }
+    {  // the mire: a reed falling a fourth, wet noise under it
+        auto b = buffer(0.8f, rate);
+        buzz(b, rate, 220.0, false, 12, 1.2f, 0.03f, 0.25f, 0.25f, 0.0f, 1.0f, 165.0);
+        OnePole lp(900.0f, R);
+        for (size_t i = 0; i < b.size(); ++i) b[i] = lp.run(b[i]) * 1.5f + n.next() * 0.04f * std::exp(-float(i) / R / 0.3f);
+        make(kSndReed, static_cast<std::vector<float>&&>(b), 0.6f);
+    }
+    {  // two low knocks a minor second apart
+        auto b = buffer(0.32f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.05}, {2.3, 0.4f, 0.02}};
+        partials(b, rate, 330.0, p, 2, 0.001f, 0.0f);
+        partials(b, rate, 311.0, p, 2, 0.001f, 0.12f);
+        make(kSndKnock, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // crackle: sparse clicks for half a second
+        auto b = buffer(0.6f, rate);
+        Noise r;
+        r.s = 777;
+        for (size_t i = 0; i < b.size(); ++i) {
+            if (r.next() > 0.996f) {
+                const float amp = 0.4f + 0.6f * std::fabs(r.next());
+                for (size_t j = 0; j < size_t(0.004f * R) && i + j < b.size(); ++j) b[i + j] += n.next() * amp * (1.0f - float(j) / (0.004f * R));
+            }
+        }
+        for (size_t i = 0; i < b.size(); ++i) b[i] *= std::fmin(1.0f, (0.6f - float(i) / R) / 0.2f);
+        make(kSndCrackle, static_cast<std::vector<float>&&>(b), 0.55f);
+    }
+    {  // a horn: two low notes
+        auto b = buffer(1.0f, rate);
+        buzz(b, rate, midiHz(57), false, 14, 1.1f, 0.05f, 0.2f, 0.12f, 0.0f, 1.0f);
+        buzz(b, rate, midiHz(52), false, 14, 1.1f, 0.05f, 0.3f, 0.2f, 0.35f, 1.0f);
+        OnePole lp(1400.0f, R);
+        for (float& v : b) v = lp.run(v);
+        make(kSndHorn, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // a deep drum
+        auto b = buffer(0.6f, rate);
+        float ph = 0;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            ph += float(kTwoPi) * (55.0f + 40.0f * std::exp(-t / 0.04f)) / R;
+            b[i] = (std::sin(ph) + 0.25f * std::sin(ph * 3.0f)) * std::exp(-t / 0.22f) + n.next() * 0.1f * std::exp(-t / 0.01f);
+        }
+        make(kSndDeepDrum, static_cast<std::vector<float>&&>(b), 0.8f);
+    }
+    {  // the fanfare: a brass arpeggio (1, 3, 5, 8 of D major) into a held chord, a crash on top
+        auto b = buffer(2.4f, rate);
+        const int notes[4] = {62, 66, 69, 74};
+        for (int k = 0; k < 4; ++k) buzz(b, rate, midiHz(float(notes[k])), false, 14, 1.15f, 0.02f, 0.08f, 0.1f, 0.12f * float(k), 0.6f);
+        const int chord[4] = {62, 66, 69, 74};
+        for (int k = 0; k < 4; ++k) buzz(b, rate, midiHz(float(chord[k])), false, 14, 1.2f, 0.04f, 0.9f, 0.5f, 0.5f, 0.55f);
+        OnePole lp(2600.0f, R);
+        for (float& v : b) v = lp.run(v);
+        OnePole hp(3000.0f, R);
+        for (size_t i = size_t(0.5f * R); i < b.size(); ++i) {
+            const float t = float(i) / R - 0.5f;
+            const float x = n.next();
+            b[i] += (x - hp.run(x)) * 0.18f * std::exp(-t / 0.7f);
+        }
+        make(kSndFanfare, static_cast<std::vector<float>&&>(b), 0.85f);
+    }
+    {  // a choir "ah": a buzzy chord through two formants
+        auto b = buffer(1.5f, rate);
+        const int chord[3] = {62, 66, 69};
+        for (int k = 0; k < 3; ++k) buzz(b, rate, midiHz(float(chord[k])), false, 20, 0.9f, 0.12f, 0.7f, 0.35f, 0.0f, 0.5f);
+        Band f1, f2;
+        f1.set(800.0f, R, 3.0f);
+        f2.set(1150.0f, R, 3.0f);
+        for (float& v : b) v = f1.run(v) + 0.6f * f2.run(v);
+        make(kSndChoir, static_cast<std::vector<float>&&>(b), 0.55f);
+    }
+    {  // the lose horn: a fifth falling, then paper tearing
+        auto b = buffer(1.8f, rate);
+        buzz(b, rate, midiHz(57), false, 12, 1.2f, 0.06f, 0.3f, 0.3f, 0.0f, 0.9f, midiHz(50));
+        OnePole lp(1100.0f, R);
+        for (float& v : b) v = lp.run(v);
+        OnePole tear;
+        for (size_t i = size_t(0.9f * R); i < b.size(); ++i) {
+            const float t = float(i) / R - 0.9f;
+            tear.set(5000.0f * std::exp(-t / 0.3f) + 300.0f, R);
+            b[i] += tear.run(n.next() * (0.6f + 0.4f * std::sin(t * 90.0f))) * 0.6f * std::exp(-t / 0.35f) * std::fmin(1.0f, t / 0.02f);
+        }
+        make(kSndLoseHorn, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // the page turn's swish: noise through a filter that rises then falls
+        auto b = buffer(0.6f, rate);
+        Band bp;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            const float u = t / 0.55f;
+            bp.set(600.0f + 3800.0f * std::sin(3.14159f * std::fmin(1.0f, u)), R, 0.9f);
+            b[i] = bp.run(n.next()) * std::sin(3.14159f * std::fmin(1.0f, u));
+        }
+        make(kSndSwish, static_cast<std::vector<float>&&>(b), 0.5f);
+    }
+    {  // a ratchet click
         auto b = buffer(0.05f, rate);
-        OnePole lp, hp;
+        Band bp;
+        bp.set(2500.0f, R, 6.0f);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            b[i] = bp.run(t < 0.002f ? n.next() : 0.0f) * 6.0f * std::exp(-t / 0.012f);
+        }
+        make(kSndRatchet, static_cast<std::vector<float>&&>(b), 0.4f);
+    }
+    {  // a UI tap: a soft wood tick, high
+        auto b = buffer(0.09f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.03}, {2.7, 0.3f, 0.01}};
+        partials(b, rate, 1175.0, p, 2, 0.001f);
+        make(kSndTap, static_cast<std::vector<float>&&>(b), 0.45f);
+    }
+    {  // a footstep: a soft low thud
+        auto b = buffer(0.07f, rate);
+        OnePole lp(500.0f, R);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            b[i] = lp.run(n.next()) * std::exp(-t / 0.018f) + 0.4f * std::sin(float(kTwoPi) * 120.0f * t) * std::exp(-t / 0.02f);
+        }
+        make(kSndStep, static_cast<std::vector<float>&&>(b), 0.35f);
+    }
+    // ---- The march's instruments ----
+    {  // the frame drum
+        auto b = buffer(0.35f, rate);
+        float ph = 0;
+        OnePole lp(1800.0f, R);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            ph += float(kTwoPi) * (92.0f + 50.0f * std::exp(-t / 0.02f)) / R;
+            b[i] = std::sin(ph) * std::exp(-t / 0.16f) + lp.run(n.next()) * 0.35f * std::exp(-t / 0.03f);
+        }
+        make(kSndFrameDrum, static_cast<std::vector<float>&&>(b), 0.8f);
+    }
+    {  // the snare
+        auto b = buffer(0.22f, rate);
+        Band bp;
+        bp.set(3200.0f, R, 0.7f);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            b[i] = bp.run(n.next()) * std::exp(-t / 0.07f) + 0.5f * std::sin(float(kTwoPi) * 185.0f * t) * std::exp(-t / 0.03f);
+        }
+        make(kSndSnare, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // a rim click
+        auto b = buffer(0.05f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.012}, {2.3, 0.6f, 0.008}};
+        partials(b, rate, 1250.0, p, 2, 0.0005f);
+        for (int i = 0; i < int(0.003f * R); ++i) b[size_t(i)] += n.next() * 0.6f;
+        make(kSndRim, static_cast<std::vector<float>&&>(b), 0.55f);
+    }
+    {  // a low tom
+        auto b = buffer(0.4f, rate);
+        float ph = 0;
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            ph += float(kTwoPi) * (140.0f + 45.0f * std::exp(-t / 0.05f)) / R;
+            b[i] = (std::sin(ph) + 0.3f * std::sin(ph * 2.0f)) * std::exp(-t / 0.2f);
+        }
+        make(kSndTom, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // a cymbal swell: noise, high-passed, swelling over a bar
+        auto b = buffer(1.3f, rate);
+        OnePole lp(6000.0f, R);
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
             const float x = n.next();
-            const float low = lp.run(x, 4200.0f, R);
-            const float band = low - hp.run(low, 2000.0f, R);
-            b[i] = band * std::exp(-t / 0.012f);
+            const float hi = x - lp.run(x);
+            const float env = t < 0.9f ? std::pow(t / 0.9f, 2.0f) : std::exp(-(t - 0.9f) / 0.15f);
+            b[i] = hi * env;
         }
-        make(kSndTick, std::move(b), 0.6f);
+        make(kSndCymbalSwell, static_cast<std::vector<float>&&>(b), 0.45f);
     }
-    {  // pff: low-passed noise, 90 ms, falling cut-off
-        auto b = buffer(0.2f, rate);
-        OnePole lp;
+    {  // a crash
+        auto b = buffer(1.4f, rate);
+        OnePole lp(5000.0f, R);
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
-            b[i] = lp.run(n.next(), 2400.0f * std::exp(-t / 0.05f) + 200.0f, R) * std::exp(-t / 0.09f) * std::fmin(1.0f, t / 0.005f);
+            const float x = n.next();
+            b[i] = (x - lp.run(x)) * std::exp(-t / 0.5f) * std::fmin(1.0f, t / 0.002f);
         }
-        make(kSndPff, std::move(b), 0.6f);
+        make(kSndCrash, static_cast<std::vector<float>&&>(b), 0.5f);
     }
-    auto burst = [&](float seconds, float decay, float cutoff, float pings, float pingBase) {
-        auto b = buffer(seconds, rate);
-        OnePole lp;
-        for (size_t i = 0; i < b.size(); ++i) {
-            const float t = float(i) / R;
-            b[i] = lp.run(n.next(), cutoff * std::exp(-t / (decay * 0.6f)) + 300.0f, R) * std::exp(-t / decay);
-        }
-        for (int k = 0; k < int(pings); ++k)
-            pluck(b, rate, pingBase * std::pow(1.26f, float(k)), 1, 0.12f, 0.02f + 0.045f * float(k), 0.35f);
-        return b;
-    };
-    make(kSndChip, burst(0.08f, 0.03f, 6000.0f, 0, 0), 0.55f);
-    make(kSndShatterSmall, burst(0.4f, 0.16f, 7000.0f, 2, 1568.0f), 0.8f);
-    {
-        auto b = burst(1.2f, 0.6f, 8000.0f, 4, 1318.5f);
-        for (size_t i = 0; i < b.size(); ++i) {  // and a falling sine
-            const float t = float(i) / R;
-            const float f = 300.0f * std::exp(-t / 0.25f) + 50.0f;
-            b[i] += 0.8f * std::sin(kTwoPi * f * t) * std::exp(-t / 0.35f);
-        }
-        make(kSndShatterBig, std::move(b), 0.95f);
+    {  // the bass: a tuba-like buzz, odd harmonics, enough of them for a phone's speaker
+        auto b = buffer(0.6f, rate);
+        buzz(b, rate, baseHz(kSndBass), true, 15, 0.85f, 0.015f, 0.12f, 0.18f);
+        OnePole lp(1600.0f, R);
+        for (float& v : b) v = lp.run(v);
+        make(kSndBass, static_cast<std::vector<float>&&>(b), 0.8f);
     }
-    {  // thump: a sine falling from 120 to 60 Hz in 80 ms
-        auto b = buffer(0.25f, rate);
-        float ph = 0;
-        for (size_t i = 0; i < b.size(); ++i) {
-            const float t = float(i) / R;
-            const float f = 60.0f + 60.0f * std::exp(-t / 0.04f);
-            ph += kTwoPi * f / R;
-            b[i] = std::sin(ph) * std::exp(-t / 0.08f) * std::fmin(1.0f, t / 0.003f);
-        }
-        make(kSndThump, std::move(b), 0.85f);
-    }
-    {  // crack: a sharp burst plus a falling minor third (G5 -> E5)
-        auto b = burst(0.5f, 0.05f, 9000.0f, 0, 0);
-        pluck(b, rate, midiHz(79), 1, 0.08f, 0.0f, 0.5f);
-        pluck(b, rate, midiHz(76), 1, 0.12f, 0.09f, 0.5f);
-        make(kSndCrack, std::move(b), 0.85f);
-    }
-    {  // pop_low: 300 -> 90 Hz in 120 ms plus a click
-        auto b = buffer(0.3f, rate);
-        float ph = 0;
-        for (size_t i = 0; i < b.size(); ++i) {
-            const float t = float(i) / R;
-            const float f = 90.0f + 210.0f * std::exp(-t / 0.05f);
-            ph += kTwoPi * f / R;
-            b[i] = std::sin(ph) * std::exp(-t / 0.12f) + (t < 0.003f ? n.next() * 0.5f : 0.0f);
-        }
-        make(kSndPopLow, std::move(b), 0.85f);
-    }
-    {  // core hit: two low sines a semitone apart, 250 ms
-        auto b = buffer(0.4f, rate);
-        for (size_t i = 0; i < b.size(); ++i) {
-            const float t = float(i) / R;
-            const float e = std::exp(-t / 0.2f) * std::fmin(1.0f, t / 0.005f);
-            b[i] = (std::sin(kTwoPi * midiHz(40) * t) + std::sin(kTwoPi * midiHz(41) * t)) * e +
-                   0.3f * std::sin(kTwoPi * midiHz(64) * t) * e;
-        }
-        make(kSndCoreHit, std::move(b), 0.85f);
-    }
-    {  // the win chord: C major ninth in plucks, rolled upward over 400 ms
-        auto b = buffer(2.4f, rate);
-        const int notes[5] = {48, 64, 67, 71, 74};
-        for (int k = 0; k < 5; ++k) pluck(b, rate, midiHz(float(notes[k])), timbre, 0.6f, 0.1f * float(k), 0.8f);
-        make(kSndWinChord, std::move(b), 0.9f);
-    }
-    const int stars[3] = {88, 91, 96};  // E6, G6, C7
-    for (int k = 0; k < 3; ++k) {
+    {  // the fife: a sine with its octave and breath, a little vibrato
         auto b = buffer(0.9f, rate);
-        pluck(b, rate, midiHz(float(stars[k])), 2, 0.2f);
-        make(kSndStar0 + k, std::move(b), 0.7f);
-    }
-    {  // lose: two soft notes falling a minor third (G4 -> E4), slow decay
-        auto b = buffer(2.0f, rate);
-        for (int k = 0; k < 2; ++k) {
-            const float f = midiHz(k == 0 ? 67.0f : 64.0f), t0 = 0.35f * float(k);
-            for (size_t i = size_t(t0 * R); i < b.size(); ++i) {
-                const float t = float(i) / R - t0;
-                const float vib = 1.0f + 0.004f * std::sin(kTwoPi * 5.0f * t);
-                b[i] += (std::sin(kTwoPi * f * vib * t) + 0.2f * std::sin(kTwoPi * f * 2.0f * t)) * std::fmin(1.0f, t / 0.04f) *
-                        std::exp(-t / 0.7f);
-            }
-        }
-        make(kSndLose, std::move(b), 0.7f);
-    }
-    {  // UI tap: a short C5, quiet
-        auto b = buffer(0.25f, rate);
-        pluck(b, rate, midiHz(72), 0, 0.06f);
-        make(kSndUiTap, std::move(b), 0.4f);
-    }
-    {  // tink: a short glass pluck, C5
-        auto b = buffer(0.25f, rate);
-        pluck(b, rate, midiHz(72), 1, 0.07f);
-        make(kSndTink, std::move(b), 0.45f);
-    }
-    {  // geode_open: a bright crack, then E6 G6 C7 in glass, 40 ms apart
-        auto b = burst(0.6f, 0.05f, 9500.0f, 0, 0);
-        const int notes[3] = {88, 91, 96};
-        for (int k = 0; k < 3; ++k) pluck(b, rate, midiHz(float(notes[k])), 1, 0.16f, 0.03f + 0.04f * float(k), 0.6f);
-        make(kSndGeodeOpen, std::move(b), 0.85f);
-    }
-    {  // the music's low pulse: C2, 200 ms
-        auto b = buffer(0.4f, rate);
+        Band br;
+        br.set(baseHz(kSndFife) * 3.0f, R, 2.0f);
+        double ph = 0;
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
-            b[i] = (std::sin(kTwoPi * midiHz(36) * t) + 0.3f * std::sin(kTwoPi * midiHz(48) * t)) * std::fmin(1.0f, t / 0.01f) *
-                   std::exp(-t / 0.18f);
+            const float vib = 1.0f + 0.006f * std::sin(float(kTwoPi) * 5.5f * t) * std::fmin(1.0f, t / 0.2f);
+            ph += kTwoPi * double(baseHz(kSndFife) * vib) / double(R);
+            const float env = std::fmin(1.0f, t / 0.025f) * std::exp(-t / 0.55f);
+            b[i] = (float(std::sin(ph)) + 0.32f * float(std::sin(2.0 * ph)) + 0.12f * float(std::sin(3.0 * ph)) +
+                    br.run(n.next()) * 0.25f) * env;
         }
-        make(kSndPulse, std::move(b), 0.8f);
+        make(kSndFife, static_cast<std::vector<float>&&>(b), 0.75f);
+    }
+    {  // brass harmony
+        auto b = buffer(1.0f, rate);
+        buzz(b, rate, baseHz(kSndBrass), false, 16, 1.1f, 0.04f, 0.35f, 0.25f);
+        OnePole lp(2200.0f, R);
+        for (float& v : b) v = lp.run(v);
+        make(kSndBrass, static_cast<std::vector<float>&&>(b), 0.7f);
+    }
+    {  // the drone: an open fifth, soft, two bars long
+        auto b = buffer(2.6f, rate);
+        const Partial p[] = {{1.0, 1.0f, 9.0}, {2.0, 0.35f, 9.0}, {1.5, 0.8f, 9.0}, {3.0, 0.25f, 9.0}};
+        partials(b, rate, baseHz(kSndDrone), p, 4, 0.35f);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            b[i] *= std::fmin(1.0f, (2.6f - t) / 0.5f);
+        }
+        make(kSndDrone, static_cast<std::vector<float>&&>(b), 0.6f);
+    }
+    {  // timpani
+        auto b = buffer(1.0f, rate);
+        const Partial p[] = {{1.0, 1.0f, 0.5}, {1.5, 0.5f, 0.3}, {1.98, 0.3f, 0.2}, {2.44, 0.15f, 0.15}};
+        partials(b, rate, baseHz(kSndTimpani), p, 4, 0.002f);
+        for (int i = 0; i < int(0.01f * R); ++i) b[size_t(i)] += n.next() * 0.3f;
+        make(kSndTimpani, static_cast<std::vector<float>&&>(b), 0.8f);
+    }
+    {  // a shaker
+        auto b = buffer(0.07f, rate);
+        OnePole lp(7000.0f, R);
+        for (size_t i = 0; i < b.size(); ++i) {
+            const float t = float(i) / R;
+            const float x = n.next();
+            b[i] = (x - lp.run(x)) * std::sin(3.14159f * std::fmin(1.0f, t / 0.06f));
+        }
+        make(kSndShaker, static_cast<std::vector<float>&&>(b), 0.35f);
     }
 }
 
-const MusicStyle& worldMusic(int world) {
-    // The chords as MIDI notes; every one is C, D, E, G or A. World 1 keeps the first loop's C and A, with A for its B.
-    static const MusicStyle m[10] = {
-        {{{60, 64, 67, 69, 74}, {57, 60, 64, 67, 74}}, 76},  // Violet Dusk: C6/9, Am7 add 11
-        {{{57, 60, 64, 67, 74}, {55, 60, 62, 64, 69}}, 72},  // Deep Teal: Am7 add 11, G6 sus 4
-        {{{60, 64, 67, 69, 74}, {62, 64, 67, 69, 72}}, 80},  // Rose Dawn: C6/9, D9 sus 4
-        {{{64, 67, 69, 72, 74}, {60, 64, 67, 69, 74}}, 74},  // Emerald Aurora: Am7/E, C6/9
-        {{{55, 57, 62, 64, 72}, {57, 60, 64, 67, 74}}, 84},  // Ember: G6/9 add 11, Am7 add 11
-        {{{62, 64, 69, 72, 76}, {57, 60, 64, 69, 72}}, 70},  // Frost Glass: D9 sus 4, Am
-        {{{57, 60, 64, 67, 74}, {62, 67, 69, 72, 74}}, 78},  // Storm Indigo: Am7 add 11, D7 sus 4
-        {{{60, 64, 67, 69, 74}, {55, 60, 62, 64, 69}}, 82},  // Gold Noon: C6/9, G6 sus 4
-        {{{64, 67, 69, 74, 76}, {57, 60, 64, 67, 72}}, 70},  // Moonlit Jade: Em7 sus 4, Am7
-        {{{62, 64, 67, 69, 72}, {57, 60, 64, 67, 74}}, 80},  // Crimson Dusk: D9 sus 4, Am7 add 11
+const MarchStyle& marchStyle(int world) {
+    static const MarchStyle styles[10] = {
+        {{0, 2, 4, 5, 7, 9, 11}, 74, 120.0f, 0.0f, 0},   // Greenmeadow: D major, fife
+        {{0, 1, 4, 5, 7, 8, 10}, 74, 108.0f, 0.0f, 1},   // Sunbaked: D Phrygian dominant, plucked
+        {{0, 2, 4, 5, 7, 9, 11}, 77, 112.0f, 0.0f, 3},   // Frostvale: F major, bell
+        {{0, 2, 3, 5, 7, 9, 10}, 69, 116.0f, 0.0f, 2},   // Emberfall: A Dorian, reed
+        {{0, 2, 4, 5, 7, 9, 10}, 79, 124.0f, 0.0f, 3},   // Tidereach: G Mixolydian, bell
+        {{0, 2, 4, 5, 7, 9, 11}, 77, 104.0f, 0.12f, 1},  // Bloomgrove: F major, plucked
+        {{0, 2, 3, 5, 7, 8, 10}, 76, 100.0f, 0.0f, 2},   // Mirefen: E minor, reed
+        {{0, 2, 4, 6, 7, 9, 11}, 72, 126.0f, 0.0f, 0},   // Skyhold: C Lydian, fife
+        {{0, 2, 3, 5, 7, 8, 11}, 74, 132.0f, 0.0f, 2},   // Cinderpeak: D harmonic minor, reed
+        {{0, 2, 4, 5, 7, 9, 11}, 70, 112.0f, 0.3f, 3},   // Lanternfair: B flat major, swung, bell
     };
-    return m[(world < 1 ? 0 : (world - 1) % 10)];
+    return styles[((world < 1 ? 1 : world) - 1) % 10];
 }
 
-void buildPad(int rate, const MusicStyle& m, std::vector<float>& darkOut, std::vector<float>& brightOut) {
-    const float R = float(rate);
-    // Four bars; the chords crossfade on their bar lines; soft detuned partials through a low-pass.
-    const float beat = 60.0f / m.bpm, loop = beat * 16.0f;
-    const int len = int(loop * R);
-    darkOut.assign(size_t(len), 0.0f);
-    brightOut.assign(size_t(len), 0.0f);
-    const auto& chords = m.chords;
-    for (int lit = 0; lit < 2; ++lit) {
-        std::vector<float>& out = lit ? brightOut : darkOut;
-        const bool bright = lit != 0;
-        OnePole lp;
-        const float a = 1.0f - std::exp(-kTwoPi * (bright ? 3000.0f : 900.0f) / R);
-        const float half = loop * 0.5f;
-        const int halfLen = len / 2;
-        const float h2 = bright ? 0.35f : 0.12f, h3 = bright ? 0.18f : 0.04f;
-        for (int c = 0; c < 2; ++c) {
-            // Each chord's partials as rotating phasors, started where the time-based formula would be.
-            const double t0 = c == 0 ? 0.0 : double(halfLen) / double(R);
-            std::vector<Osc> osc;
-            osc.reserve(30);
-            for (int k = 0; k < 5; ++k) {
-                const double f = double(midiHz(float(chords[c][k])));
-                for (int d = 0; d < 2; ++d) {
-                    const double ff = f * (d ? 1.003 : 0.997);
-                    osc.emplace_back(ff, double(R), 6.283185307179586 * ff * t0 + double(k));
-                    osc.emplace_back(ff * 2.0, double(R), 6.283185307179586 * ff * 2.0 * t0);
-                    osc.emplace_back(ff * 3.0, double(R), 6.283185307179586 * ff * 3.0 * t0);
-                }
-            }
-            Osc swell(1.0 / double(beat) * 0.25, double(R), 6.283185307179586 * t0 / double(beat) * 0.25);
-            const int i0 = c == 0 ? 0 : halfLen, i1 = c == 0 ? halfLen : len;
-            for (int i = i0; i < i1; ++i) {
-                const float t = float(i) / R;
-                const float local = c == 0 ? t : t - half;
-                // Crossfade 0.6 s around each chord change (and the loop's seam).
-                const float fadeIn = std::fmin(1.0f, local / 0.6f), fadeOut = std::fmax(0.0f, std::fmin(1.0f, (half - local) / 0.6f));
-                float v = 0;
-                for (size_t o = 0; o < osc.size(); o += 3) v += osc[o].next() + h2 * osc[o + 1].next() + h3 * osc[o + 2].next();
-                v *= 0.5f + 0.5f * swell.next() * 0.2f;
-                out[size_t(i)] = lp.runA(v, a) * fadeIn * fadeOut;
-            }
-        }
-        normalize(out, 0.5f);
-    }
-}
-
-}  // namespace gt::audio
+}  // namespace pm::audio

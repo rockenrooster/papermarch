@@ -1,6 +1,6 @@
 """Serves the browser build (build/web/site) to phones on this network: scripts/serve-web.ps1 runs it.
 
-    python -I -B tools/serve_web.py [--port 8091] [--root build/web/site] [--move-to https://glowtide.netlify.app/]
+    python -I -B tools/serve_web.py [--port 8092] [--root build/web/site] [--move-to https://papermarch.netlify.app/]
 
 Every answer says no-cache, so a phone that kept an older index.js never runs it against a newer index.wasm.
 --move-to: the game lives at another address now. Every visit gets a page that sends the player there with the saves
@@ -17,18 +17,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MOVED = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>GLOWTIDE has moved</title>
+<title>PAPERMARCH has moved</title>
 <style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0e0e2e;
 color:#fff;font:18px/1.5 system-ui,sans-serif;text-align:center;padding:0 16px}a{color:#ffd27a}</style>
-</head><body><p>GLOWTIDE has moved to <a id="to" href="TO">TO</a>,<br>taking your progress with it&hellip;</p>
+</head><body><p>PAPERMARCH has moved to <a id="to" href="TO">TO</a>,<br>taking your progress with it&hellip;</p>
 <script>
-  // This address's saves (the glowtide:* localStorage keys) go along in the new address's fragment, which never
+  // This address's saves (the papermarch:* localStorage keys) go along in the new address's fragment, which never
   // reaches a server: #import=<the keys as JSON>.
   var moved = {};
   try {
     for (var i = 0; i < localStorage.length; ++i) {
       var key = localStorage.key(i);
-      if (key.indexOf('glowtide:') === 0) moved[key] = localStorage.getItem(key);
+      if (key.indexOf('papermarch:') === 0) moved[key] = localStorage.getItem(key);
     }
   } catch (e) {}
   var to = document.getElementById('to').href;
@@ -62,7 +62,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", type=int, default=8091)
+    ap.add_argument("--port", type=int, default=8092)
     ap.add_argument("--root", default=os.path.join(ROOT, "build", "web", "site"))
     ap.add_argument("--move-to", help="the game's new address: every visit is sent there with its saves")
     a = ap.parse_args()

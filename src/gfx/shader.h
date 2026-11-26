@@ -4,7 +4,7 @@
 
 #include "gfx/gl.h"
 
-namespace gt {
+namespace pm {
 
 // "#version 300 es\n" (ES 3.0) or "#version 330 core\n" (desktop OpenGL 3.3 fallback).
 void setGlslVersionLine(const char* line);
@@ -16,4 +16,4 @@ GLuint buildProgram(const char* vertName, const char* fragName, const char* cons
 
 constexpr GLuint kFrameBinding = 0;
 
-}  // namespace gt
+}  // namespace pm

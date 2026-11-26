@@ -6,7 +6,7 @@
 
 #include "core/log.h"
 
-namespace gt {
+namespace pm {
 
 namespace {
 
@@ -76,7 +76,7 @@ bool writePng(const char* path, const u8* rgba, u32 w, u32 h, bool bottomUp) {
     if (!raw || !z) {
         std::free(raw);
         std::free(z);
-        GT_ERR("png: out of memory for %ux%u", w, h);
+        PM_ERR("png: out of memory for %ux%u", w, h);
         return false;
     }
     for (u32 y = 0; y < h; ++y) {
@@ -125,8 +125,8 @@ bool writePng(const char* path, const u8* rgba, u32 w, u32 h, bool bottomUp) {
         ok = (std::fclose(f) == 0) && ok;
     }
     std::free(z);
-    if (!ok) GT_ERR("png: could not write %s", path);
+    if (!ok) PM_ERR("png: could not write %s", path);
     return ok;
 }
 
-}  // namespace gt
+}  // namespace pm

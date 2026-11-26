@@ -1,41 +1,38 @@
 #pragma once
-// The mixer (TECH_SPEC 6): up to 32 voices of baked sounds, the music bed, a soft limiter at -1 dBFS. Pure code: no
-// SDL. The game thread sends commands through a lock-free single-producer single-consumer ring; the audio thread
-// mixes. The callback never locks, allocates or logs.
+// The mixer (TECH_SPEC 7): voices of baked sounds, the march's step sequencer (GAME_DESIGN 12.1: five layers that join
+// as the host nears its goal), the count ladder, a soft limiter. Pure code, no SDL. The game thread sends commands
+// through a lock-free single-producer single-consumer ring; the audio thread mixes, never locking, allocating or logging.
 
 #include <atomic>
-#include <thread>
-#include <vector>
 
 #include "audio/synth.h"
 
-namespace gt::audio {
+namespace pm::audio {
 
 struct Command {
-    u8 type = 0;   // 0 play, 1 duck, 2 settings
+    u8 type = 0;   // 0 play, 1 duck, 2 enable, 3 world, 4 layers, 5 ladder
     u8 sound = 0;
+    u8 flags = 0;  // play: 1 on the next sixteenth
     float gain = 1, pan = 0, pitch = 1, delay = 0;  // delay in seconds
     float a = 0, b = 0;
 };
 
 class Mixer {
 public:
-    static constexpr int kVoices = 32;
-    ~Mixer();
-    void init(int sampleRate, int timbre, int world = 1);
-    // Game thread: the world whose music plays (VARIETY_DESIGN 15; its pad is built on a worker thread and comes in at
-    // the loop's seam, the old one playing until then) and whether a boss is on (the low pulse on every beat).
-    void setWorld(int world, bool boss);
+    static constexpr int kVoices = 48;
+    static constexpr int kLayers = 5;
+    void init(int sampleRate);
     // Game thread.
     bool push(const Command& c);  // false if the ring is full (the command is dropped and counted)
-    void play(int sound, float gain, float pan, float pitch = 1.0f, float delay = 0.0f);
+    void play(int sound, float gain, float pan, float pitch = 1.0f, float delay = 0.0f, bool onBeat = false);
+    // The count ladder (GAME_DESIGN 12.2): tick `step` of a count, up (or down) the world's scale from the chord's root.
+    void ladder(int step, bool down, float gain, float pan);
+    void setWorld(int world, bool boss);
+    void setLayers(int layers);   // how many of the march's five layers play (0: none, 1..5)
     void duck(float seconds);
     void setEnabled(bool effects, bool music);
-    void setIntensity(float x) { intensity_.store(x); }  // 0..1 from the tide; below 0 the pad alone (HUSH)
-    void setTone(bool on) { tone_.store(on); }
     int dropped() const { return dropped_.load(); }
-    int pushed() const { return int(head_.load()); }  // commands accepted since init (tests)
-    // The music bed's current level (0 silent .. 1) and how many times the audio thread has mixed (checks).
+    int pushed() const { return int(head_.load()); }
     float musicLevel() const { return musicLevelOut_.load(std::memory_order_relaxed); }
     int mixCalls() const { return mixCalls_.load(std::memory_order_relaxed); }
     int voicesInUse() const { return voicesInUse_.load(); }
@@ -50,26 +47,15 @@ private:
         float gl = 0, gr = 0;
         int delay = 0;
         u32 age = 0;
+        bool music = false;
+        u8 choke = 0;
+        float fade = 1, fadeStep = 0;
     };
-    // A world's pad and what goes with it: the eighth note's length and, over each chord, the plucks (the ladder's notes
-    // of the chord's first three).
-    struct PadSet {
-        std::vector<float> dark, bright;
-        float step = 0.4f;
-        int notes[2][6] = {};
-        int noteCount[2] = {};
-        int world = 1;
-    };
-    static PadSet* makePad(int rate, int world);
-    void start(const Command& c);
+    void start(int sound, float gain, float pan, float pitch, int delayFrames, bool music, u8 choke = 0);
     void mixChunk(float* out, int frames);
-    void musicStep(int frames);
-    PadSet* pad_ = nullptr;                    // the audio thread's
-    std::atomic<PadSet*> pending_{nullptr};    // built, waiting for the seam
-    std::atomic<PadSet*> retired_{nullptr};    // swapped out, for the game thread to free
-    std::thread worker_;
-    int wantWorld_ = 1;
-    std::atomic<bool> boss_{false};
+    void sequence(int frames, float* out);
+    void playStep(int step, int offset);
+    float noteRatio(int sound, int degree, int octaveShift) const;  // a degree of the world's mode, for `sound`
 
     Bank bank_;
     int rate_ = 48000;
@@ -78,19 +64,18 @@ private:
     Command ring_[kRing];
     std::atomic<u32> head_{0}, tail_{0};
     std::atomic<int> dropped_{0}, voicesInUse_{0};
-    std::atomic<float> intensity_{0};
-    std::atomic<bool> tone_{false};
     bool effectsOn_ = true, musicOn_ = true;
-    float musicGain_ = 0.73f;  // the music renders sit 10-11 dB under the flood render (V5: the flood grew 2.1 dB since P4)
     float duck_ = 1, duckTarget_ = 1, duckHold_ = 0;
-    double padPos_ = 0;
-    double musicClock_ = 0;  // seconds
-    int nextStep_ = 0;
-    u32 pluckRng_ = 0x9E3779B9u;
+    // The march.
+    int world_ = 1;
+    bool boss_ = false;
+    int layersWanted_ = 1;
+    float layerGain_[kLayers] = {1, 0, 0, 0, 0};
+    double stepLen_ = 6000;   // samples a sixteenth
+    double toNext_ = 0;       // samples until the next step
+    int step_ = 0;            // 0..63 in the eight-bar loop
     float limGain_ = 1;
     u32 voiceAge_ = 0;
-    double tonePhase_ = 0;
-    float intensityNow_ = 0;
     static constexpr int kChunk = 1024;
     float musicLevel_ = 1;
     std::atomic<float> musicLevelOut_{1};
@@ -98,4 +83,4 @@ private:
     float musicEnv_[kChunk] = {};
 };
 
-}  // namespace gt::audio
+}  // namespace pm::audio

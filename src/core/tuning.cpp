@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 
-namespace gt {
+namespace pm {
 
 Tuning tune;
 
@@ -11,13 +11,13 @@ bool setTuning(const char* name, const char* value) {
     char* end = nullptr;
     const float v = std::strtof(value, &end);
     if (end == value || *end != '\0') return false;
-#define GT_TUNING_SET(field, def)            \
+#define PM_TUNING_SET(field, def)            \
     if (std::strcmp(name, #field) == 0) {    \
         tune.field = v;                      \
         return true;                         \
     }
-    GT_TUNING(GT_TUNING_SET)
-#undef GT_TUNING_SET
+    PM_TUNING(PM_TUNING_SET)
+#undef PM_TUNING_SET
     return false;
 }
 
@@ -32,4 +32,4 @@ bool setTuningPair(const char* pair) {
     return setTuning(name, eq + 1);
 }
 
-}  // namespace gt
+}  // namespace pm

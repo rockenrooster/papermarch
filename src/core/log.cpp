@@ -8,7 +8,7 @@
 #include <android/log.h>
 #endif
 
-namespace gt {
+namespace pm {
 
 namespace {
 std::atomic<int> g_warnings{0};
@@ -33,4 +33,4 @@ void logf(LogLevel level, const char* tag, const char* fmt, ...) {
 #endif
 }
 
-}  // namespace gt
+}  // namespace pm

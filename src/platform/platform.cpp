@@ -25,19 +25,19 @@
 #include <emscripten.h>
 #include <emscripten/html5.h>
 
-EM_JS_DEPS(gt_web, "$UTF8ToString,$stringToNewUTF8");
+EM_JS_DEPS(pm_web, "$UTF8ToString,$stringToNewUTF8");
 // The page puts env(safe-area-inset-*) in CSS variables (--sat, --sar, --sab, --sal: web/shell.html).
-EM_JS(double, gt_web_inset, (int side), {
+EM_JS(double, pm_web_inset, (int side), {
     var v = ['--sat', '--sar', '--sab', '--sal'][side];
     return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(v)) || 0;
 });
-EM_JS(void, gt_web_ready, (), {
-    if (typeof window['gtReady'] === 'function') window['gtReady']();
+EM_JS(void, pm_web_ready, (), {
+    if (typeof window['pmReady'] === 'function') window['pmReady']();
 });
-EM_JS(void, gt_web_store, (const char* key, const char* value), {
+EM_JS(void, pm_web_store, (const char* key, const char* value), {
     try { localStorage.setItem(UTF8ToString(key), UTF8ToString(value)); } catch (e) {}
 });
-EM_JS(char*, gt_web_load, (const char* key), {
+EM_JS(char*, pm_web_load, (const char* key), {
     try {
         var v = localStorage.getItem(UTF8ToString(key));
         return v === null ? 0 : stringToNewUTF8(v);
@@ -47,7 +47,7 @@ EM_JS(char*, gt_web_load, (const char* key), {
 });
 #endif
 
-namespace gt::platform {
+namespace pm::platform {
 
 #if defined(__EMSCRIPTEN__)
 
@@ -65,16 +65,16 @@ void webCanvas(int& pxW, int& pxH, int& cssW, int& cssH, float& ratio, float ins
     if (pxW < 1) pxW = 1;
     if (pxH < 1) pxH = 1;
     emscripten_set_canvas_element_size("#canvas", pxW, pxH);
-    for (int i = 0; i < 4; ++i) insets[i] = float(gt_web_inset(i));
+    for (int i = 0; i < 4; ++i) insets[i] = float(pm_web_inset(i));
 }
 
-void webReady() { gt_web_ready(); }
+void webReady() { pm_web_ready(); }
 
 namespace {
-// localStorage's key for a file: its name ("glowtide:save.txt").
+// localStorage's key for a file: its name ("papermarch:save.txt").
 void storageKey(const char* path, char* key, size_t n) {
     const char* name = std::strrchr(path, '/');
-    std::snprintf(key, n, "glowtide:%s", name ? name + 1 : path);
+    std::snprintf(key, n, "papermarch:%s", name ? name + 1 : path);
 }
 }  // namespace
 
@@ -85,7 +85,7 @@ void restoreFile(const char* path) {
     }
     char key[96];
     storageKey(path, key, sizeof key);
-    char* text = gt_web_load(key);
+    char* text = pm_web_load(key);
     if (!text) return;
     if (FILE* f = std::fopen(path, "wb")) {
         std::fwrite(text, 1, std::strlen(text), f);
@@ -103,7 +103,7 @@ void persistFile(const char* path) {
     text[n] = 0;
     char key[96];
     storageKey(path, key, sizeof key);
-    gt_web_store(key, text);
+    pm_web_store(key, text);
 }
 
 #else
@@ -141,7 +141,7 @@ void enableTimestamps() {
     g_surface = eglGetCurrentSurface(EGL_DRAW);  // (SDL_EGL_GetWindowSurface is not implemented on Android)
     if (g_surface == EGL_NO_SURFACE) return;
     if (!eglSurfaceAttrib(g_dpy, g_surface, EGL_TIMESTAMPS_ANDROID, EGL_TRUE)) {
-        GT_WARN("present: EGL_TIMESTAMPS_ANDROID refused (0x%x)", eglGetError());
+        PM_WARN("present: EGL_TIMESTAMPS_ANDROID refused (0x%x)", eglGetError());
         g_presentOk = false;
     }
     g_idHead = g_idCount = 0;
@@ -206,7 +206,7 @@ void init(SDL_Window*) {
     JNIEnv* env = static_cast<JNIEnv*>(SDL_GetAndroidJNIEnv());
     jobject activity = static_cast<jobject>(SDL_GetAndroidActivity());
     if (!env || !activity) {
-        GT_WARN("platform: no JNI environment");
+        PM_WARN("platform: no JNI environment");
         return;
     }
     jclass cls = env->GetObjectClass(activity);
@@ -219,7 +219,7 @@ void init(SDL_Window*) {
     if (env->ExceptionCheck()) env->ExceptionClear();
     env->DeleteLocalRef(cls);
     env->DeleteLocalRef(activity);
-    GT_LOG("platform: haptic %s, refresh %s", g_haptic ? "ok" : "missing", g_refresh ? "ok" : "missing");
+    PM_LOG("platform: haptic %s, refresh %s", g_haptic ? "ok" : "missing", g_refresh ? "ok" : "missing");
 }
 
 void haptic(int kind) {
@@ -281,7 +281,7 @@ void presentInit(SDL_Window* window) {
     g_dpy = eglGetCurrentDisplay();
     const char* ext = g_dpy != EGL_NO_DISPLAY ? eglQueryString(g_dpy, EGL_EXTENSIONS) : nullptr;
     if (!ext || !std::strstr(ext, "EGL_ANDROID_get_frame_timestamps")) {
-        GT_WARN("present: EGL_ANDROID_get_frame_timestamps is missing; grading falls back to swap intervals");
+        PM_WARN("present: EGL_ANDROID_get_frame_timestamps is missing; grading falls back to swap intervals");
         return;
     }
     g_nextFrameId = reinterpret_cast<PFNEGLGETNEXTFRAMEIDANDROIDPROC>(eglGetProcAddress("eglGetNextFrameIdANDROID"));
@@ -292,10 +292,10 @@ void presentInit(SDL_Window* window) {
         eglGetProcAddress("eglGetFrameTimestampSupportedANDROID"));
     if (g_presentOk && supported && g_surface != EGL_NO_SURFACE) {
         const bool present = supported(g_dpy, g_surface, EGL_DISPLAY_PRESENT_TIME_ANDROID);
-        GT_LOG("present: display present time %s", present ? "supported" : "NOT supported");
+        PM_LOG("present: display present time %s", present ? "supported" : "NOT supported");
         if (!present) g_presentOk = false;
     }
-    GT_LOG("present: frame timestamps %s", g_presentOk ? "on" : "unavailable");
+    PM_LOG("present: frame timestamps %s", g_presentOk ? "on" : "unavailable");
 }
 
 bool presentAvailable() { return g_presentOk; }
@@ -323,7 +323,7 @@ int presentCollect(double* out, int max) {
         EGLnsecsANDROID value = 0;
         if (!g_frameTimestamps(g_dpy, g_surface, g_ids[g_idHead], 1, &name, &value)) {
             static int warned = 0;
-            if (warned++ < 3) GT_WARN("present: eglGetFrameTimestampsANDROID failed (0x%x)", eglGetError());
+            if (warned++ < 3) PM_WARN("present: eglGetFrameTimestampsANDROID failed (0x%x)", eglGetError());
             // An id the driver no longer knows: drop it.
             g_idHead = (g_idHead + 1) % kPending;
             --g_idCount;
@@ -349,7 +349,7 @@ void haptic(int) {}
 void requestRefreshRate(float) {}
 void checkForUpdate() {}
 void startUpdate() {
-    if (!SDL_OpenURL(kReleasesUrl)) GT_WARN("update: %s", SDL_GetError());
+    if (!SDL_OpenURL(kReleasesUrl)) PM_WARN("update: %s", SDL_GetError());
 }
 float refreshRateHz(SDL_Window* window) {
     const SDL_DisplayMode* mode = SDL_GetCurrentDisplayMode(SDL_GetDisplayForWindow(window));
@@ -372,14 +372,14 @@ int latestBuild() { return g_latestBuild.load(std::memory_order_relaxed); }
 float updateProgress() { return g_updateProgress.load(std::memory_order_relaxed); }
 
 #if defined(__ANDROID__)
-// GlowtideActivity.nativeUpdateFound(int): the latest GitHub release's build number, from its update thread.
-extern "C" JNIEXPORT void JNICALL Java_dev_glowtide_game_GlowtideActivity_nativeUpdateFound(JNIEnv*, jclass, jint build) {
+// PapermarchActivity.nativeUpdateFound(int): the latest GitHub release's build number, from its update thread.
+extern "C" JNIEXPORT void JNICALL Java_dev_papermarch_game_PapermarchActivity_nativeUpdateFound(JNIEnv*, jclass, jint build) {
     g_latestBuild.store(static_cast<int>(build), std::memory_order_relaxed);
 }
-// GlowtideActivity.nativeUpdateProgress(float): the in-app download's fraction, -1 when it ends without installing.
-extern "C" JNIEXPORT void JNICALL Java_dev_glowtide_game_GlowtideActivity_nativeUpdateProgress(JNIEnv*, jclass, jfloat fraction) {
+// PapermarchActivity.nativeUpdateProgress(float): the in-app download's fraction, -1 when it ends without installing.
+extern "C" JNIEXPORT void JNICALL Java_dev_papermarch_game_PapermarchActivity_nativeUpdateProgress(JNIEnv*, jclass, jfloat fraction) {
     g_updateProgress.store(static_cast<float>(fraction), std::memory_order_relaxed);
 }
 #endif
 
-}  // namespace gt::platform
+}  // namespace pm::platform

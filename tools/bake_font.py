@@ -1,4 +1,4 @@
-"""Bakes GLOWTIDE's font into a signed-distance-field atlas (TECH_SPEC 5.7).
+"""Bakes PAPERMARCH's font into a signed-distance-field atlas (TECH_SPEC 5.7).
 
     python -I -B tools/bake_font.py [--font assets/font/Roboto-Black.ttf] [--sample captures/p1/font_sample.png]
 

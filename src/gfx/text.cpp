@@ -4,7 +4,7 @@
 
 #include <cstring>
 
-namespace gt {
+namespace pm {
 
 namespace {
 #include "gfx/font_atlas.inc"
@@ -107,6 +107,22 @@ void UiBatch::star(float cx, float cy, float r, Rgba fill, Rgba stroke, float st
     quad(a, b, c, d);
 }
 
+void UiBatch::star5(float cx, float cy, float r, Rgba fill, Rgba stroke, float strokeW) {
+    const float m = r + strokeW + 2.0f;
+    UiVertex base{};
+    std::memcpy(base.fill, &fill, 4);
+    std::memcpy(base.stroke, &stroke, 4);
+    base.p0[0] = 3.0f;
+    base.p0[1] = strokeW;
+    base.p1[0] = r;
+    UiVertex a = base, b = base, c = base, d = base;
+    a.x = cx - m; a.y = cy - m; a.u = -m; a.v = -m;
+    b.x = cx + m; b.y = cy - m; b.u = m;  b.v = -m;
+    c.x = cx - m; c.y = cy + m; c.u = -m; c.v = m;
+    d.x = cx + m; d.y = cy + m; d.u = m;  d.v = m;
+    quad(a, b, c, d);
+}
+
 float UiBatch::textWidth(const char* s, float size) {
     float w = 0;
     while (*s) {
@@ -150,4 +166,4 @@ float UiBatch::text(const char* s, float x, float y, float size, Rgba fill, Rgba
     return width;
 }
 
-}  // namespace gt
+}  // namespace pm

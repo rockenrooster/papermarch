@@ -1,10 +1,10 @@
 #pragma once
 // Frame timing for benchmarks (TECH_SPEC 8.3): swap intervals, main-thread phases, the display's present times,
-// simulation tick time, counts and heap allocations over a measured window; one GTBENCH line and a JSON file.
+// simulation tick time, counts and heap allocations over a measured window; one PMBENCH line and a JSON file.
 
 #include "core/types.h"
 
-namespace gt {
+namespace pm {
 
 enum Phase { kPhaseEvents, kPhaseSim, kPhaseView, kPhaseBuild, kPhaseSubmit, kPhaseSwap, kPhaseCount };
 
@@ -13,7 +13,7 @@ struct BenchFrame {
     float cpu = 0;        // s, main thread without the swap
     float phase[kPhaseCount] = {};
     float tickMax = 0;    // s, the slowest simulation tick in the frame
-    int wisps = 0, glooms = 0, particles = 0;
+    int stickers = 0, figures = 0, confetti = 0;
     int drawCalls = 0;
 };
 
@@ -42,4 +42,4 @@ private:
     u64 allocStart_ = 0;
 };
 
-}  // namespace gt
+}  // namespace pm
