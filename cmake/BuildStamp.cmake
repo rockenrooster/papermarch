@@ -1,0 +1,22 @@
+# Writes generated/build_stamp.h: version, commit (if the tree is a git repository), date and the GitHub release's build
+# number (BUILD_NUMBER, 0 for a local build; docs/RELEASE_PIPELINE.md). Only rewritten when it changes.
+if(NOT DEFINED BUILD_NUMBER OR BUILD_NUMBER STREQUAL "")
+  set(BUILD_NUMBER 0)
+endif()
+set(commit "nogit")
+find_program(GIT git HINTS "C:/Program Files/Git/cmd")
+if(GIT AND EXISTS ${ROOT}/.git)
+  execute_process(COMMAND ${GIT} -C ${ROOT} rev-parse --short HEAD OUTPUT_VARIABLE commit OUTPUT_STRIP_TRAILING_WHITESPACE
+                  ERROR_QUIET RESULT_VARIABLE rc)
+  if(NOT rc EQUAL 0 OR commit STREQUAL "")
+    set(commit "nogit")
+  endif()
+endif()
+string(TIMESTAMP date "%Y-%m-%d")
+set(text "#pragma once\n#define GT_VERSION \"${VERSION}\"\n#define GT_COMMIT \"${commit}\"\n#define GT_BUILD_DATE \"${date}\"\n#define GT_BUILD_NUMBER ${BUILD_NUMBER}\n")
+if(EXISTS ${OUT})
+  file(READ ${OUT} old)
+endif()
+if(NOT "${old}" STREQUAL "${text}")
+  file(WRITE ${OUT} "${text}")
+endif()

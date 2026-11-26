@@ -1,0 +1,161 @@
+# The release APK on GitHub (docs/RELEASE_PIPELINE.md). Every push to main (and a run by hand) builds the release variant as
+# scripts/build-android.ps1 -Config release does on Windows (native Release, stripped, not debuggable, no app arguments) and
+# publishes it as a GitHub release: tag build-<commit count>, the APK as glowtide.apk (so releases/latest/download/glowtide.apk
+# is always the newest build), its SHA-256, and the unstripped native libraries for reading a crash report. The build number
+# goes into the app, which compares it with the latest release's (the updater). A run on another branch keeps the APK with the
+# run for a week instead.
+name: Release APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+      # The browser build's own files (Netlify serves it; the APK has none of them).
+      - 'web/**'
+      - 'scripts/*-web.ps1'
+      - 'tools/serve_web.py'
+      - 'tools/web_check.mjs'
+  workflow_dispatch:
+
+# One build at a time per branch; a newer push replaces a waiting or running one (its commit is in the newer build).
+concurrency:
+  group: release-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write  # (the release and its tag)
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GT_NDK: '29.0.14206865'  # android/app/build.gradle's ndkVersion
+      GT_CMAKE: '3.22.1'       # and its externalNativeBuild CMake version
+    steps:
+      - name: Check out (the whole history; the commit count is the build number)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Android SDK packages (the NDK, CMake, platform 36)
+        run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" --install "ndk;$GT_NDK" "cmake;$GT_CMAKE" "platforms;android-36" > /dev/null
+
+      - name: Third-party sources (scripts/fetch-deps.sh, the pinned SDL)
+        run: bash scripts/fetch-deps.sh
+
+      - name: Build the release APK
+        working-directory: android
+        env:
+          GT_KEYSTORE_BASE64: ${{ secrets.GT_KEYSTORE_BASE64 }}
+          GT_KEYSTORE_PASSWORD: ${{ secrets.GT_KEYSTORE_PASSWORD }}
+          GT_KEY_ALIAS: ${{ secrets.GT_KEY_ALIAS }}
+          GT_KEY_PASSWORD: ${{ secrets.GT_KEY_PASSWORD }}
+        run: |
+          trap 'rm -f "$RUNNER_TEMP/release.keystore"' EXIT
+          if [ -n "$GT_KEYSTORE_BASE64" ]; then
+            printf '%s' "$GT_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            export GT_KEYSTORE="$RUNNER_TEMP/release.keystore"
+            echo "GT_SIGNED=secrets" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No signing secrets: the APK is signed with a debug key made by this run (docs/RELEASE_PIPELINE.md)"
+            echo "GT_SIGNED=run" >> "$GITHUB_ENV"
+          fi
+          unset GT_KEYSTORE_BASE64
+          # (the build number HOME compares with the latest release's: the commit count, as the tag build-<n>)
+          export GT_BUILD_NUMBER=$(git rev-list --count HEAD)
+          bash ./gradlew --no-daemon --console=plain :app:assembleRelease
+
+      - name: Package (the APK, its SHA-256, the symbols) and write the notes
+        id: pkg
+        run: |
+          apk=android/app/build/outputs/apk/release/app-release.apk
+          count=$(git rev-list --count HEAD)
+          short=$(git rev-parse --short=7 HEAD)
+          version=$(sed -n "s/^ *versionName '\([^']*\)'.*/\1/p" android/app/build.gradle)
+          tag="build-$count"
+          mkdir -p out
+          cp "$apk" out/glowtide.apk
+          (cd out && sha256sum glowtide.apk > glowtide.apk.sha256)
+          libmain=$(find android/app/build/intermediates/merged_native_libs/release -name libmain.so | head -n 1)
+          test -n "$libmain"
+          zip -q -j out/glowtide-symbols.zip "$(dirname "$libmain")"/*.so
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/[0-9]* | sort -V | tail -n 1)
+          "$bt/zipalign" -c -P 16 -v 4 out/glowtide.apk > /dev/null && echo "zipalign: 16 KB pages ok"
+          certs=$("$bt/apksigner" verify --print-certs -v out/glowtide.apk 2>&1)
+          echo "apksigner $(basename "$bt"):"
+          printf '%s\n' "$certs" | grep -iE 'verified|signer|warning|error' || true
+          dn=$(printf '%s\n' "$certs" | grep -m 1 'certificate DN: ' | sed 's/.*certificate DN: //' || true)
+          digest=$(printf '%s\n' "$certs" | grep -m 1 'certificate SHA-256 digest: ' | sed 's/.*SHA-256 digest: //' || true)
+          if [ "$GT_SIGNED" = secrets ]; then
+            signing="Signed with the key in the repository's signing secrets."
+          else
+            signing="Signed with a debug key made for this run (no signing secrets are set): it installs only where GLOWTIDE is not installed, so uninstall any earlier build first (its progress goes with it)."
+          fi
+          prev=$(git tag --list 'build-*' --sort=-version:refname | grep -vx "$tag" | head -n 1 || true)
+          {
+            echo "GLOWTIDE $version, build $count: commit \`$short\`, built $(date -u '+%Y-%m-%d %H:%M') UTC."
+            echo
+            echo "**Install:** on the phone, download \`glowtide.apk\` and open it (Android asks once to allow installs from the browser). Android 10 or later, 64-bit ARM, OpenGL ES 3.0."
+            echo
+            echo "**Updates:** the game checks this page once a launch; when a newer build is out, HOME shows a gold UPDATE button that opens it."
+            echo
+            echo "**Signing:** $signing Certificate: $dn, SHA-256 \`$digest\`."
+            echo
+            if [ -n "$prev" ] && git merge-base --is-ancestor "$prev" HEAD; then
+              echo "**Changes since $prev:**"
+              git log --no-merges --format='- %s (%h)' -n 40 "$prev..HEAD"
+            else
+              echo "**Latest changes:**"
+              git log --no-merges --format='- %s (%h)' -n 15
+            fi
+            echo
+            echo "\`glowtide-symbols.zip\`: the unstripped native libraries of this build, for reading a crash report (ndk-stack)."
+          } > "$RUNNER_TEMP/notes.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "title=GLOWTIDE $version build $count" >> "$GITHUB_OUTPUT"
+          {
+            echo "### GLOWTIDE $version build $count ($short)"
+            echo "APK: $(stat -c %s out/glowtide.apk) bytes. $signing"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish the release (main only)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.pkg.outputs.tag }}
+          TITLE: ${{ steps.pkg.outputs.title }}
+        run: |
+          assets=(out/glowtide.apk out/glowtide.apk.sha256 out/glowtide-symbols.zip)
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "${assets[@]}" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md" --latest
+          else
+            gh release create "$TAG" "${assets[@]}" --target "$GITHUB_SHA" --title "$TITLE" \
+              --notes-file "$RUNNER_TEMP/notes.md" --latest
+          fi
+          echo "Download: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/latest/download/glowtide.apk" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the APK with the run (not main)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: glowtide-${{ steps.pkg.outputs.tag }}
+          path: out/glowtide.apk
+          retention-days: 7

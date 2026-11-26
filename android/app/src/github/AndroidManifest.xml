@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GitHub builds only (android/app/build.gradle merges this into a release built with a build number): the in-app
+     updater installs the newer release itself (docs/RELEASE_PIPELINE.md). A build for Google Play has neither: Play
+     restricts REQUEST_INSTALL_PACKAGES, and apps from Play update through Play. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <receiver android:name=".ApkInstallReceiver" android:exported="false" />
+    </application>
+
+</manifest>

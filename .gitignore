@@ -1,0 +1,21 @@
+/build/
+/captures/
+/third_party/
+/android/.gradle/
+/android/build/
+/android/app/build/
+/android/app/.cxx/
+/android/local.properties
+*.apk
+*.aab
+__pycache__/
+# The release key (scripts/release-key.ps1): never committed, the repository is public.
+/keys/
+*.keystore
+*.jks
+*.p12
+*.pfx
+/out/
+# Desktop benchmark output (the app writes bench_<scenario>.json in its working directory)
+/bench_*.json
+.netlify/
