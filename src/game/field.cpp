@@ -857,7 +857,8 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     }
     drawParticles();
     // Far to near, then the shadows' and the stickers' lists for the renderer.
-    std::sort(items_, items_ + itemN_, [](const Item& a, const Item& c) { return a.key > c.key; });
+    // Ties go by the order things were added, the same every frame (std::sort is not stable: no flicker).
+    std::sort(items_, items_ + itemN_, [](const Item& a, const Item& c) { return a.key > c.key || (a.key == c.key && a.first < c.first); });
     for (int i = 0; i < itemN_; ++i) {
         const Item& it = items_[i];
         std::memcpy(sorted_ + out_, pool_ + it.first, sizeof(Sticker) * it.count);
