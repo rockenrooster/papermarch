@@ -15,8 +15,8 @@ real-time squad shooter of those screenshots the same day (commit `fe44b21` on t
 | The view (road, squad, gates, barrels, hordes, boss, effects) | Done on the PC and in the browser; not yet seen on a phone |
 | Screens, flow, LEVELS, save, updater pill | Done; flow test 23/23; layout lint clean on 8 screens at 4 sizes |
 | Audio | New battle sounds and cues; offline renders measured (below); the owner's ears pending |
-| Android | The dev APK builds (4.9 MB); GitHub releases `build-6` and `build-7` (0.2.0, signed) are the shooter; the icon is a paper soldier on the road |
-| Browser | Builds (index.wasm 2.8 MB); headless Chrome: level 1 won by a touch sweeping the squad, 55.7 frames a second while the bot plays level 30 |
+| Android | The dev APK builds (4.9 MB); GitHub releases from `build-6` on (0.2.0, signed) are the shooter; the icon is a paper soldier on the road |
+| Browser | Builds (index.wasm 2.8 MB); headless Chrome: the flow test 23/23, level 1 won by a touch sweeping the squad, NEXT, the save kept and read back, a notch's insets, 56 frames a second while the bot plays level 30 |
 | Netlify | Not deployed: once, when the owner says the game is finished |
 
 ## Measured (this PC, 2026-11-26)
