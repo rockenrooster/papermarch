@@ -616,7 +616,7 @@ void Field::drawEnemy(const sim::Enemy& e, float z) {
     const float k = brute ? 1.75f : 1.0f;
     const float hw = 0.3f * s * k, hh = 0.48f * s * k;
     const float cy = sy - hh - bob;
-    const bool detail = s * k > 30.0f;
+    const bool detail = s * k > detailScale_;
     Sticker* st = add(z, detail ? (brute ? 5 : 4) : 2);
     if (!st) return;
     st[0] = sticker(kShPawn, sx, cy, hw, hh, brute ? mixc(kRedDark, kWhiteC, flash * 0.7f) : body, brute ? mixc(kRedDeep, kWhiteC, flash * 0.6f) : side,
@@ -822,10 +822,14 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     g.roadHalf = sim::kRoadHalf;
     g.hazeStart = depthS_ + 26.0f;
 
+    // What matters most is added first, so a full pool drops the least: the squad, gates, barrels, scenery, the horde
+    // (fewer details when it is huge), bullets, bits.
     const float zLo = cam_.z + cam_.tBottom - 3.0f, zHi = cam_.z + cam_.tTop + 6.0f;
-    scenery(zLo, zHi);
+    if (!b.lost) drawSoldiers(b, viewZ_, viewX_, labels);
     drawGates(b, labels);
     drawBarrels(b, labels);
+    scenery(zLo, zHi);
+    detailScale_ = b.aliveEnemies() > 700 ? 60.0f : (b.aliveEnemies() > 400 ? 42.0f : 30.0f);
     const float step = alpha * sim::kDt;
     for (int i = 0; i < b.enemyCount; ++i) {
         const sim::Enemy& e = b.enemies[i];
@@ -839,7 +843,6 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
         if (z < zLo || z > zHi) continue;
         drawEnemy(e, z);
     }
-    if (!b.lost) drawSoldiers(b, viewZ_, viewX_, labels);
     // Bullets: streaks of light, no shadow.
     for (int i = 0; i < b.bulletCount; ++i) {
         const sim::Bullet& bl = b.bullets[i];

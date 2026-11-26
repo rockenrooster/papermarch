@@ -15,7 +15,7 @@ real-time squad shooter of those screenshots the same day (commit `fe44b21` on t
 | The view (road, squad, gates, barrels, hordes, boss, effects) | Done on the PC and in the browser; not yet seen on a phone |
 | Screens, flow, LEVELS, save, updater pill | Done; flow test 23/23; layout lint clean on 8 screens at 4 sizes |
 | Audio | New battle sounds and cues; offline renders measured (below); the owner's ears pending |
-| Android | The dev APK builds (4.9 MB); release builds come from GitHub per push |
+| Android | The dev APK builds (4.9 MB); GitHub releases `build-6` and `build-7` (0.2.0, signed) are the shooter; the icon is a paper soldier on the road |
 | Browser | Builds (index.wasm 2.8 MB); headless Chrome: level 1 won by a touch sweeping the squad, 55.7 frames a second while the bot plays level 30 |
 | Netlify | Not deployed: once, when the owner says the game is finished |
 
@@ -25,7 +25,12 @@ real-time squad shooter of those screenshots the same day (commit `fe44b21` on t
 - Unit tests 31 checks, the table 300/300, the flow test 23/23 (69 s with `--fixed-step`).
 - Audio renders (`tools\wav_metrics.py`): the battle mix -21.9 LUFS, peak -7.2 dBFS, no clipping; the effects -24.7
   LUFS; the march -24.8 LUFS. Shot, hit and kill gains were raised after this measurement.
-- Browser: 55.7 frames a second in headless Chrome at 1170 × 2532 (software GL) on level 30.
+- Browser: 55.7-56.1 frames a second in headless Chrome at 1170 × 2532 on level 30.
+- Desktop `bench_battle` on level 211 (the biggest hordes, 1,064 figures, 2,900 stickers at most): sim 0.04 ms, view
+  0.25 ms, submit 0.07 ms a frame (P95), no heap allocation, 6 draw calls. The off-screen window's swap is throttled by
+  Windows, so frame intervals on the PC mean nothing; the phones decide the contract.
+- The view adds the squad, gates and barrels before the horde, so a full sticker pool (6,000) drops bullets and bits
+  first; a horde over 400 or 700 alive draws its far members with fewer details.
 
 ## Choices made for the owner
 

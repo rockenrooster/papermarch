@@ -102,10 +102,11 @@ private:
     u32 rng_ = 0x9E3779B9u;
     int figures_ = 0;
 
-    static constexpr int kPool = 5600;
+    static constexpr int kPool = 6000;  // the renderer's limit (Paper::kMaxStickers)
     Sticker pool_[kPool];
     int poolN_ = 0;
-    static constexpr int kItems = 3200;
+    static constexpr int kItems = 4200;
+    float detailScale_ = 30;  // enemies drawn bigger than this (px a unit) get a face and a spear
     Item items_[kItems];
     int itemN_ = 0;
     Sticker sorted_[kPool];
