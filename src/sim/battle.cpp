@@ -57,9 +57,13 @@ void Battle::spawnWave(int w, BattleEvents& ev) {
     for (int k = 0; k < wd.count && enemyCount < kMaxEnemies; ++k) {
         Enemy& e = enemies[enemyCount++];
         const int row = k / cols, col = k % cols;
+        // A crowd, not a block: every one a little off its place in the ranks.
+        const float jx = (float(rand() & 0xFFFF) / 65535.0f - 0.5f) * gap * 0.5f;
+        const float jz = (float(rand() & 0xFFFF) / 65535.0f - 0.5f) * gap * 0.8f;
         e.x = wd.x0 + (float(col) + (row % 2 ? 0.5f : 0.0f)) * gap;
         if (e.x > wd.x1) e.x -= gap;
-        e.z = wd.z + float(row) * gap * 0.9f;
+        e.x = clampv(e.x + jx, -kRoadHalf + 0.3f, kRoadHalf - 0.3f);
+        e.z = wd.z + float(row) * gap * 0.9f + jz;
         e.hp = st.hp;
         e.kind = wd.kind;
         e.alive = 1;

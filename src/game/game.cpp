@@ -428,8 +428,8 @@ void Game::logSites() {
     char line[160];
     if (screen_ == Screen::Win) {
         const UiControl* c = ui_.find("NEXT");
-        if (!c) {
-            sitesLogged_ = -1;  // the panel is not up yet
+        if (!c || resultTime_ < 0.4f) {
+            sitesLogged_ = -1;  // the panel is not up yet, or still sliding in
             return;
         }
         std::snprintf(line, sizeof line, "PMSITES NEXT:%d,%d", int(c->r.cx()), int(c->r.cy()));

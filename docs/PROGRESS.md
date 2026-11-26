@@ -3,57 +3,50 @@
 The owner's words that started the build (2026-11-26): "Ok, now implement. Public repo. You have my permission to do
 anything you need (including elevated commands if needed)", then the goal "finish the project". Mid-way: "I want the
 menus to be simple ... the map thing in the real game is not wanted at all. Just level after level until game is
-finished (300 levels)" and "Next taps are fine". Executed by one agent (Opus 5.5) working directly, no subagents.
+finished (300 levels)" and "Next taps are fine". After two screenshots of the advertisement: "I'm still not seeing
+anything close to it" and "I think you designed the wrong thing I was thinking of". The game was rebuilt as the
+real-time squad shooter of those screenshots the same day (commit `fe44b21` on top of the turn-based `5b8bb05`).
 
-## Phase status
+## Status
 
-| Phase | Status | Notes |
-|---|---|---|
-| P0 Fork and bootstrap | Done | GLOWTIDE's shell at `dff405a` copied (`e0a8416`), renamed, its game taken out. Desktop, Android (dev APK 3.6 MB) and browser (index.wasm 1.4 MB) build |
-| P1 Look proof | Done on the PC | The engine draws the concept frame (`captures/p1/concept.png`). Device checks: no phone was reachable (see "Devices") |
-| P2 Rules and first playable | Done | The rules, the solver (= brute force on 2,000 random levels), undo, hints, the dead-end nudge, the clips; hand-made levels 1-8 and 12 hold their stated results |
-| P3 Game loop, selector, updater | In progress | Screens, LEVELS, save, flow test (30 checks) done; the public repository and the pipeline next |
-| P4 Audio | In progress | The sound bank and the five-layer march are built; renders and metrics next |
-| P5 Content | Done (first bake) | 300 levels baked in 2.1 s on 4 jobs; every level proven winnable with its best; 12 race levels kept with a relaxed band |
-| P6 Polish | Pending | |
-| P7 Release and web | Pending | |
+| Part | Status |
+|---|---|
+| The battle (rules, bot, generator, 300 baked levels) | Done; the bot wins every level with the squad the bake recorded |
+| The view (road, squad, gates, barrels, hordes, boss, effects) | Done on the PC and in the browser; not yet seen on a phone |
+| Screens, flow, LEVELS, save, updater pill | Done; flow test 23/23; layout lint clean on 8 screens at 4 sizes |
+| Audio | New battle sounds and cues; offline renders measured (below); the owner's ears pending |
+| Android | The dev APK builds (4.9 MB); release builds come from GitHub per push |
+| Browser | Builds (index.wasm 2.8 MB); headless Chrome: level 1 won by a touch sweeping the squad, 55.7 frames a second while the bot plays level 30 |
+| Netlify | Not deployed: once, when the owner says the game is finished |
 
-## Forked from GLOWTIDE (2026-11-26, its `main` at `dff405a`)
+## Measured (this PC, 2026-11-26)
 
-Copied and renamed (`glowtide` -> `papermarch`, `GT_` -> `PM_`, namespace `pm`, port 8092): the build (CMake, Gradle,
-Emscripten), `scripts/`, `tools/`, `web/`, `android/` with the updater (`ApkUpdater`, `ApkInstallReceiver`, the
-activity), `.github/workflows/release.yml`, `src/core`, `src/platform`, the GL loader, shaders' build-time validation,
-text and the font atlas, the UI layer, the save, the bench, the audio device. The level selector is GLOWTIDE's
-`drawLevels`, restyled. New: `src/sim` (rules, solver, levels), `src/gen` (generator, bake), `src/gfx/paper.*` and every
-shader but text, `src/game/scene*` (the page, pop-ups, figures, clips), the screens, the mixer's sequencer and the sound
-bank, the tools.
+- The bake: 300 levels in about 16 s on 4 jobs (`captures/levels/report.md`); 0 failed.
+- Unit tests 31 checks, the table 300/300, the flow test 23/23 (69 s with `--fixed-step`).
+- Audio renders (`tools\wav_metrics.py`): the battle mix -21.9 LUFS, peak -7.2 dBFS, no clipping; the effects -24.7
+  LUFS; the march -24.8 LUFS. Shot, hit and kill gains were raised after this measurement.
+- Browser: 55.7 frames a second in headless Chrome at 1170 × 2532 (software GL) on level 30.
 
-## Choices made for the owner (best judgment instead of questions, as on GLOWTIDE)
+## Choices made for the owner
 
 | Question | Choice | Why |
 |---|---|---|
-| The flow (the owner's correction, 2026-11-26) | No hub, no world map: launch goes straight to the saved level; WIN has NEXT (and RETRY under three stars); LOSE has UNDO and RETRY; PAUSE has RESUME, RESTART, LEVELS, SETTINGS; after level 300 an end screen | "Just level after level until game is finished"; "Next taps are fine" |
-| The title | A cut-paper card over the first level on a cold start; the first touch fades it and plays | No extra screen between launch and play |
-| Fonts | GLOWTIDE's Roboto Black atlas (capitals, digits, `+-x÷%`). The mire's tag reads `÷2` (no `½` glyph) | No download, no re-bake |
-| Stars | Five-pointed stars added to the UI batch's shader | GLOWTIDE's four-point star reads as a sparkle |
-| Intro levels | 16 Gauntlet, 22 key tower, 28 mire, 34 deserting camp, 42 Siege (40 is a boss), 52 fading shrine (50 is a boss), 62 Race (60 is a boss), 75 Last Stand; each with its hint line; generated with the element forced | The design put some intros on boss levels |
-| Release signing | `scripts\release-key.ps1 -Generate` makes the key with a random password kept in `keys\` (gitignored, never printed); the four secrets go to GitHub through gh's stdin | The owner gave permission "to do anything you need"; the key must exist before the first public build so every build can update the last |
-
-## Measured
-
-- Solver: the heaviest shipped level needs 305 expansions from its start (the budget's limit is 60,000); level 12's
-  full solve takes 66 us on this PC.
-- The bake: 300 levels in 2.1 s on 4 jobs (`captures/levels/report.md`).
-- Sound bank: 34 ms on this PC.
-- Unit tests: 94 checks; the flow test: 30 checks; all pass.
+| The game | A real-time squad shooter up a road, as in the owner's screenshots: drag to steer, automatic fire, gates that grow when shot, barrels, barricades, hordes, an ogre boss | The owner's screenshots and words |
+| The look | Kept the cut-paper style (soldiers as paper pawns with folds and soft shadows) on a perspective stone road in daylight, ten worlds | Original, bright, nothing like GLOWTIDE; reads like the advertisement's layout |
+| Steering | Relative drag: the squad moves by the finger's movement (1.25 road widths per road width dragged), anywhere on the screen | The finger never hides the squad |
+| Difficulty | The bake's bands (section 6 of GAME_DESIGN): early levels are won with half the squad or more, late ones with 10-40% | A bot that plays like a careful player sets the bar |
+| Stars | Three at 90% of the bot's end squad, two at 45% | Beating the bot is the chase |
+| Version | 0.2.0 for the shooter | A different game from 0.1.0's prototype |
 
 ## Devices
 
-On 2026-11-26 no test phone was attached or visible on Wi-Fi (`adb devices`, `adb mdns services` both empty).
+On 2026-11-26 no test phone was attached or visible on Wi-Fi (`adb devices` empty). The phone checks (the benchmark,
+captures, haptics, the updater on a real install) wait for a device.
 
 ## Open questions for the owner
 
-- Look: is it beautiful on your phone, and far enough from GLOWTIDE? (`captures/p1/concept.png` beside the concept.)
-- The game: is pick-your-fights the game you meant from the advertisements? Is a move satisfying? Three stars for the
-  exact best: good chase or too strict?
-- The march: which world's music do you like best, and is the count ladder pleasant after many levels?
+- Is this the game from the advertisement now? What should change first?
+- Steering: too fast or too slow (`--set steer=`)? Camera: more road ahead (`camPitch`, `camHeight`)?
+- Difficulty and length (20-40 s a level): right?
+- Sound: shots, explosions and the march on your phone.
+- Netlify: say when it is finished and it goes live once.

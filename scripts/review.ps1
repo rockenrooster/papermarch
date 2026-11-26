@@ -1,7 +1,7 @@
 # Picture sets with contact sheets (TECH_SPEC 9.1): renders scripted pictures on the PC (silent, off screen) and tiles them.
 #   scripts\review.ps1 -Set p1|screens|levels|worlds|strips [-Config dev] [-NoBuild] [-From N] [-Count 30] [-Levels 12,40] [-Lint]
-# p1: the concept frame at the eight frames of the matrix. screens: every screen. levels: thumbnails of consecutive levels at
-# their start (or -Levels). worlds: the first level of each world. strips: a move's clips, frame by frame.
+# p1: a battle on level 12 at the eight frames of the matrix. screens: every screen. levels: consecutive levels seven seconds
+# in (or -Levels). worlds: the first level of each world, seven seconds in. strips: level 12's battle, every sixth frame.
 param(
     [ValidateSet('p1', 'screens', 'levels', 'worlds', 'strips')][string]$Set = 'p1',
     [ValidateSet('debug', 'dev')][string]$Config = 'dev',
@@ -31,7 +31,7 @@ function Shot([string]$Name, [string[]]$AppArgs, [string]$Res = '1080x2400', [in
 switch ($Set) {
     'p1' {
         foreach ($res in '1080x2400', '540x1200', '1080x2640', '1080x1920', '600x1024', '1200x1920', '1080x1440', '1264x2780') {
-            Shot "concept_$res" @('--picture', 'concept') $res 240
+            Shot "concept_$res" @('--picture', 'concept', '--fixed-step') $res 330
         }
     }
     'screens' {
@@ -41,14 +41,14 @@ switch ($Set) {
     }
     'levels' {
         $nums = if ($Levels.Count) { $Levels } else { $From..($From + $Count - 1) }
-        foreach ($n in $nums) { Shot ("level_{0:D3}" -f $n) @('--picture', 'level', '--level', "$n") '1080x2400' 90 }
+        foreach ($n in $nums) { Shot ("level_{0:D3}" -f $n) @('--picture', 'level', '--level', "$n", '--fixed-step') '1080x2400' 420 }
     }
     'worlds' {
-        foreach ($w in 1..10) { Shot ("world_{0:D2}" -f $w) @('--picture', 'world', '--world', "$w") '1080x2400' 90 }
+        foreach ($w in 1..10) { Shot ("world_{0:D2}" -f $w) @('--picture', 'world', '--world', "$w", '--fixed-step') '1080x2400' 420 }
     }
     'strips' {
-        # A camp taken on level 12: the march, the fight, the flip and the count, every sixth frame.
-        Shot 'battle' @('--picture', 'level', '--level', '12', '--moves', '1', '--strip', '12', '--strip-step', '6') '540x1200' 80
+        # Level 12 as the horde meets the squad, every sixth frame.
+        Shot 'battle' @('--picture', 'level', '--level', '12', '--fixed-step', '--strip', '12', '--strip-step', '6') '540x1200' 330
     }
 }
 $cols = if ($Set -eq 'levels') { 10 } else { [math]::Min(8, $shots.Count) }

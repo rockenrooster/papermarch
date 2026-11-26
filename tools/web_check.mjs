@@ -80,37 +80,47 @@ if (mode === 'flow') {
   if (!done) console.log('flow test did not finish; last lines:\n' + logs.slice(-8).join('\n'));
   await shot('flow_end');
 } else if (mode === 'play') {
-  // A level played by touch: the game logs where the sites it can take are (--log-sites); the first gold one is tapped
-  // until the level is won, then NEXT. Then the frame rate while the best line plays on (--bot best).
-  console.log('started:', await load('--silent --fresh --log-sites --level 1'));
+  // Level 1 by touch: a finger put on the squad (the game logs where: --log-sites), held and swept left and right until
+  // the level ends; NEXT if it was won. Then the frame rate while the bot plays a busy level (--bot).
+  console.log('started:', await load('--silent --log-sites --level 1'));
   await sleep(1500);
   console.log('canvas:', JSON.stringify(await evaluate(`(() => { const c = document.getElementById('canvas'); const r = c.getBoundingClientRect();
     return { css: [r.width, r.height], buffer: [c.width, c.height], dpr: devicePixelRatio, status: getComputedStyle(document.getElementById('status')).display }; })()`)));
   await shot('1_level1');
   const dpr = await evaluate('devicePixelRatio');
-  let won = false;
-  for (let k = 0; k < 24 && !won; ++k) {
-    const line = [...logs].reverse().find((l) => /PMSITES/.test(l));
-    const m = line && /(\w+):(\d+),(\d+)/.exec(line.slice(line.indexOf('PMSITES') + 7));
-    if (m) await tap(Number(m[2]) / dpr, Number(m[3]) / dpr);
-    await sleep(1700);
-    won = logs.some((l) => /won level 1/.test(l));
+  const line = [...logs].reverse().find((l) => /PMSITES DRAG:/.test(l));
+  const m = line && /DRAG:(\d+),(\d+)/.exec(line);
+  const x0 = m ? Number(m[1]) / dpr : 195, y0 = m ? Number(m[2]) / dpr : 650;
+  await send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id: 3 }] });
+  let ended = false, shotTaken = false;
+  const t0 = Date.now();
+  while (!ended && Date.now() - t0 < 90000) {
+    const t = (Date.now() - t0) / 1000;
+    await send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + Math.sin(t * 0.9) * 110, y: y0, id: 3 }] });
+    await sleep(50);
+    if (!shotTaken && t > 7) { await shot('2_battle'); shotTaken = true; }
+    ended = logs.some((l) => /(won|lost) level 1 /.test(l));
   }
-  console.log('level 1 won by touch:', won);
-  await shot('2_won');
-  await sleep(1500);
-  const next = [...logs].reverse().find((l) => /PMSITES NEXT:/.test(l));
-  const n = next && /NEXT:(\d+),(\d+)/.exec(next);
-  if (n) await tap(Number(n[1]) / dpr, Number(n[2]) / dpr);
-  console.log('NEXT tapped:', !!n, 'level 2 started:', await waitLog(/level 2 \(/, 8000));
-  await sleep(1500);
-  await shot('3_level2');
-  console.log('localStorage:', JSON.stringify(await evaluate(`Object.keys(localStorage).map(k => k + '=' + localStorage.getItem(k).length + ' chars')`)));
-  console.log('started (bot):', await load('--silent --bot best --level 7'));
-  await sleep(1500);
-  console.log('frames a second while the best line plays:', await fps());
-  await sleep(6000);
-  await shot('4_bot');
+  await send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  const won = logs.some((l) => /won level 1 /.test(l));
+  console.log('level 1 by touch:', won ? 'won' : (ended ? 'lost' : 'did not end in 90 s'));
+  await sleep(2500);
+  await shot('3_result');
+  if (won) {
+    await sleep(500);
+    const next = [...logs].reverse().find((l) => /PMSITES NEXT:/.test(l));
+    const n = next && /NEXT:(\d+),(\d+)/.exec(next);
+    if (n) await tap(Number(n[1]) / dpr, Number(n[2]) / dpr);
+    console.log('NEXT tapped:', !!n, 'level 2 started:', await waitLog(/level 2 \(/, 8000));
+    await sleep(1500);
+    await shot('4_level2');
+    console.log('localStorage:', JSON.stringify(await evaluate(`Object.keys(localStorage).map(k => k + '=' + localStorage.getItem(k).length + ' chars')`)));
+  }
+  console.log('started (bot):', await load('--silent --bot best --level 30'));
+  await sleep(4000);
+  console.log('frames a second while the bot plays level 30:', await fps());
+  await sleep(4000);
+  await shot('5_bot');
   for (const l of logs) if (/EXCEPTION|error|stopped|audio:|won level|frame /i.test(l)) console.log(l);
 } else if (mode === 'reload') {
   // The save of an earlier run in this profile, read back; then an iPhone's notch and home bar (59 and 34 CSS px).
