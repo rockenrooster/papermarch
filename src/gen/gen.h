@@ -20,29 +20,23 @@ bool hasDecision(const sim::LevelDef& d, sim::Solver& solver);
 // A layout fingerprint for the no-repeat rule (GAME_DESIGN 8.4 line 5).
 u64 fingerprint(const sim::LevelDef& d);
 
-// The calendar and the recipes (GAME_DESIGN 8.2, 8.3).
-enum Recipe : u8 {
-    kTree, kLadder, kRing, kHourglass, kIslands, kCrossroads, kTwinValleys, kSpiral,  // Conquest
-    kPairs, kTriples, kBraid,                                                        // Gauntlet
-    kRingedKeep, kSupplyLine,                                                        // Siege
-    kParallel, kPincer,                                                              // Race
-    kThreeRoads, kHomestead,                                                         // Last Stand
-    kRecipeCount
-};
+// The calendar and the recipes (GAME_DESIGN 8.2, 8.3): every level is a wave battle in two or three lanes.
+enum Recipe : u8 { kTwoLanes, kThreeLanes, kChokepoints, kRecipeCount };
 const char* recipeName(int r);
+enum Focus : u8 { kFocusNone, kFocusThreeLanes, kFocusSwamp, kFocusChoke, kFocusTriple, kFocusDouble, kFocusKey, kFocusDepot };
 struct Slot {
-    u8 kind = sim::kConquest;
+    u8 kind = sim::kWaves;
     u8 boss = 0;
     u8 world = 1;
-    u8 focus = 0;  // an introduction (GAME_DESIGN 5.2): 1 key tower, 2 mire, 3 deserting camp, 4 fading shrine
+    u8 focus = 0;  // an introduction (GAME_DESIGN 5.2)
     u8 hint = 0;   // its hint line
 };
 Slot calendar(int level);  // the kind of level n and its world
 
-// Elements allowed at a level (GAME_DESIGN 5.2).
+// What a level may hold (GAME_DESIGN 5.2).
 struct Allowed {
-    bool village = false, shrine = false, post = false, fork = false, grow = false, key = false, mire = false, desert = false,
-         fade = false, depot = false;
+    bool village = false, shrine = false, post = false, fork = false, three = false, mire = false, choke = false,
+         triple = false, twin = false, key = false, depot = false;
 };
 Allowed allowedAt(int level);
 

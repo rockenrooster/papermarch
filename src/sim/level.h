@@ -19,7 +19,9 @@ constexpr u8 kNoLock = 0xFF;
 constexpr int kMaxTurns = 200;
 
 enum Kind : u8 { kHome, kCamp, kVillage, kShrine, kPost, kMire, kDepot, kKey, kKeep, kRivalCamp, kKindCount };
-enum LevelKind : u8 { kConquest, kGauntlet, kSiege, kRace, kLastStand, kLevelKindCount };
+// kWaves is the game (the owner chose it, 2026-11-26): rows of choices up a battlefield, enemy waves between them, the
+// castle last. The other kinds are the map variants the rules still support.
+enum LevelKind : u8 { kConquest, kGauntlet, kSiege, kRace, kLastStand, kWaves, kLevelKindCount };
 
 struct Site {
     u8 kind = kCamp;

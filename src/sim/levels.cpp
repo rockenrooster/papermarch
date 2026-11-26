@@ -208,6 +208,7 @@ const char* objective(const LevelDef& d) {
         case kSiege: return "BREAK THE SIEGE";
         case kRace: return "OUTMARCH THE WARLORD";
         case kLastStand: return "HOLD THE LINE";
+        case kWaves: return "WAVE BATTLE";
         default: return "TAKE THE KEEP";
     }
 }

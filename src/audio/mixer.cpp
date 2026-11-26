@@ -8,7 +8,7 @@ namespace pm::audio {
 namespace {
 
 constexpr float kEffectsGain = 0.42f;
-constexpr float kMusicGain = 0.50f;
+constexpr float kMusicGain = 0.21f;  // the full march sits about 9 dB under a busy battle (GAME_DESIGN 12.2)
 constexpr int kLoop = 64;  // eight bars of 2/4 in sixteenths
 
 // The theme (GAME_DESIGN 12.1): the degree (1 = the tonic, 8 = its octave) starting at each sixteenth, 0 none.
@@ -176,8 +176,8 @@ void Mixer::playStep(int s, int offset) {
     // Layer 0: a soft frame drum on the beat, the open fifth every two bars.
     if (layerGain_[0] > 0.01f) {
         const float g = layerGain_[0] * d;
-        if (pos == 0) start(kSndFrameDrum, 0.75f * g, -0.1f, 1.0f, offset, true);
-        if (pos == 4) start(kSndFrameDrum, 0.55f * g, 0.1f, 1.08f, offset, true);
+        if (pos == 0) start(kSndFrameDrum, 0.6f * g, -0.1f, 1.0f, offset, true);
+        if (pos == 4) start(kSndFrameDrum, 0.45f * g, 0.1f, 1.08f, offset, true);
         if (s % 16 == 0) start(kSndDrone, 0.5f * g, 0.0f, noteRatio(kSndDrone, 0, -1), offset, true);
         if (boss_ && (pos == 0 || pos == 4)) start(kSndTimpani, 0.7f * g, 0.0f, noteRatio(kSndTimpani, 0, -2), offset, true);
     }
@@ -186,15 +186,15 @@ void Mixer::playStep(int s, int offset) {
         const float g = layerGain_[1] * d;
         if (pos == 2 || pos == 6) start(kSndRim, 0.45f * g, 0.25f, 1.0f, offset, true);
         if (pos == 7) start(kSndSnare, 0.16f * g, 0.2f, 1.0f, offset, true);
-        if (pos == 0) start(kSndTom, 0.42f * g, -0.25f, 1.0f, offset, true);
+        if (pos == 0) start(kSndTom, 0.32f * g, -0.25f, 1.0f, offset, true);
         if (s >= 60) start(kSndSnare, (0.3f + 0.1f * float(s - 60)) * g, 0.15f, 1.0f, offset, true);
         if (pos % 2 == 1) start(kSndShaker, 0.25f * g, 0.4f, 1.0f, offset, true);
     }
     // Layer 2: the bass, oom-pah: the root on one, the fifth on two, a brass "pah" on the offbeats.
     if (layerGain_[2] > 0.01f) {
         const float g = layerGain_[2] * d;
-        if (pos == 0) start(kSndBass, 0.8f * g, 0.0f, noteRatio(kSndBass, root, -2), offset, true);
-        if (pos == 4) start(kSndBass, 0.65f * g, 0.0f, noteRatio(kSndBass, root + 4 - 7, -2), offset, true);
+        if (pos == 0) start(kSndBass, 0.6f * g, 0.0f, noteRatio(kSndBass, root, -2), offset, true);
+        if (pos == 4) start(kSndBass, 0.5f * g, 0.0f, noteRatio(kSndBass, root + 4 - 7, -2), offset, true);
         if (pos == 2 || pos == 6) {
             start(kSndBrass, 0.14f * g, -0.3f, noteRatio(kSndBrass, root + 2, -1), offset, true);
             start(kSndBrass, 0.12f * g, 0.3f, noteRatio(kSndBrass, root + 4, -1), offset, true);

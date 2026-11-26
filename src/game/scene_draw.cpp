@@ -428,8 +428,8 @@ void Scene::drawFigure(const Figure& f) {
     const WorldPalette& wp = worldPalette(def_->world);
     const float k = fit_.k;
     u32 body = col::kIvory, shade = col::kIvoryShade, scarf = col::kScarlet;
-    if (f.team == 1) {
-        const float fl = f.site >= 0 ? flipT_[f.site] : 0.0f;
+    if (f.team == 1 || f.team == 4) {
+        const float fl = f.site >= 0 ? (f.team == 4 ? waveFlip_[f.site] : flipT_[f.site]) : 0.0f;
         if (fl < 0.5f) {
             body = col::kInkLight;
             shade = col::kInk;
@@ -609,8 +609,21 @@ void Scene::drawTags(UiBatch& b) {
         tag(b, sx(rivalX_), sy(rivalY_ - 13.0f), buf, can ? col::kGold : 0x1C1E3C, can ? col::kText : wp.accent, wp.accent, 1.1f, !can,
             nullptr, 0, 1.0f);
     }
-    // Raids on their way: the number and the turns left.
-    for (int r = disp_.raidNext; r < d.raidCount; ++r) {
+    // The waves due next: their number over their crowd (the HUD lists the rest).
+    if (waves_ && disp_.raidNext < d.raidCount && loseT_ < 0) {
+        const int turn = d.raids[disp_.raidNext].turn;
+        for (int r = disp_.raidNext; r < d.raidCount && d.raids[r].turn == turn; ++r) {
+            if (r == waveClip_ && waveClipT_ > 0.4f) continue;
+            float x, y;
+            waveCenter(r, x, y);
+            formatThousands(d.raids[r].strength, buf, sizeof buf);
+            const bool now = int(d.raids[r].turn) - int(disp_.turn) <= 1;
+            tag(b, sx(x), sy(y - 8.5f), buf, 0x1C1E3C, col::kWhite, now ? col::kScarlet : wp.accent, 1.12f, false, "WAVE",
+                now ? col::kScarlet : wp.accentDark, 1.0f);
+        }
+    }
+    // Raids on a map: the number and the turns left.
+    for (int r = disp_.raidNext; r < d.raidCount && !waves_; ++r) {
         const sim::Raid& rd = d.raids[r];
         const int left = int(rd.turn) - int(disp_.turn);
         const sim::Site& e = d.sites[rd.entry];

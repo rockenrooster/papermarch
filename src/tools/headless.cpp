@@ -50,6 +50,7 @@ const char* kindShort(u8 k) {
         case sim::kSiege: return "siege";
         case sim::kRace: return "race";
         case sim::kLastStand: return "laststand";
+        case sim::kWaves: return "waves";
         default: return "conquest";
     }
 }
@@ -125,19 +126,10 @@ u32 elementSet(const sim::LevelDef& d) {
 }
 
 const int* recipesFor(u8 kind, int& count) {
-    static const int conquest[] = {gen::kTree, gen::kLadder, gen::kRing, gen::kHourglass, gen::kIslands, gen::kCrossroads,
-                                   gen::kTwinValleys, gen::kSpiral};
-    static const int gauntlet[] = {gen::kPairs, gen::kTriples, gen::kBraid};
-    static const int siege[] = {gen::kRingedKeep, gen::kSupplyLine};
-    static const int race[] = {gen::kParallel, gen::kPincer};
-    static const int stand[] = {gen::kThreeRoads, gen::kHomestead};
-    switch (kind) {
-        case sim::kGauntlet: count = 3; return gauntlet;
-        case sim::kSiege: count = 2; return siege;
-        case sim::kRace: count = 2; return race;
-        case sim::kLastStand: count = 2; return stand;
-        default: count = 8; return conquest;
-    }
+    (void)kind;  // every level is a wave battle: two lanes most often
+    static const int waves[] = {gen::kTwoLanes, gen::kThreeLanes, gen::kTwoLanes, gen::kChokepoints, gen::kTwoLanes, gen::kThreeLanes};
+    count = 6;
+    return waves;
 }
 
 int cmdBake(int argc, char** argv) {

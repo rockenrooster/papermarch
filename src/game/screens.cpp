@@ -54,7 +54,7 @@ void Game::drawTitle() {
                   L.px(8));
     uiBatch_.rect(float(L.w) * 0.5f, cy, L.px(330), L.px(112), L.px(24), rgba(ui::kCard, u8(250 * a)), rgba(col::kScarlet, u8(255 * a)), L.px(3));
     uiBatch_.text("PAPERMARCH", float(L.w) * 0.5f, cy - L.px(14), L.px(46), rgba(col::kScarlet, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
-    uiBatch_.text("TAP A GOLD CAMP TO MARCH", float(L.w) * 0.5f, cy + L.px(30), L.px(15), rgba(ui::kText, u8(255 * a)), {0, 0, 0, 0}, 0,
+    uiBatch_.text("TAP A CARD, BEAT THE WAVES", float(L.w) * 0.5f, cy + L.px(30), L.px(15), rgba(ui::kText, u8(255 * a)), {0, 0, 0, 0}, 0,
                   Align::Center);
     drawUpdatePill(cy + L.px(70));
 }
@@ -124,8 +124,47 @@ void Game::drawHud() {
         return;
     }
     pauseGlyph(uiBatch_, pr, L, false);
-    // Under the top row: the level's hint line, or the dead end.
-    const float lineY = top + L.px(78);
+    // Under the top row: the waves (GAME_DESIGN 11): beaten ones pale, the next one scarlet, the rest ink; the castle last.
+    float lineY = top + L.px(80);
+    if (def_->raidCount > 0) {
+        const sim::State& sh = scene_.shown();
+        const float size = L.px(13), h = L.px(28), gap = L.px(5);
+        char chips[sim::kMaxRaids + 1][24];
+        float widths[sim::kMaxRaids + 1], total = 0;
+        const int n = def_->raidCount;
+        for (int r = 0; r <= n; ++r) {
+            if (r < n) formatHost(def_->raids[r].strength, chips[r], sizeof chips[r]);
+            else if (def_->keep() >= 0) {
+                char v[16];
+                formatHost(sim::number(*def_, sh, def_->keep()), v, sizeof v);
+                std::snprintf(chips[r], sizeof chips[r], "CASTLE %s", v);
+            } else {
+                chips[r][0] = 0;
+            }
+            widths[r] = chips[r][0] ? UiBatch::textWidth(chips[r], size) + L.px(18) : 0;
+            total += widths[r] + (chips[r][0] ? gap : 0);
+        }
+        const float label = UiBatch::textWidth("WAVES", size) + L.px(8);
+        total += label;
+        const float avail = float(L.w) - L.safe.left - L.safe.right - L.px(24);
+        const float k = total > avail ? avail / total : 1.0f;
+        float x = float(L.w) * 0.5f - total * k * 0.5f;
+        uiBatch_.text("WAVES", x, lineY, size * k, rgba(col::kIvory), {0, 0, 0, 0}, 0, Align::Left);
+        x += label * k;
+        for (int r = 0; r <= n; ++r) {
+            if (!chips[r][0]) continue;
+            const float w = widths[r] * k;
+            const bool done = r < sh.raidNext, next = r == sh.raidNext;
+            const u32 bg = r == n ? col::kInk : done ? 0xD8CCB4 : next ? col::kScarlet : col::kInk;
+            const u32 fg = r == n ? col::kGold : done ? 0x9A8A74 : next ? col::kWhite : col::kGold;
+            const float pulse = next ? 1.0f + 0.06f * std::sin(screenTime_ * 6.0f) : 1.0f;
+            uiBatch_.rect(x + w * 0.5f, lineY, w * pulse, h * k * pulse, h * k * 0.5f, rgba(bg, 240), rgba(col::kShadow, 60), L.px(1));
+            uiBatch_.text(chips[r], x + w * 0.5f, lineY, size * k, rgba(fg), {0, 0, 0, 0}, 0, Align::Center);
+            if (done) uiBatch_.rect(x + w * 0.5f, lineY, w - L.px(10), L.px(2), L.px(1), rgba(0x9A8A74));
+            x += w + gap * k;
+        }
+        lineY += L.px(40);
+    }
     if (deadEnd_ && !scene_.busy() && !st_.over()) {
         const char* s = "NO WAY THROUGH FROM HERE";
         const float w = UiBatch::textWidth(s, L.px(16)) + L.px(30);
@@ -160,7 +199,7 @@ void Game::drawHud() {
     const Rect plate{float(L.w) * 0.5f - plateW * 0.5f, y - L.px(10), plateW, rowH + L.px(20)};
     uiBatch_.rect(plate.cx() + L.px(2), plate.cy() + L.px(5), plate.w, plate.h, L.px(22), rgba(col::kShadow, 80), {0, 0, 0, 0}, 0, L.px(5));
     uiBatch_.rect(plate.cx(), plate.cy(), plate.w, plate.h, L.px(22), rgba(col::kIvory), rgba(col::kScarlet), L.px(3.5f));
-    uiBatch_.text("YOUR HOST", plate.cx(), plate.y + L.px(18), L.px(13), rgba(ui::kText), {0, 0, 0, 0}, 0, Align::Center);
+    uiBatch_.text("YOUR ARMY", plate.cx(), plate.y + L.px(18), L.px(13), rgba(ui::kText), {0, 0, 0, 0}, 0, Align::Center);
     char host[32];
     formatHost(i64(scene_.shownHost() + 0.5f), host, sizeof host);
     float hs = L.px(40);
@@ -234,7 +273,7 @@ void Game::drawWin() {
     char a[24], b[24], line[64];
     formatHost(st_.s, a, sizeof a);
     formatHost(def_->best, b, sizeof b);
-    std::snprintf(line, sizeof line, "HOST %s   BEST %s", a, b);
+    std::snprintf(line, sizeof line, "ARMY %s   BEST %s", a, b);
     ui_.text(line, float(L.w) * 0.5f, card.y + L.px(150), 17, ui::kText);
     const bool last = level_ >= sim::levelCount();
     if (ui_.button(last ? "FINISH" : "NEXT", centered(L, card.y + L.px(206), 250, 66), Ui::kPrimary, 1.1f)) {
@@ -258,9 +297,9 @@ void Game::drawLose() {
     ui_.opacity = in;
     const Rect card = centered(L, L.bottom() - L.px(215), 330, 250);
     ui_.panel(card, 26);
-    const char* why = st_.reason == sim::kLossRaid ? "THE RAID BROKE THROUGH"
+    const char* why = st_.reason == sim::kLossRaid ? "THE WAVE BROKE THROUGH"
                       : st_.reason == sim::kLossRival ? "THE WARLORD WON"
-                                                      : "THE HOST IS STRANDED";
+                                                      : "TOO WEAK TO GO ON";
     ui_.text(why, float(L.w) * 0.5f, card.y + L.px(40), 20, col::kScarletDark);
     ui_.text("UNDO A MOVE OR TRY AGAIN", float(L.w) * 0.5f, card.y + L.px(74), 14, ui::kMuted);
     if (ui_.button("UNDO", centered(L, card.y + L.px(136), 240, 64), Ui::kPrimary)) {
@@ -495,29 +534,17 @@ void Game::flowStep() {
         case 8: {
             if (!settled() || flowWait_ < 3) break;
             check(level_ == 4 && screen_ == Screen::Play, "a level's button starts it");
-            // Level 4: the shrine first strands the host.
-            int shrine = -1;
-            for (int i = 0; i < def_->siteCount; ++i)
-                if (def_->sites[i].kind == sim::kShrine) shrine = i;
-            check(shrine > 0 && makeMove(shrine), "the shrine can be taken first");
+            // Level 4: doubling first leaves the army one short of the first wave.
+            check(makeMove(1), "x2 can be taken first");
             next();
             break;
         }
         case 9:
-            // After the shrine the camps still join; then the Keep is too strong: stranded at 26.
-            if (!st_.over() && scene_.movesQueued() == 0) {
-                const u32 moves = sim::takeable(*def_, st_);
-                for (int i = 1; i < def_->siteCount; ++i)
-                    if (moves & bit(i)) {
-                        makeMove(i);
-                        break;
-                    }
-            }
             if (screen_ == Screen::Lose) {
-                check(st_.reason == sim::kLossStranded, "the shrine first strands the host");
+                check(st_.reason == sim::kLossRaid, "the wave breaks through a weak army");
                 next();
             }
-            timeout(60 * 10, "a strand shows LOSE");
+            timeout(60 * 10, "a lost wave shows LOSE");
             break;
         case 10:
             if (resultTime_ < 0.8f) break;
@@ -526,25 +553,19 @@ void Game::flowStep() {
             break;
         case 11:
             if (flowWait_ < 3) break;
-            check(screen_ == Screen::Play && undoCount_ == 2 && !st_.over(), "UNDO takes the last move back");
-            check(deadEnd_, "two moves after the shrine, no line wins: the dead end shows");
-            press("UNDO");
+            check(screen_ == Screen::Play && undoCount_ == 0 && !st_.over() && !deadEnd_, "UNDO takes the move back");
             next();
             break;
         case 12:
-            if (flowWait_ < 3) break;
-            press("UNDO");
+            check(press("HINT"), "HINT is a button");
             next();
             break;
         case 13:
             if (flowWait_ < 3) break;
-            check(undoCount_ == 0 && !deadEnd_, "undo all the way back to the start");
-            check(press("HINT"), "HINT is a button");
+            check(hinted_, "HINT marks the level hinted");
             next();
             break;
         case 14:
-            if (flowWait_ < 3) break;
-            check(hinted_, "HINT marks the level hinted");
             useBot_ = true;
             next();
             break;

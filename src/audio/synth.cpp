@@ -294,8 +294,8 @@ void Bank::build(int rate) {
     }
     {  // the lose horn: a fifth falling, then paper tearing
         auto b = buffer(1.8f, rate);
-        buzz(b, rate, midiHz(57), false, 12, 1.2f, 0.06f, 0.3f, 0.3f, 0.0f, 0.9f, midiHz(50));
-        OnePole lp(1100.0f, R);
+        buzz(b, rate, midiHz(69), false, 12, 1.1f, 0.06f, 0.3f, 0.3f, 0.0f, 0.9f, midiHz(62));
+        OnePole lp(2200.0f, R);
         for (float& v : b) v = lp.run(v);
         OnePole tear;
         for (size_t i = size_t(0.9f * R); i < b.size(); ++i) {
@@ -348,8 +348,8 @@ void Bank::build(int rate) {
         OnePole lp(1800.0f, R);
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
-            ph += float(kTwoPi) * (92.0f + 50.0f * std::exp(-t / 0.02f)) / R;
-            b[i] = std::sin(ph) * std::exp(-t / 0.16f) + lp.run(n.next()) * 0.35f * std::exp(-t / 0.03f);
+            ph += float(kTwoPi) * (128.0f + 60.0f * std::exp(-t / 0.02f)) / R;
+            b[i] = (std::sin(ph) + 0.35f * std::sin(ph * 2.3f)) * std::exp(-t / 0.12f) + lp.run(n.next()) * 0.6f * std::exp(-t / 0.025f);
         }
         make(kSndFrameDrum, static_cast<std::vector<float>&&>(b), 0.8f);
     }
@@ -375,7 +375,7 @@ void Bank::build(int rate) {
         float ph = 0;
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
-            ph += float(kTwoPi) * (140.0f + 45.0f * std::exp(-t / 0.05f)) / R;
+            ph += float(kTwoPi) * (185.0f + 50.0f * std::exp(-t / 0.05f)) / R;
             b[i] = (std::sin(ph) + 0.3f * std::sin(ph * 2.0f)) * std::exp(-t / 0.2f);
         }
         make(kSndTom, static_cast<std::vector<float>&&>(b), 0.7f);
@@ -433,8 +433,8 @@ void Bank::build(int rate) {
     }
     {  // the drone: an open fifth, soft, two bars long
         auto b = buffer(2.6f, rate);
-        const Partial p[] = {{1.0, 1.0f, 9.0}, {2.0, 0.35f, 9.0}, {1.5, 0.8f, 9.0}, {3.0, 0.25f, 9.0}};
-        partials(b, rate, baseHz(kSndDrone), p, 4, 0.35f);
+        const Partial p[] = {{1.0, 0.55f, 9.0}, {2.0, 0.5f, 9.0}, {1.5, 0.6f, 9.0}, {3.0, 0.4f, 9.0}, {4.0, 0.25f, 9.0}, {6.0, 0.12f, 9.0}};
+        partials(b, rate, baseHz(kSndDrone), p, 6, 0.35f);
         for (size_t i = 0; i < b.size(); ++i) {
             const float t = float(i) / R;
             b[i] *= std::fmin(1.0f, (2.6f - t) / 0.5f);

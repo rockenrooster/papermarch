@@ -226,7 +226,7 @@ void testHandLevels() {
     struct Want {
         int n;
         i64 best;
-    } wants[] = {{1, 43}, {2, 58}, {3, 45}, {4, 80}, {5, 87}, {6, 61}, {12, 396}};
+    } wants[] = {{1, 88}, {2, 170}, {3, 576}, {4, 812}, {5, 624}, {6, 182}, {7, 235}, {8, 290}};
     sim::Solver solver;
     for (const Want& w : wants) {
         sim::LevelDef d;
@@ -237,34 +237,27 @@ void testHandLevels() {
         const sim::Solve s = solver.run(d, sim::start(d));
         char what[64];
         std::snprintf(what, sizeof what, "hand-made level %d: best %lld (want %lld)", w.n, (long long)s.best, (long long)w.best);
-        check(s.winnable && s.proven && s.best == w.best, what);
+        check(s.winnable && s.proven && s.best == w.best && d.kind == sim::kWaves, what);
     }
-    // Level 4: the shrine first strands at 26; level 6: the village side strands at 22; level 12's two lines.
+    // Level 2: the smaller recruit loses to the first wave. Level 4: doubling first is one short of it.
     sim::LevelDef d;
-    sim::handLevel(4, d);
+    sim::handLevel(2, d);
     sim::State st = sim::start(d);
-    sim::take(d, st, 2, nullptr);  // the shrine
     sim::take(d, st, 1, nullptr);
-    sim::take(d, st, 3, nullptr);
-    CHECK(st.lost() && st.s == 26);
-    sim::handLevel(6, d);
+    CHECK(st.lost() && st.reason == sim::kLossRaid && st.s == 18);
+    sim::handLevel(4, d);
     st = sim::start(d);
     sim::take(d, st, 1, nullptr);
-    sim::take(d, st, 3, nullptr);
-    CHECK(st.lost() && st.s == 22);
-    sim::handLevel(12, d);
+    CHECK(st.lost() && st.reason == sim::kLossRaid && st.s == 20);
+    // Level 7: the bigger recruit now (+30) leads up the poorer lane: 165, two stars of 235.
+    sim::handLevel(7, d);
     st = sim::start(d);
-    const int obvious[] = {1, 2, 4, 3, 5, 6, 7, 8, 9};
-    for (int m : obvious) sim::take(d, st, m, nullptr);
-    CHECK(st.won() && st.s == 285);
-    st = sim::start(d);
-    const int best[] = {1, 2, 3, 5, 6, 7, 8, 4, 9};
-    for (int m : best) sim::take(d, st, m, nullptr);
-    CHECK(st.won() && st.s == 396);
-    st = sim::start(d);
-    sim::take(d, st, 1, nullptr);
-    sim::take(d, st, 2, nullptr);
-    CHECK(st.s == 24 && sim::number(d, st, 8) == 18);  // the concept frame
+    const int naive[] = {2, 4, 6, 7};
+    for (int m : naive) sim::take(d, st, m, nullptr);
+    CHECK(st.won() && st.s == 165 && sim::starsFor(st.s, 235, false) == 2);
+    // Level 1 cannot be lost: every line wins.
+    sim::handLevel(1, d);
+    CHECK(gen::randomPlays(d, 50, 3).wins == 50);
 }
 
 void testSolverAgainstBruteForce() {
@@ -301,10 +294,13 @@ void testSolverAgainstBruteForce() {
 
 void testEncode() {
     sim::LevelDef d;
-    sim::handLevel(12, d);
-    d.best = 396;
-    d.raidCount = 1;
-    d.raids[0] = {3, 2, 77};
+    sim::handLevel(5, d);
+    d.best = 624;
+    d.sites[1].perTurn = 3;
+    d.sites[1].hi = 45;
+    d.sites[2].until = 2;
+    d.sites[2].aux = 1;
+    d.roads[1].lock = 3;
     char buf[4096];
     const int n = sim::encodeLevel(d, buf, sizeof buf);
     sim::LevelDef e;
@@ -312,7 +308,8 @@ void testEncode() {
     char buf2[4096];
     sim::encodeLevel(e, buf2, sizeof buf2);
     CHECK(!std::strcmp(buf, buf2));
-    CHECK(e.siteCount == d.siteCount && e.sites[8].perTurn == 3 && e.sites[8].hi == 45 && e.best == 396 && e.raids[0].strength == 77);
+    CHECK(e.siteCount == d.siteCount && e.sites[1].perTurn == 3 && e.sites[1].hi == 45 && e.sites[2].until == 2 && e.best == 624 &&
+          e.raidCount == 3 && e.raids[2].strength == 150 && e.roads[1].lock == 3 && e.kind == sim::kWaves);
 }
 
 void testTable() {

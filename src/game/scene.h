@@ -78,6 +78,7 @@ private:
         i16 site = -1;          // a garrison's site
         u8 bearer = 0;
         u8 alive = 1;
+        float ox = 0, oy = 0;   // a wave figure's place in its block
     };
     struct Confetti {
         float x, y, vx, vy, rot, spin, life, age;
@@ -152,6 +153,13 @@ private:
     bool river_ = false;
     float riverY_ = 0, riverAmp_ = 0, riverPhase_ = 0;
     bool islands_ = false;
+    bool waves_ = false;       // a wave battle (GAME_DESIGN 6): lanes up a field, waves between the rows
+    float waveFlip_[sim::kMaxRaids] = {};
+    int waveClip_ = -1;        // the raid whose clip is playing
+    float waveClipT_ = 0;      // its progress 0..1
+    void waveSpot(int raid, float& x, float& y) const;    // where a wave waits for its turn
+    void waveCenter(int raid, float& x, float& y) const;  // where it is now (marching in its clip)
+    void spawnWave(int raid);
     Sticker bakeLand_[160], bakeTerr_[200], bakeRoads_[1400], bakeWater_[400];
     int bakeLandN_ = 0, bakeTerrN_ = 0, bakeRoadsN_ = 0, bakeWaterN_ = 0;
     // Figures and the banner.

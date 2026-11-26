@@ -78,8 +78,9 @@ void Scene::setLevel(const sim::LevelDef& d, int number, const sim::State& st) {
     levelNumber = number;
     const WorldPalette& wp = worldPalette(d.world);
     islands_ = wp.trees == 4 || wp.trees == 7;
+    waves_ = d.kind == sim::kWaves;
     river_ = false;
-    for (int i = 0; i < d.siteCount; ++i)
+    for (int i = 0; i < d.siteCount && !waves_; ++i)
         if (d.sites[i].kind == sim::kPost) {
             river_ = true;
             riverY_ = float(d.sites[i].y);
@@ -95,6 +96,7 @@ void Scene::setLevel(const sim::LevelDef& d, int number, const sim::State& st) {
     trailLen_ = 0;
     trailHead_ = 0;
     layoutPage();
+    if (waves_) scroll_ = 0.0f;  // the opening view: the castle
     buildRoads();
     buildDecor();
     buildBake();
@@ -117,6 +119,9 @@ void Scene::snap(const sim::State& st) {
     shownMine_ = st.mine;
     winDone_ = loseDone_ = false;
     winT_ = loseT_ = -1;
+    waveClip_ = -1;
+    waveClipT_ = 0;
+    for (float& f : waveFlip_) f = 0;
     keepFold_ = -1;
     marching_ = false;
     hintSite_ = -1;
@@ -150,7 +155,7 @@ void Scene::buildRoads() {
         const sim::Site& b = d.sites[d.roads[r].b];
         const float ax = a.x, ay = a.y, bx = b.x, by = b.y;
         const float dx = bx - ax, dy = by - ay, len = maxv(1.0f, std::sqrt(dx * dx + dy * dy));
-        const float bend = (hashf(d.seed, u32(100 + r)) - 0.5f) * 0.36f * minv(len, 40.0f);
+        const float bend = waves_ ? 0.0f : (hashf(d.seed, u32(100 + r)) - 0.5f) * 0.36f * minv(len, 40.0f);
         const float cx = (ax + bx) * 0.5f - dy / len * bend, cy = (ay + by) * 0.5f + dx / len * bend;
         Road& R = roads_[r];
         R.n = 24;
@@ -275,8 +280,9 @@ void Scene::buildBake() {
     for (int r = 0; r < d.roadCount; ++r) {
         const Road& R = roads_[r];
         for (int i = 0; i + 1 < R.n && bakeRoadsN_ < 1300; ++i) {
-            Sticker s = capsule(R.px[i], R.py[i], R.px[i + 1], R.py[i + 1], kRoadR, wp.road, 1.0f, k);
-            s.lift = 0.3f * k;
+            Sticker s = waves_ ? capsule(R.px[i], R.py[i], R.px[i + 1], R.py[i + 1], 0.75f, wp.road, 0.6f, k)
+                               : capsule(R.px[i], R.py[i], R.px[i + 1], R.py[i + 1], kRoadR, wp.road, 1.0f, k);
+            s.lift = (waves_ ? 0.15f : 0.3f) * k;
             bakeRoads_[bakeRoadsN_++] = s;
         }
     }
@@ -299,7 +305,7 @@ bool Scene::bake(Paper& paper) {
     // Stitches: a dash every other sample along each road.
     static Sticker stitches[sim::kMaxRoads * 12];
     int sn = 0;
-    for (int r = 0; r < d.roadCount; ++r) {
+    for (int r = 0; r < d.roadCount && !waves_; ++r) {
         const Road& R = roads_[r];
         for (int i = 2; i + 1 < R.n - 2 && sn < sim::kMaxRoads * 12; i += 2)
             stitches[sn++] = capsule(R.px[i], R.py[i], R.px[i + 1], R.py[i + 1], 0.22f, wp.stitch, 0.95f, k);
@@ -428,9 +434,9 @@ void Scene::play(const sim::State& after, const sim::Events& ev) {
             case sim::kEvRivalMove: add(kClipRivalMove, e.site, 0.6f, e.a, e.b); break;
             case sim::kEvRivalGates: add(kClipRivalMove, 0, 0.6f, e.a, e.a); break;
             case sim::kEvRivalJoin: add(kClipRivalJoin, -1, 0.9f, e.a, e.b); break;
-            case sim::kEvRaidJoin: add(kClipRaid, e.site, 0.9f, e.a, e.b); break;
-            case sim::kEvRivalWin:
-            case sim::kEvRaidWin: break;
+            case sim::kEvRaidJoin: add(kClipRaid, e.site, 1.25f, e.a, e.b); break;
+            case sim::kEvRaidWin: add(kClipRaid, e.site, 0.7f, e.a, -1); break;  // it marches in and breaks through
+            case sim::kEvRivalWin: break;
             case sim::kEvWon:
                 add(kClipEndMove, -1, 0.0f);
                 add(kClipWin, d.keep(), 2.0f, e.a);
@@ -498,7 +504,12 @@ void Scene::applyClipStart(const Clip& c) {
         case kClipTurn: cue(kCueTurn); break;
         case kClipRivalMove: cue(kCueRival, 0, c.site > 0 ? panOf(float(d.sites[c.site].x)) : 0.0f); break;
         case kClipRivalJoin: cue(kCueClash); break;
-        case kClipRaid: cue(kCueRaid); break;
+        case kClipRaid:
+            cue(kCueRaid);
+            waveClip_ = c.site;
+            waveClipT_ = 0;
+            countStep_ = 0;
+            break;
         case kClipWin:
             winT_ = 0;
             keepFold_ = 0;
@@ -552,9 +563,14 @@ void Scene::applyClipEnd(const Clip& c) {
             spawnGarrisons();
             break;
         case kClipRaid:
-            shownS_ = float(c.b);
-            disp_.s = c.b;
-            disp_.raidNext = u8(c.site + 1);
+            waveClip_ = -1;
+            if (c.b >= 0) {
+                shownS_ = float(c.b);
+                disp_.s = c.b;
+                disp_.raidNext = u8(c.site + 1);
+                waveFlip_[c.site] = 1;
+                spawnGarrisons();
+            }
             break;
         case kClipEndMove:
             disp_ = moveAfter_[c.move % 4];
@@ -657,10 +673,35 @@ void Scene::update(float dt, bool fast) {
                 rivalShown_ = float(c.a) + float(c.b - c.a) * clampv((t - 0.5f) * 2.0f, 0.0f, 1.0f);
                 break;
             }
-            case kClipRivalJoin:
-            case kClipRaid: {
+            case kClipRivalJoin: {
                 const float ct = clampv((t - 0.35f) / 0.65f, 0.0f, 1.0f);
                 shownS_ = float(c.a) + float(c.b - c.a) * (1.0f - (1.0f - ct) * (1.0f - ct));
+                break;
+            }
+            case kClipRaid: {
+                // The wave marches down to the army (0-0.45), the crowds clash, the beaten wave flips (0.45-0.75) and joins
+                // with the count (0.5-1). A wave too strong only marches in: the loss follows.
+                waveClipT_ = c.b < 0 ? t * 0.45f : t;
+                const float clashAt = 0.45f * c.dur;
+                if (before < clashAt && clipT_ >= clashAt) {
+                    cue(kCueClash, 0, panOf(bannerX_));
+                    confettiBurst(bannerX_, bannerY_ - 3.0f, 22, false, 0.9f);
+                }
+                if (c.b >= 0) {
+                    waveFlip_[c.site] = clampv((t - 0.45f) / 0.3f, 0.0f, 1.0f);
+                    if (before < c.dur * 0.5f && clipT_ >= c.dur * 0.5f) cue(kCueFlip, 0, panOf(bannerX_));
+                    const float ct = clampv((t - 0.5f) / 0.5f, 0.0f, 1.0f);
+                    const float a = float(c.a), b = float(c.b);
+                    shownS_ = a + (b - a) * (1.0f - (1.0f - ct) * (1.0f - ct));
+                    if (ct > 0.0f && ct < 1.0f) {
+                        const int ticks = clampv(int(std::fabs(b - a)), 1, 24);
+                        const int now = int(ct * float(ticks));
+                        while (countStep_ < now) {
+                            ++countStep_;
+                            cue(kCueCount, countStep_, panOf(bannerX_));
+                        }
+                    }
+                }
                 break;
             }
             case kClipWin: {
@@ -679,9 +720,11 @@ void Scene::update(float dt, bool fast) {
             cdt = 0;
         }
     }
-    // Scroll a tall page so the host and the rows ahead of it are in view.
+    // Scroll a tall page so the host and the rows ahead of it are in view; a new battle opens on the castle and pans down to
+    // the army.
     const float maxScroll = maxv(0.0f, float(d.pageH) - fit_.viewH);
     scrollTarget_ = clampv(bannerY_ - fit_.viewH * 0.72f, 0.0f, maxScroll);
+    if (waves_ && unfold_ < 1.1f && !reduceEffects) scrollTarget_ = 0.0f;
     scroll_ += (scrollTarget_ - scroll_) * minv(1.0f, dt * 4.0f);
     hostTargets(dt);
     stepFigures(dt);
@@ -773,6 +816,66 @@ void Scene::spawnGarrisons() {
         garrisonOf(i, 0, 1);
     }
     if (disp_.rivalAlive() && rivalShown_ > 0) garrisonOf(sim::rivalSite(d, disp_) >= 0 ? sim::rivalSite(d, disp_) : 0, 0, 2);
+    // The waves due next (GAME_DESIGN 6): their crowds wait above the row the army chooses from.
+    if (disp_.raidNext < d.raidCount) {
+        const int turn = d.raids[disp_.raidNext].turn;
+        for (int r = disp_.raidNext; r < d.raidCount && d.raids[r].turn == turn; ++r) spawnWave(r);
+    }
+}
+
+void Scene::waveSpot(int raid, float& x, float& y) const {
+    const sim::LevelDef& d = *def_;
+    int twins = 0, index = 0;
+    for (int r = 0; r < d.raidCount; ++r)
+        if (d.raids[r].turn == d.raids[raid].turn) {
+            if (r < raid) ++index;
+            ++twins;
+        }
+    x = twins > 1 ? (index == 0 ? 33.0f : 67.0f) : 50.0f;
+    if (waves_) {
+        // Between the row the army chooses from and the next one up (rows are 40 units apart from pageH - 50).
+        const int row = maxv(0, int(d.raids[raid].turn) - 1);
+        y = float(d.pageH) - 50.0f - 40.0f * float(row) - 25.0f;
+    } else {
+        const sim::Site& e = d.sites[d.raids[raid].entry];
+        x = e.x < 50 ? 8.0f : 92.0f;
+        y = float(e.y);
+    }
+}
+
+void Scene::waveCenter(int raid, float& x, float& y) const {
+    waveSpot(raid, x, y);
+    if (raid == waveClip_) {
+        const float t = clampv(waveClipT_ / 0.45f, 0.0f, 1.0f);
+        const float e = t * t * (3.0f - 2.0f * t);
+        x += (bannerX_ - x) * e;
+        y += (bannerY_ - 3.0f - y) * e;
+    }
+}
+
+void Scene::spawnWave(int raid) {
+    const i64 v = def_->raids[raid].strength;
+    int pawns = int(clampv<i64>(v, 3, 30)), riders = int(minv<i64>(v / 100, 16)), giants = int(minv<i64>(v / 10000, 6));
+    const int total = pawns + riders + giants;
+    float cx, cy;
+    waveSpot(raid, cx, cy);
+    // A block, giants at the back, riders in front of them, pawns in front (down the page).
+    const int cols = minv(8, maxv(4, (total + 2) / 3));
+    for (int k = 0; k < total && figCount_ < kMaxFigures; ++k) {
+        Figure& f = figs_[figCount_++];
+        f = Figure();
+        f.team = 4;
+        f.site = i16(raid);
+        f.kind = u8(k < giants ? 2 : (k < giants + riders ? 1 : 0));
+        const int row = k / cols, col = k % cols;
+        const int inRow = minv(cols, total - row * cols);
+        f.ox = (float(col) - float(inRow - 1) * 0.5f) * (f.kind == 2 ? 5.0f : 2.6f);
+        f.oy = float(row) * 2.4f - 4.0f;
+        f.x = f.tx = cx + f.ox;
+        f.y = f.ty = cy + f.oy;
+        f.hop = float(k) * 0.9f;
+        f.flip = 1;
+    }
 }
 
 void Scene::hostTargets(float dt) {
@@ -847,6 +950,18 @@ void Scene::stepFigures(float dt) {
             f.flip = fl > 0 && fl < 1 ? std::fabs(1.0f - 2.0f * fl) : 1.0f;
             if (fl >= 0.5f && !(disp_.mine & bit(f.site))) {
                 f.team = 3;  // it turned: now it runs to the host
+                f.site = -1;
+            }
+        }
+        if (f.team == 4 && f.site >= 0) {
+            float cx, cy;
+            waveCenter(f.site, cx, cy);
+            f.tx = cx + f.ox;
+            f.ty = cy + f.oy;
+            const float fl = waveFlip_[f.site];
+            f.flip = fl > 0 && fl < 1 ? std::fabs(1.0f - 2.0f * fl) : 1.0f;
+            if (fl >= 0.5f) {
+                f.team = 3;  // beaten: it turns and runs to the host
                 f.site = -1;
             }
         }

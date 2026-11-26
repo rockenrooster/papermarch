@@ -35,7 +35,7 @@ constexpr u32 kOn = 0x2E9E58, kOff = 0xC2B49C;
 }  // namespace ui
 
 // The HUD's bands (GAME_DESIGN 11): the top row and the bottom row, in dp, inside the safe area.
-constexpr float kTopBandDp = 84.0f, kBottomBandDp = 132.0f;
+constexpr float kTopBandDp = 100.0f, kBottomBandDp = 132.0f;  // the top band holds the HUD row and the wave queue
 
 // Where the page lies on the screen: its top-left corner in pixels, pixels per map unit, and how many map units of it
 // show at once (a Gauntlet's page is taller and scrolls).
