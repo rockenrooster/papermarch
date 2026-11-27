@@ -44,6 +44,7 @@ struct LevelDef {
     float length = 120;  // the boss (or the finish line) stands here
     float speed = 5;     // the squad's march, units a second
     float pace = 1;      // the horde's speed (march and closing in) times its kind's own; the boss keeps its own
+    float drain = 22;    // soldiers a second the boss crushes once it reaches the squad (sized so a fight lasts seconds)
     i32 bossHp = 0;      // 0: no boss, the level ends at `length`
     u8 world = 1, boss = 0, hint = 0, pad = 0;
     u32 seed = 0;
@@ -137,7 +138,8 @@ public:
     GateState gates[kMaxGates];
     BarrelState barrels[kMaxBarrels];
     int nextWave = 0;
-    float bossDrain = 0;
+    float bossDrain = 0, bossRate = 0;  // the boss's crushing: its debt in soldiers; its rate, set when it reaches the squad
+    i32 waveLost[kMaxWaves] = {};  // soldiers each wave's enemies took when they reached the squad (the generator's measure)
 
 private:
     void spawnWave(int w, BattleEvents& ev);

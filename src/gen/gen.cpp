@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 
 #include "core/rng.h"
 #include "sim/bot.h"
@@ -44,6 +45,31 @@ float squadAt(const LevelDef& d, float zEnd) {
     indexRows(t);
     const PlayResult r = playLevel(t, 150);
     return r.won ? float(r.left) : 0.0f;
+}
+
+// What the waves from `firstWave` on cost the bot (soldiers their enemies took on reaching it) on the road built so far,
+// played to zEnd; -1 if the bot does not get there. Only their own toll: how the bot steers around them changes what
+// else it gains or loses, which is not theirs.
+float hordeCost(const LevelDef& d, float zEnd, int firstWave) {
+    thread_local LevelDef* tp = nullptr;
+    if (!tp) tp = new LevelDef();
+    thread_local Battle* bp = nullptr;
+    if (!bp) bp = new Battle();
+    LevelDef& t = *tp;
+    t = d;
+    t.length = zEnd;
+    t.bossHp = 0;
+    t.planLook = 0;
+    t.planCount = 0;
+    indexRows(t);
+    Battle& b = *bp;
+    b.init(t);
+    BattleEvents ev;
+    for (int s = 0; s < 150 * 60 && !b.won && !b.lost; ++s) b.tick(botSteer(b), true, ev);
+    if (!b.won) return -1.0f;
+    i32 sum = 0;
+    for (int w = maxv(0, firstWave); w < t.waveCount && w < kMaxWaves; ++w) sum += b.waveLost[w];
+    return float(sum);
 }
 
 }  // namespace
@@ -197,7 +223,6 @@ void build(int n, u64 seed, Shape& out) {
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
                 const bool withRiders = riders && r.f01() < 0.4f, withBrutes = brutes && r.f01() < 0.35f;
-                const float want = bite(n) * uni(r, 0.6f, 1.4f) * E;
                 const float zw = z;
                 auto lay = [&](float count) {  // this section's waves for `count` foot; past 900 the rest are brutes
                     d.waveCount = wavesBefore;
@@ -207,16 +232,22 @@ void build(int n, u64 seed, Shape& out) {
                     const i32 heavy = (withBrutes ? maxv<i32>(1, foot / 12) : 0) + maxv<i32>(0, foot - 900) / 8;
                     if (heavy > 0) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(heavy, 320), kBrute};
                 };
+                // Its cost: the soldiers its own enemies take (played to past its end).
+                const float goal = bite(n) * uni(r, 0.6f, 1.4f) * E;
                 float lo = 2.0f, hi = maxv(60.0f, E * 14.0f), pick = lo;
-                for (int it = 0; it < 7 && d.waveCount + 3 <= kMaxWaves; ++it) {
+                static const bool trace = std::getenv("PM_GEN_TRACE") != nullptr;
+                for (int it = 0; it < 8 && d.waveCount + 3 <= kMaxWaves; ++it) {
                     const float mid = std::sqrt(lo * hi);
                     lay(mid);
-                    const float after = squadAt(d, zw + 47.0f);  // the horde fought to its end
-                    if (after < 1.0f || E - after > want * 1.2f) {
+                    const float cost = hordeCost(d, zw + 47.0f, wavesBefore);
+                    if (trace)
+                        std::fprintf(stderr, "  horde at %.0f: squad %.0f wants -%.0f; %.0f foot cost %.0f\n", double(zw), double(E), double(goal),
+                                     double(mid), double(cost));
+                    if (cost < 0.0f || cost > goal * 1.2f) {
                         hi = mid;
                     } else {
                         lo = pick = mid;
-                        if (E - after >= want * 0.8f) break;
+                        if (cost >= goal * 0.8f) break;
                     }
                 }
                 if (d.waveCount + 3 <= kMaxWaves) lay(pick);
@@ -248,7 +279,8 @@ void finish(const Shape& s, float m, LevelDef& out) {
     if (!dp) dp = new LevelDef();
     LevelDef& d = *dp;
     d = s.d;
-    if (s.boss) {  // as many hit points as the squad at the end deals in m seconds
+    if (s.boss) {  // as many hit points as the squad at the end deals in m seconds (it crushes a ninth of whatever squad
+                   // meets it every second: Battle::moveEnemies)
         d.bossHp = maxv<i32>(20, i32(dps(s.endSquad) * m));
     } else if (d.waveCount + 3 <= kMaxWaves) {  // m times the squad's number, foot and riders and brutes
         const i32 foot = maxv<i32>(5, i32(s.endSquad * m));

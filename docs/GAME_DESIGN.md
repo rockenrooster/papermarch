@@ -73,14 +73,18 @@ road built so far with the bot and measures the squad E the bot really has there
 | Horde | 1 | after every two or three other sections: foot across the road or one side; riders (from 7) and brutes (from 12) behind them; past 900 foot the rest come as brutes |
 
 The next section is drawn by weight from those the level knows, never the same twice running. Each horde is made as big
-as it must be (halving its size up to seven times against the bot) to cost the bot a share of its squad, its "bite":
-5% at level 1 rising to 35% at level 200 and after (times 0.6 to 1.4 at random, times 1.4 on a hard level). A section
-the bot cannot get through is dropped.
+as it may be (halving its size up to eight times against the bot) while its own enemies take no more than a share of
+the squad, its "bite": 5% at level 1 rising to 35% at level 200 and after (times 0.6 to 1.4 at random, times 1.4 on a
+hard level). Only the soldiers its enemies take count (`Battle::waveLost`), not what the bot gains or loses by
+steering around it. Big squads mow down hordes of a thousand without loss; small ones bleed. A section the bot cannot
+get through is dropped.
 
 **The end fight** sets the level's difficulty. The boss (on every tenth level, on level 8, on every hard level, on 45% of
 the others after 8 and 60% after 100) or, without one, a last stand of the horde across the road. The bake finds its
 strength m by halving (in log steps, 0.05 to 90): the boss has as many hit points as the squad at the end of the road
-deals in m seconds; the last stand is m times that squad in foot, with riders and brutes.
+deals in m seconds, and crushes a ninth of the squad it meets every second it stands on it (at least 22), so the
+fight is over in about nine seconds either way, whatever the squad; the last stand is m times that squad in foot, with
+riders and brutes.
 
 **The difficulty curve** (the owner, 2026-11-26: "make sure that it scales up in difficulty, with extra hard levels
 throwing in here and there with the later levels just barely theoretically beatable with 100% perfect runs"). The bake
@@ -100,7 +104,7 @@ grow longer after level 150 (0.25 units a level) so a level stays near half a mi
 
 The level keeps its best run's plan (`P` how early to line up, `Q` each row's gate) and end squad (`R`): the tests replay
 the plan and must end with exactly that squad, the proof that every level can be won. Three stars at 90% of it, two at
-45%. Levels are stored as text (`S L V B W X T E A C R K Y P Q` then `g`, `b` and `w` items) and played through that text
+45%. Levels are stored as text (`S L V B W X T E A C R K Y D P Q` then `g`, `b` and `w` items) and played through that text
 form during the bake, so the table is exactly what was tested. `papermarch_headless --sweep N` prints how level N's end
 fight moves its margin.
 

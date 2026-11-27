@@ -132,6 +132,7 @@ bool decodeLevel(const char* text, LevelDef& out) {
             case 'R': if (!num(p, v[0])) return false; out.botEnd = i32(v[0]); break;
             case 'K': if (!num(p, v[0])) return false; out.spike = u8(v[0]); break;
             case 'Y': if (!num(p, v[0])) return false; out.pace = float(v[0]) / 100.0f; break;
+            case 'D': if (!num(p, v[0])) return false; out.drain = float(v[0]) / 10.0f; break;
             case 'P': if (!num(p, v[0])) return false; out.planLook = float(v[0]) / 10.0f; break;
             case 'Q': {  // the plan's choices, one a row: Q-1,0,1
                 out.planCount = 0;
@@ -181,6 +182,7 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
         d.hint, d.seed, d.star2, d.star3, d.botEnd);
     if (d.spike) put(" K%d", d.spike);
     if (int(d.pace * 100.0f + 0.5f) != 100) put(" Y%d", int(d.pace * 100.0f + 0.5f));
+    if (int(d.drain * 10.0f + 0.5f) != 220) put(" D%d", int(d.drain * 10.0f + 0.5f));
     if (d.planLook > 0) put(" P%d", t10(d.planLook));
     if (d.planCount > 0) {
         put(" Q%d", d.plan[0]);

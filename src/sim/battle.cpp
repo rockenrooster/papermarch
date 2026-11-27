@@ -41,7 +41,8 @@ void Battle::init(const LevelDef& d) {
     for (int i = 0; i < d.gateCount; ++i) gates[i] = {d.gates[i].value, 0, 0, 99.0f};
     for (int i = 0; i < d.barrelCount; ++i) barrels[i] = {d.barrels[i].hp, 0, 99.0f};
     nextWave = 0;
-    bossDrain = 0;
+    bossDrain = bossRate = 0;
+    for (i32& l : waveLost) l = 0;
     fireAcc_ = 0;
     rng_ = d.seed * 2654435761u + 12345u;
     if (!rng_) rng_ = 1;
@@ -206,7 +207,10 @@ void Battle::moveEnemies(BattleEvents& ev) {
         const float d = e.z - z;
         if (e.kind == kBoss) {
             if (d - st.radius <= r * 0.6f) {  // it reaches the squad: it stops and crushes soldiers until it falls
-                bossDrain += 22.0f * kDt;
+                // It crushes a ninth of the squad it meets every second (at least the level's `drain`), whatever its size:
+                // the fight lasts seconds.
+                if (bossRate <= 0.0f) bossRate = maxv(def->drain, float(squad) / 9.0f);
+                bossDrain += bossRate * kDt;
                 while (bossDrain >= 1.0f && squad > 0) {
                     bossDrain -= 1.0f;
                     --squad;
@@ -223,6 +227,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
         if (d < r * 0.6f + st.radius && std::fabs(e.x - x) < r + st.radius) {
             squad -= st.strength;
             ev.lost += st.strength;
+            if (e.wave >= 0 && e.wave < kMaxWaves) waveLost[e.wave] += st.strength;
             e.alive = 0;
             --alive_;
         } else if (d < -8.0f) {

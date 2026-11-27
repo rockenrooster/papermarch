@@ -40,8 +40,10 @@ parallel jobs everywhere.
    growing gate, barrel or enemy along its step and stops there (a gate gains one up to its cap; a barrel or enemy loses
    `damage`), or flies on until its range is spent.
 9. Enemies: march down; within 14 units close in on `x` (riders faster); one that touches the footprint
-   (`d < 0.6·r + radius`, `|dx| < r + radius`) costs its strength and is gone; the boss instead stops and drains 22
-   soldiers a second. Dead enemies are compacted away now and then.
+   (`d < 0.6·r + radius`, `|dx| < r + radius`) costs its strength and is gone (and is counted against its wave,
+   `waveLost`); the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
+   `drain`, 22), so a boss fight lasts seconds, not a minute, whatever the squad. The horde moves at its kind's speed
+   times the level's `pace`. Dead enemies are compacted away now and then.
 10. Squad ≤ 0: lost. A boss-less level at its length: won. The boss's death: won.
 
 `BattleEvents` reports what the step did (shots, hits, kills with their places, the gate passed with before and after,
