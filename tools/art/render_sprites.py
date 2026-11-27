@@ -1046,20 +1046,6 @@ def ui_trophy():
             rod(a_, b_, 0.05, 0.05, g, seg=8); ell(0.05, g, loc=b_)
     star(0.24, 0.11, 0.06, M(WHITE, 0.3), loc=(0, -0.57, 1.5))
 
-def ui_logo():
-    font = bpy.data.fonts.load(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'assets', 'font', 'Roboto-Black.ttf'))
-    def layer(offset, depth, y, mat):
-        c = bpy.data.curves.new('t', 'FONT')
-        c.body, c.font, c.align_x, c.size = 'PAPERMARCH', font, 'CENTER', 1.0
-        c.extrude, c.offset, c.bevel_depth, c.bevel_resolution = depth, offset, 0.015, 2
-        c.materials.append(mat)
-        return link(bpy.data.objects.new('t', c), loc=(0, y, 0.12), rot=(math.radians(90), 0, 0))
-    layer(0.0, 0.05, -0.2, M(BLUE, 0.3, 0, 0.6))
-    layer(0.022, 0.1, -0.05, M(WHITE, 0.4))
-    layer(0.0, 0.3, 0.2, M(NAVY, 0.5))          # the letters' depth (an outline by offset breaks at the M's inner corners)
-    for x in (-3.55, 3.55):
-        star(0.3, 0.14, 0.12, M(GOLD, 0.2, 0.5), loc=(x, -0.1, 0.5))
-
 # ---- the list ----------------------------------------------------------------------------------------------------------
 UE, PE = [60, 38, 20], [45, 20]
 S, Mv, T, L, XL = (2.6, 2.4, 0.5), (4.6, 5.6, 2.0), (3.4, 6.4, 2.6), (5.6, 8.4, 3.2), (8.0, 10.0, 3.6)    # view w, h, centre z
@@ -1094,7 +1080,6 @@ JOBS += [
     ('ui.skull', ui_skull, 'still', 1, [10], 96, (1.4, 1.3, 0.52), 0.0, 1),
     ('ui.hand', ui_hand, 'still', 1, [10], 150, (1.4, 1.6, 0.65), 0.0, 1),
     ('ui.trophy', ui_trophy, 'still', 1, [12], 180, (2.2, 2.2, 0.95), 0.0, 1),
-    ('ui.logo', ui_logo, 'still', 1, [14], 132, (8.2, 1.9, 0.5), 0.0, 1),
     ('icon.bust', lambda: soldier(turn=math.pi - 0.5), 'still', 1, [8], 420, (1.3, 1.3, 0.78), 0.0, 1),
 ]
 # 1 GREENMEADOW

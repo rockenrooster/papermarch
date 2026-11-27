@@ -24,7 +24,7 @@ def world_of(gid):
     return ' ' + m.group(1) if m else ''
 
 # HUD sprites built in 3D: dp per model unit (the manifest's height is in dp for ui.* kinds)
-UI_DP = {'ui.star_full': 44, 'ui.star_empty': 44, 'ui.shako': 32, 'ui.boss_head': 14, 'ui.skull': 32, 'ui.hand': 50, 'ui.trophy': 60, 'ui.logo': 44}
+UI_DP = {'ui.star_full': 44, 'ui.star_empty': 44, 'ui.shako': 32, 'ui.boss_head': 14, 'ui.skull': 32, 'ui.hand': 50, 'ui.trophy': 60}
 
 def rimmed(kind):
     return kind in ('soldier', 'foot', 'rider', 'brute', 'barrel', 'squad.banner') or kind.startswith('gate.') or kind == 'boss' or kind in UI_DP

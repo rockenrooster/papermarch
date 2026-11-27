@@ -1278,15 +1278,16 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
     shownBefore_ = m;
     // The squad's banner, carried in its middle with the count on its cloth (ART_DIRECTION 15.3).
     if (ids_.banner >= 0) {
-        const Placed pl = sprite(ids_.banner, xs, zs + 0.2f, 0, time, 1.0f, 1.0f);
+        const float scale = clampv(0.6f + 0.4f * R / 2.0f, 0.6f, 1.0f);  // a small squad carries a small banner
+        const Placed pl = sprite(ids_.banner, xs, zs + 0.2f, 0, time, scale, 1.0f);
         float tx, ty;
         if (pl.st && art_->point(ids_.banner, pl.elev, "text", tx, ty)) {
             const SpriteFrame& f0 = art_->frameAt(ids_.banner, pl.elev, 0);
             char t[24];
             formatHost(i64(shownSquad_ + 0.5f), t, sizeof t);
-            float size = 0.62f / UiBatch::capHeight() * pl.s * (1.0f + 0.25f * badgePop_);
+            float size = 0.62f / UiBatch::capHeight() * pl.s * scale * (1.0f + 0.25f * badgePop_);
             const float w = UiBatch::textWidth(t, size);
-            if (w > 1.7f * pl.s) size *= 1.7f * pl.s / w;
+            if (w > 1.7f * pl.s * scale) size *= 1.7f * pl.s * scale / w;
             labels.text(t, pl.sx + (tx - f0.px) * pl.k, pl.sy + (ty - f0.py) * pl.k, size, rgba(kWhiteC), rgba(0x16224F), maxv(1.5f, 0.05f * pl.s),
                         Align::Center, true, 0);
         }

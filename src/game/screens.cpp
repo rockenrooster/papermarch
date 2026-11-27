@@ -117,20 +117,28 @@ void Game::drawTitle() {
     const Layout& L = layout_;
     const float a = titleFade_, W = float(L.w);
     const float cy = maxv(L.top() + L.px(250), float(L.h) * 0.32f);  // clear of the HUD and the hint line
-    uiArt(kUiRays, W * 0.5f, cy, 300, {255, 224, 122, u8(178 * a)}, screenTime_ * 0.1745f);
-    const float logoDp = clampv(32.0f * (W / L.dp) / 360.0f, 26.0f, 40.0f);
+    uiArt(kUiRays, W * 0.5f, cy, 320, {255, 224, 122, u8(178 * a)}, screenTime_ * 0.1745f);
+    // The logo 288 dp wide (or the screen less 48), bobbing; the tagline 12 dp under it.
+    float logoH = L.px(60);
     const float bob = L.px(3) * std::sin(screenTime_ * 3.14159f);
-    if (!uiArt(kUiLogo, W * 0.5f, cy + bob, logoDp, {255, 255, 255, u8(255 * a)}))
+    if (uiArt_[kUiLogo] >= 0 && art_.ready()) {
+        const SpriteFrame& f = art_.frameAt(uiArt_[kUiLogo], 0, 0);
+        const float wDp = minv(288.0f, W / L.dp - 48.0f);
+        logoH = L.px(wDp * f.h / f.w);
+        uiArt(kUiLogo, W * 0.5f, cy + bob, wDp * f.h / f.w, {255, 255, 255, u8(255 * a)});
+    } else {
         uiBatch_.text("PAPERMARCH", W * 0.5f, cy + bob, L.px(46), rgba(ui::kCobalt, u8(255 * a)), rgba(ui::kInk, u8(255 * a)), L.px(2), Align::Center);
+    }
     const char* tag = "GROW YOUR SQUAD. CRUSH THE HORDE.";
     const float tw = UiBatch::textWidth(tag, L.px(14)) + L.px(28);
-    uiBatch_.rect(W * 0.5f, cy + L.px(52), tw, L.px(30), L.px(15), rgba(ui::kRed, u8(255 * a)), rgba(ui::kInk, u8(255 * a)), L.px(2));
-    uiBatch_.text(tag, W * 0.5f, cy + L.px(52), L.px(14), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
-    const float blink = 0.55f + 0.45f * std::sin(screenTime_ * 4.0f);
+    const float tagY = cy + logoH * 0.5f + L.px(12 + 15);
+    uiBatch_.rect(W * 0.5f, tagY, tw, L.px(30), L.px(15), rgba(ui::kRed, u8(255 * a)), rgba(ui::kInk, u8(255 * a)), L.px(2));
+    uiBatch_.text(tag, W * 0.5f, tagY, L.px(14), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
+    const float blink = 0.7f + 0.3f * std::sin(screenTime_ * 4.0f);  // between 100% and 40%
     uiBatch_.text("TAP TO MARCH", W * 0.5f, L.bottom() - L.px(120), L.px(22), rgba(col::kWhite, u8(255 * a * blink)), rgba(ui::kInk, u8(255 * a * blink)),
                   L.px(2), Align::Center);
     ui_.opacity = a;
-    drawUpdatePill(cy + L.px(96));
+    drawUpdatePill(tagY + L.px(52));
     ui_.opacity = 1;
 }
 
@@ -202,15 +210,15 @@ void Game::drawHud() {
     if (bi >= 0 && battle_.enemies[bi].z - battle_.z < 60.0f) {
         const float frac = clampv(float(battle_.enemies[bi].hp) / float(maxv<i32>(def_->bossHp, 1)), 0.0f, 1.0f);
         bossLag_ = maxv(frac, minv(bossLag_, 1.0f) - uiDt_ * 0.35f);  // a gold strip trails what was just lost
-        const float h = L.px(22);
+        const float h = L.px(26);
         uiBatch_.rect(W * 0.5f, barY, barW, h, h * 0.5f, rgba(ui::kInk), rgba(col::kWhite, 90), L.px(1.5f));
         if (bossLag_ > frac) uiBatch_.rect(x0 + barW * bossLag_ * 0.5f, barY, barW * bossLag_, h, h * 0.5f, rgba(ui::kGold));
         if (frac > 0) {
             uiBatch_.rect(x0 + barW * frac * 0.5f, barY, barW * frac, h, h * 0.5f, rgba(ui::kRed));
             if (barW * frac > h) uiBatch_.rect(x0 + barW * frac * 0.5f, barY - h * 0.25f, barW * frac - h * 0.8f, L.px(3), L.px(1.5f), rgba(ui::kRedLight));
         }
-        uiBatch_.text(bossTitle(def_->world), W * 0.5f, barY, L.px(14), rgba(col::kWhite), rgba(ui::kInk), L.px(2), Align::Center);
-        uiArt(kUiBossHead, x0, barY, 44, headTint, 0, bossHue());
+        uiBatch_.text(bossTitle(def_->world), W * 0.5f, barY, L.px(16), rgba(col::kWhite), rgba(ui::kInk), L.px(1.5f), Align::Center);
+        uiArt(kUiBossHead, x0, barY, 48, headTint, 0, bossHue());
     } else {
         bossLag_ = 1;
         const float p = battle_.progress();
@@ -228,7 +236,7 @@ void Game::drawHud() {
         }
         const bool marching = battle_.started && !battle_.won && !battle_.lost;
         const float bob = marching ? L.px(1.5f) * std::fabs(std::sin(levelTime_ * 9.4f)) : 0.0f;
-        if (!uiArt(kUiShako, x0 + barW * p, barY - L.px(8) - bob, 34))
+        if (!uiArt(kUiShako, x0 + barW * p, barY - L.px(10) - bob, 40))
             uiBatch_.rect(x0 + barW * p, barY, L.px(18), L.px(18), L.px(9), rgba(col::kWhite), rgba(kSquadBlue), L.px(3));
     }
     // A level's hint line under the bar (a red pill on a hard level).
@@ -257,7 +265,7 @@ void Game::drawHud() {
 void Game::drawPause() {
     const Layout& L = layout_;
     uiBatch_.rect(float(L.w) * 0.5f, float(L.h) * 0.5f, float(L.w), float(L.h), 0, rgba(ui::kInk, 115));
-    const Rect card = centered(L, float(L.h) * 0.48f, 300, 382);
+    const Rect card = centered(L, float(L.h) * 0.48f, 300, 364);
     ui_.panel(card, 22);
     ribbon("PAUSED", float(L.w) * 0.5f, card.y, 0);
     float y = card.y + L.px(76);
@@ -294,24 +302,26 @@ void Game::drawWin() {
     const float t = resultTime_;
     const float in = minv(1.0f, t / 0.25f);
     ui_.opacity = in;
-    const Rect card = centered(L, L.bottom() - L.px(250) + (1.0f - in) * L.px(40), 330, 318);
+    const bool perfect = stars_ >= 3;
+    // As tall as its content and 20 dp more (no RETRY on a perfect win), its foot where it always is.
+    const float cardH = L.px(perfect ? 262.0f : 318.0f);
+    const Rect card{float(L.w) * 0.5f - L.px(165), L.bottom() - L.px(91) - cardH + (1.0f - in) * L.px(40), L.px(330), cardH};
     uiBatch_.rect(float(L.w) * 0.5f, float(L.h) * 0.5f, float(L.w), float(L.h), 0, rgba(ui::kInk, u8(70 * in)));
     ui_.panel(card, 22);
-    const bool perfect = stars_ >= 3;
     ribbon(perfect ? "PERFECT!" : "VICTORY!", float(L.w) * 0.5f, card.y, perfect ? 2 : 0, 26);
     // Three slots; each earned star slams in on a burst of rays, 0.25 s apart (ART_DIRECTION 15.4).
     for (int k = 0; k < 3; ++k) {
         const float landAt = 0.3f + 0.25f * float(k);
         const float x = float(L.w) * 0.5f + float(k - 1) * L.px(78);
         const float y = card.y + L.px(84) - (k == 1 ? L.px(10) : 0.0f);
-        if (!uiArt(kUiStarEmpty, x, y, 64, {255, 255, 255, u8(255 * in)}))
+        if (!uiArt(kUiStarEmpty, x, y, 72, {255, 255, 255, u8(255 * in)}))
             uiBatch_.star5(x, y, L.px(29), rgba(0xD8C8A8, u8(255 * in)), rgba(ui::kInk, u8(90 * in)), L.px(1.5f));
         if (k < stars_ && t >= landAt) {
             const float s = minv(1.0f, (t - landAt) / 0.18f);
             const float e = 1.0f - (1.0f - s) * (1.0f - s);  // ease out
             const float scale = 2.2f - 1.2f * e;
             uiArt(kUiRays, x, y, 120, {255, 200, 58, u8(200 * minv(1.0f, (t - landAt) * 3.0f))}, t * 0.5f + float(k));
-            if (!uiArt(kUiStarFull, x, y, 64 * scale))
+            if (!uiArt(kUiStarFull, x, y, 72 * scale))
                 uiBatch_.star5(x, y, L.px(27) * scale, rgba(ui::kGold), rgba(ui::kGoldDark), L.px(2.5f));
             if (starsLanded_ <= k) {
                 starsLanded_ = k + 1;
@@ -374,12 +384,14 @@ void Game::drawLose() {
 void Game::drawSettings(float dt) {
     const Layout& L = layout_;
     const float usable = L.bottom() - L.top();
-    const Rect card{L.safe.left + L.px(10), L.top() + L.px(30), float(L.w) - L.safe.left - L.safe.right - L.px(20), usable - L.px(40)};
+    const bool roomy = usable / L.dp > 740;
+    const float rowH = roomy ? 56.0f : 52.0f, gap = roomy ? 14.0f : 10.0f;
+    // As tall as what it holds (five rows, the credits, BACK) and 20 dp more.
+    const float cardH = minv(usable - L.px(40), L.px(5.0f * (rowH + gap) + 252.0f));
+    const Rect card{L.safe.left + L.px(10), L.top() + L.px(30), float(L.w) - L.safe.left - L.safe.right - L.px(20), cardH};
     uiBatch_.rect(float(L.w) * 0.5f, float(L.h) * 0.5f, float(L.w), float(L.h), 0, rgba(ui::kInk, 115));
     ui_.panel(card, 22);
     ribbon("SETTINGS", float(L.w) * 0.5f, card.y, 0);
-    const bool roomy = usable / L.dp > 740;
-    const float rowH = roomy ? 56.0f : 52.0f, gap = roomy ? 14.0f : 10.0f;
     float y = card.y + L.px(68);
     bool changed = false;
     struct Sw {
@@ -425,7 +437,7 @@ void Game::drawSettings(float dt) {
     ui_.text("SDL 3: ZLIB LICENCE", float(L.w) * 0.5f, y, 13, ui::kMuted);
     y += L.px(18);
     ui_.text("PAPER, SOUND AND MUSIC MADE IN CODE", float(L.w) * 0.5f, y, 13, ui::kMuted);
-    const float backY = minv(L.bottom() - L.px(52), y + L.px(64));
+    const float backY = minv(card.y + card.h - L.px(54), y + L.px(64));
     if (ui_.button("BACK", centered(L, backY, 220, 56))) {
         feedback_.uiTap();
         setScreen(settingsReturn_);
@@ -481,8 +493,8 @@ void Game::drawLevels() {
         const sim::LevelDef& d = sim::level(lv);
         if (d.spike && !down) uiBatch_.rect(r.cx(), r.y + L.px(8), r.w - L.px(5), L.px(12), L.px(6), rgba(ui::kRed, 220));
         if (d.spike) uiArt(kUiSkull, r.x + r.w - L.px(9), r.y + L.px(9) + sink, 14);
-        else if (d.bossHp > 0 && art_.ready())
-            uiArt(kUiBossHead, r.x + r.w - L.px(10), r.y + L.px(10) + sink, 18, rgba(art_.world(d.world).bossTint), 0,
+        else if (d.bossHp > 0 && art_.ready())  // over the cell's top right corner by 6 dp
+            uiArt(kUiBossHead, r.x + r.w - L.px(6), r.y + L.px(6) + sink, 24, rgba(art_.world(d.world).bossTint), 0,
                   std::fmod(std::fmod(art_.world(d.world).bossHue, 360.0f) + 360.0f, 360.0f) / 360.0f);
         for (int k = 0; k < 3; ++k) {
             const float sx = r.cx() + float(k - 1) * L.px(15), sy = r.y + r.h - L.px(14) + sink;

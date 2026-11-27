@@ -344,7 +344,7 @@ chunky buttons with a lip that sinks when pressed, cobalt ribbons for titles, th
 | `ui.skull` | 36.7 | HARD levels |
 | `ui.hand` | 62.7 | the drag hint; point `tip` = the fingertip |
 | `ui.trophy` | 122 | the end screen |
-| `ui.logo` | 35.7 (340 wide) | the title; draw at height 32 on a 360 dp wide screen |
+| `ui.logo` | 138 (288 wide) | the title: PAPER in cobalt over MARCH in gold, drawn flat by `make_fx.py` (white keyline, thick ink outline and lip). Draw it 288 wide, or the screen's width less 48 if that is smaller |
 | `ui.ribbon_l/_m/_r`, `ui.ribbon_red_*`, `ui.ribbon_gold_*` | 53 / 41 / 53 | title ribbons: the pivot of each part is its joint (the caps' inner edge, the middle's centre) at the band's mid height. Stretch `_m` across the text width + 24, put `_l` and `_r` at its ends. The band is 40 tall; the tails hang 12 lower |
 | `ui.rays.play` | 252 | a white sunburst (alpha): tint it, spin it 10 degrees a second, behind stars, the logo and the trophy |
 
@@ -369,7 +369,7 @@ the card's top edge; title text white, 24, with a 2 ink outline.
 
 | Kind | Face | Lip | Label | Hover (pointer) | Pressed |
 |---|---|---|---|---|---|
-| Primary (NEXT, RESUME, RETRY, UPDATE) | gold, the top 45% gold light | gold dark | ink | face gold light, outline 3 white | face moves down 4 (lip 2), face `#E8A81E`, outline 3 white |
+| Primary (NEXT, RESUME, RETRY, UPDATE) | gold, the top 45% gold light | gold dark | ink | (not drawn on phones) | face moves down 4 (lip 2), face `#E8A81E`, outline 3 white |
 | Secondary (RESTART, LEVELS, SETTINGS, pager) | cream | `#C9B893` | ink | face white, outline 3 cobalt | down 4, face cobalt, label white, outline 3 white |
 | Danger (hold to reset) | red | red dark | white | face red light | down 4, face red dark, outline 3 white; the hold fills left to right in gold |
 | Round (pause), 48 | cream | `#C9B893` | ink bars | as secondary | as secondary |
@@ -382,18 +382,18 @@ with the knob at the left; the knob slides in 0.1 s; pressed = outline 3 white.
 
 ### 15.3 HUD
 
-- **Level chip** (top left, 44 tall, radius 14): cream, outline 2.5 ink, `LEVEL N` in ink at 18.
+- **Level chip** (top left, 48 tall for the touch target, radius 14): cream, outline 2.5 ink, `LEVEL N` in ink at 18.
   **HARD level**: the chip is red with white text and `ui.skull` (26) inside its left end; it pulses to 1.05x once a second
   for the first 3 s. The hint line reads `HARD LEVEL! EVERY SOLDIER COUNTS` on a red pill, and the progress road's fill is
   red instead of cobalt.
 - **Stars**: three `ui.star_full` / `ui.star_empty` at 26, 2 apart, right of the chip.
 - **Pause**: the round button, top right.
 - **Progress road**: a track 14 tall, radius 7, ink at 60%, outline 1.5 white at 35%; the marched part cobalt with a 3
-  tall cobalt-light line along its top; `ui.shako` (34) centred on the fill's end, bobbing 1.5 at the march's rhythm;
+  tall cobalt-light line along its top; `ui.shako` (40) centred on the fill's end, bobbing 1.5 at the march's rhythm;
   at the far end `ui.star_full` (26) or, on a boss level, `ui.boss_head` (34).
-- **Boss bar** (replaces the road when the ogre is in sight): a track 22 tall, radius 11, ink; fill red with a red-light
-  line along the top; a gold strip shows the health just lost and shrinks after 0.4 s; the fill flashes white for 80 ms on
-  a hit; `ui.boss_head` (44) over the left end; the name centred, white at 14 with a 2 ink outline.
+- **Boss bar** (replaces the road when the ogre is in sight): a track 26 tall, radius 13, ink; fill red with a red-light
+  line along the top; a gold strip shows the health just lost and shrinks after 0.4 s; no flash on hits (the boss is hit
+  every frame); `ui.boss_head` (48) over the left end; the name centred, white at 16 with a 1.5 ink outline.
 - **Hint line**: a pill, ink at 88%, outline 1.5 white at 25%, text white at 15 (red pill on HARD levels).
 - **Squad banner**: the world sprite `squad.banner.march` planted at the squad's centre (sorted like a soldier at the
   squad's z + 0.2), the count at its `text` point: white with a 0.05 unit ink outline, 0.62 units tall, scaled down to fit
@@ -404,9 +404,10 @@ with the knob at the left; the knob slides in 0.1 s; pressed = outline 3 white.
 
 ### 15.4 Screens
 
-- **Title** (cold start, over level 1): `ui.rays` (300, tinted gold light at 70%) spinning behind `ui.logo` (height 32)
-  at 24% of the screen's height, the logo bobbing 3 in 2 s; under it the tagline on a red pill (white, 14); `TAP TO
-  MARCH` pulsing near the bottom; the UPDATE pill is a small primary button (height 40).
+- **Title** (cold start, over level 1): `ui.rays` (300, tinted gold light at 70%) spinning behind `ui.logo` (288 wide)
+  centred at max(top + 250, 32% of the screen's height), the logo bobbing 3 in 2 s; under it the tagline on a red pill (white, 14); `TAP TO
+  MARCH` blinking under the squad, white at 22 with a 2 ink outline (it must read on the pale road); the UPDATE pill is a small primary button (height 40).
+- Every card is as tall as its content plus 20 of padding: no empty band under the last button.
 - **Victory**: scrim, a card with a cobalt ribbon `VICTORY!` (a gold ribbon and `PERFECT!` with three stars). Three
   `ui.star_empty` slots at 64; each earned star slams in (scale 2.2 to 1 in 0.18 s, ease-out) with `ui.rays` (120, gold)
   behind it and one `fx.sparkle`, 0.25 s apart. `SOLDIERS LEFT N` in ink at 18. NEXT (primary; FINISH on level 300);
@@ -416,10 +417,11 @@ with the knob at the left; the knob slides in 0.1 s; pressed = outline 3 white.
 - **Pause**: a card with the cobalt ribbon `PAUSED`; RESUME (primary), RESTART, LEVELS, SETTINGS (secondary).
 - **Settings**: the cobalt ribbon `SETTINGS`; rows of label (ink, 18) and toggle: SOUND, MUSIC, HAPTICS, REDUCE EFFECTS;
   the danger button; version and credits in ink at 60%, 12; BACK (secondary).
-- **Levels**: the cobalt ribbon carries the world's name (`WORLD 3 - FROSTVALE`). Cells 56 x 64, radius 12, outline 2.5
+- **Levels**: the cobalt ribbon carries the world's name (`WORLD 3 - FROSTVALE`). Cells up to 64 x 64, 10 apart, radius 12, outline 2.5
   ink, the number at 20, three stars at 14 under it: played = cream; the next level to play = gold face (and it bobs);
   not played yet = cream shade with the number at 50%. A HARD level has a red band across its top 12 and `ui.skull` (14)
-  in the top right corner; a boss level has `ui.boss_head` (18, the world's tint) there instead. Pressed cell = cobalt
+  in the top right corner; a boss level has `ui.boss_head` (24, the world's tint) there instead, overhanging the cell's
+  corner by 6. Pressed cell = cobalt
   with a white number and outline. -100, PREV, NEXT, +100 and BACK are secondary buttons.
 - **End**: `ui.rays` (320, gold) and `ui.trophy` (160) over the gold ribbon `ALL 300 LEVELS CONQUERED!` (text at 18),
   the total of stars with a `ui.star_full` (26), a primary button, confetti, the squad cheering.

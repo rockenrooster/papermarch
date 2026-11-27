@@ -305,3 +305,32 @@ def rays(cv, t, f):
     beam = np.clip(np.cos(np.arctan2(dy, dx) * 12) * 3 + 0.5, 0, 1)
     cv.paint(beam * np.clip(1 - r, 0, 1) ** 1.3 * np.clip(r * 6, 0, 1) * 0.6, (255, 255, 255))
 book('ui.rays', 1, 260, 260, 1, False, rays)
+
+# The title: two stacked lines of chunky letters (Roboto Black, the game's font): a cobalt face with a light top, a white
+# keyline, a thick navy outline and a navy lip under it, gold stars at the sides. 300 x 150 dp.
+from PIL import ImageFont, ImageFilter
+def logo(d, s, im):
+    font_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'assets', 'font', 'Roboto-Black.ttf')
+    W, H = im.size
+    def line(text, cy, size, top, bottom):
+        font = ImageFont.truetype(font_path, int(size * s))
+        while d.textlength(text, font=font) > W - 30 * s:
+            size -= 1; font = ImageFont.truetype(font_path, int(size * s))
+        cx = W / 2
+        for dy in range(int(7 * s), -1, -2):          # the lip: the outline drawn again, lower
+            d.text((cx, cy * s + dy), text, font=font, anchor='mm', fill=(10, 18, 52, 255), stroke_width=int(6.5 * s), stroke_fill=(10, 18, 52, 255))
+        d.text((cx, cy * s), text, font=font, anchor='mm', fill=INK + (255,), stroke_width=int(6.5 * s), stroke_fill=INK + (255,))
+        d.text((cx, cy * s), text, font=font, anchor='mm', fill=(255, 255, 255, 255), stroke_width=int(2.6 * s), stroke_fill=(255, 255, 255, 255))
+        mask = Image.new('L', im.size, 0)
+        ImageDraw.Draw(mask).text((cx, cy * s), text, font=font, anchor='mm', fill=255)
+        y = np.mgrid[0:H, 0:W][0] / s
+        k = np.clip((y - (cy - size * 0.36)) / (size * 0.72), 0, 1)[..., None]
+        face = np.array(top, float) * (1 - k) + np.array(bottom, float) * k
+        gloss = (y < cy - size * 0.02)[..., None] * 22.0                      # a hard light band over the top half
+        im.paste(Image.fromarray(np.clip(face + gloss, 0, 255).astype(np.uint8), 'RGB'), (0, 0), mask)
+    line('PAPER', 44, 78, (120, 170, 255), (31, 88, 242))
+    line('MARCH', 106, 78, (255, 226, 120), (240, 150, 10))
+    for cx, cy, r in ((22, 30, 13), (278, 30, 13), (14, 86, 8), (286, 86, 8)):
+        pts = [((cx + (r if i % 2 == 0 else r * 0.45) * math.cos(-math.pi / 2 + math.pi * i / 5)) * s, (cy + (r if i % 2 == 0 else r * 0.45) * math.sin(-math.pi / 2 + math.pi * i / 5)) * s) for i in range(10)]
+        d.polygon(pts, fill=(255, 200, 58, 255), outline=INK + (255,), width=int(1.5 * s))
+ui_piece('ui.logo', 300, 150, logo)
