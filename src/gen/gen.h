@@ -38,6 +38,9 @@ bool isSpike(int n);
 // The weapon level n offers (a sim::WeaponKind, 0 none): its introduction on the level that brings it in, then one of
 // those known on most levels, never the one the level before offered (docs/CONTENT_PASS.md 4.1 rule 4).
 int weaponOffer(int n);
+// Level n's mode (a sim::LevelMode; until the rotation of docs/CONTENT_PASS.md 4.1): in each block of ten the 10th is the
+// boss's, the 5th a gold rush from 15, the 2nd an arsenal from 22, the 4th a rescue from 24; a hard level is a march.
+u8 levelMode(int n);
 // Tries seeds and dials until the planner's best run wins inside the level's band; sets the plan and the stars from it.
 Baked bakeLevel(int n, int maxSeeds);
 

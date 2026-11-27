@@ -85,8 +85,29 @@ it. Enemies that slip 8 units past are gone.
 | Rider | 2 | 5.6 | 0.55 | 2 | a red rider on a brown horse |
 | Brute | 8 | 2.2 | 0.85 | 6 | a big dark-red pawn with a round shield |
 | Boss | the level's | 1.5 | 1.9 | crushes 22 soldiers a second while it touches the squad | the ogre: horns, tusks, a club |
+| Archer (from 17) | 1 | stands | 0.42 | 1 | a hooded raider with a bow: from 18 units it looses an arrow every 1.6 s that lands on the squad 0.8 s later and takes a soldier |
+| Catapult (from 21) | 40 | stands at the road's side | 1.2 | 0 | a timber engine beyond a horde: from 45 units it hurls a boulder every 3.2 s at where the squad will be; a red circle (1.7) shows 1.2 s before it lands and takes the soldiers in it (at most 14) |
+| Giant (from 29) | three seconds of the squad's fire | 1.8 | 1.3 | 25 | a brute twice the size with a club, a health bar over its head; it drops a medallion when it falls |
 
-Waves spawn as a loose crowd (ranks with every soldier a little off its place).
+**The boss's attacks** (from level 30, each world its own: docs/CONTENT_PASS.md 4.3), each shown on the road before it
+lands and dodged sideways: the **club** (from 30: every 4.5 s while within 14 units, the half of the road the squad
+is in turns red for 1 s, then up to 12% of the squad in it is lost), **boulders** (from 50: every 3 s while further
+than 14, a catapult's circle of 2, up to 10%), the **war cry** (from 60: at two thirds and one third of its strength
+16 foot, 24 on a hard level, run in from behind it), the **stomp** (from 70: every 5 s a ridge rolls down the road
+with a gap 3 wide; up to 10% of those outside it are lost). Worlds 9 and 10 pick two of them.
+
+Waves spawn as a loose crowd (ranks with every soldier a little off its place). Archers stand in ranks behind a horde.
+
+**On the road** (docs/CONTENT_PASS.md 3.2): **mines** (from 13) lie in front of hordes: stepped on they cost 6
+soldiers; shot (three musket balls) they burst and do ten musket balls' damage to every enemy within 2.5, so a mine
+under a horde is a gift. **Moving gates** (from 19) slide 3 units either way every 3 s on a rail. **Cages** (from 24)
+hold prisoners: bullets pass through; the squad touching one frees them (`+N`).
+
+**Modes** (docs/CONTENT_PASS.md 3.3; in every block of ten until the rotation of step 8): the 10th is the boss's; the
+5th a **gold rush** from 15 (no enemies, a road of gates, moving gates, barrels and medallions; a barricade never takes
+the last 3 soldiers, so it cannot be lost); the 2nd an **arsenal** from 22 (the squad starts with a weapon); the 4th a
+**rescue** from 24 (the squad starts with 3, every horde guards a cage). A hard level is always a march or the boss's.
+The mode's icon sits in the level chip.
 
 ## 6. Levels: the generator and the bake
 

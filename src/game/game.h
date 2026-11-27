@@ -83,7 +83,8 @@ private:
         kUiRibbonL, kUiRibbonM, kUiRibbonR, kUiRedL, kUiRedM, kUiRedR, kUiGoldL, kUiGoldM, kUiGoldR,
         kUiWeapon,  // the weapons' icons, by sim::WeaponKind from here
         kUiPower = kUiWeapon + sim::kWeaponCount,  // the power-ups' icons, by sim::PowerKind from here (0 unused)
-        kUiArtCount = kUiPower + sim::kPowerCount
+        kUiMode = kUiPower + sim::kPowerCount,     // the level modes' chips, by sim::LevelMode from here
+        kUiArtCount = kUiMode + sim::kModeCount
     };
     void findUiArt();
     bool uiArt(int which, float x, float y, float hDp, Rgba tint = {255, 255, 255, 255}, float angle = 0, float hue = 0);

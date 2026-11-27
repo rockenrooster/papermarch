@@ -42,7 +42,8 @@ void Game::findUiArt() {
         "ui.star_full", "ui.star_empty", "ui.shako", "ui.boss_head", "ui.skull", "ui.hand", "ui.trophy", "ui.logo", "ui.rays",
         "ui.ribbon_l", "ui.ribbon_m", "ui.ribbon_r", "ui.ribbon_red_l", "ui.ribbon_red_m", "ui.ribbon_red_r", "ui.ribbon_gold_l",
         "ui.ribbon_gold_m", "ui.ribbon_gold_r", "ui.wpn_musket", "ui.wpn_twin", "ui.wpn_scatter", "ui.wpn_lance", "ui.wpn_rocket",
-        "ui.pow_none", "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike"};
+        "ui.pow_none", "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike",
+        "ui.mode_march", "ui.mode_boss", "ui.mode_gold", "ui.mode_rescue", "ui.mode_arsenal"};
     static_assert(sizeof names / sizeof names[0] == kUiArtCount, "a name for every UI sprite");
     for (int i = 0; i < kUiArtCount; ++i) uiArt_[i] = art_.ready() ? art_.findKind(names[i]) : -1;
 }
@@ -176,7 +177,10 @@ void Game::drawHud() {
     // Top left: the level chip (it opens LEVELS): cream, or on a hard level red with a skull, pulsing for 3 s.
     std::snprintf(buf, sizeof buf, "LEVEL %d", level_);
     const float top = L.top() + L.px(10);
-    const float icon = hard && uiArt_[kUiSkull] >= 0 ? L.px(30) : 0.0f;
+    // Its icon: the skull of a hard level, else the mode's chip (gold rush, rescue, arsenal...), if any.
+    const int mode = def_->mode < sim::kModeCount ? def_->mode : 0;
+    const int chipArt = hard ? kUiSkull : (mode > sim::kModeBoss ? kUiMode + mode : -1);
+    const float icon = chipArt >= 0 && uiArt_[chipArt] >= 0 ? L.px(30) : 0.0f;
     const float chipW = UiBatch::textWidth(buf, L.px(18)) + L.px(32) + icon;
     const float chipX = L.safe.left + L.px(12);
     const float pulse = hard && levelTime_ < 3.0f ? 1.0f + 0.05f * maxv(0.0f, std::sin(levelTime_ * 6.2831853f)) : 1.0f;
@@ -188,7 +192,7 @@ void Game::drawHud() {
         setScreen(Screen::Levels);
         return;
     }
-    if (icon > 0) uiArt(kUiSkull, chipX + L.px(22) * pulse, chip.cy() + (chipDown ? L.px(4) : 0.0f), 26.0f * pulse);
+    if (icon > 0) uiArt(chipArt, chipX + L.px(22) * pulse, chip.cy() + (chipDown ? L.px(4) : 0.0f), 26.0f * pulse);
     const int got = level_ - 1 < int(sizeof save_.stars) ? save_.stars[level_ - 1] : 0;
     for (int k = 0; k < 3; ++k) {
         const float sx = chipX + chip.w + L.px(22) + float(k) * L.px(28), sy = top + L.px(24);
@@ -271,10 +275,14 @@ void Game::drawHud() {
         const char* s = sim::hintText(hintShownFor_);
         const bool red = hintShownFor_ == sim::kHintHard;
         const float y = barY + L.px(nRun > 0 ? 88 : 44);
-        const float w = UiBatch::textWidth(s, L.px(15)) + L.px(32);
-        uiBatch_.rect(W * 0.5f, y, w, L.px(34), L.px(17), red ? rgba(ui::kRed, u8(240 * a)) : rgba(ui::kInk, u8(224 * a)),
-                      rgba(col::kWhite, u8((red ? 160 : 64) * a)), L.px(1.5f));
-        uiBatch_.text(s, W * 0.5f, y, L.px(15), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
+        if (def_->mode == sim::kModeGold && uiArt_[kUiGoldM] >= 0) {  // a bonus road: the gold ribbon (ART_DIRECTION 17)
+            ribbon("BONUS ROAD", W * 0.5f, y + L.px(4), 2, 20);
+        } else {
+            const float w = UiBatch::textWidth(s, L.px(15)) + L.px(32);
+            uiBatch_.rect(W * 0.5f, y, w, L.px(34), L.px(17), red ? rgba(ui::kRed, u8(240 * a)) : rgba(ui::kInk, u8(224 * a)),
+                          rgba(col::kWhite, u8((red ? 160 : 64) * a)), L.px(1.5f));
+            uiBatch_.text(s, W * 0.5f, y, L.px(15), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
+        }
     }
     // Before the march: a hand swinging under the squad, DRAG TO MARCH under it.
     if (playing && !battle_.started && turnT_ < 0.0f && titleFade_ < 0.5f) {

@@ -497,3 +497,57 @@ nine weapon icons and all twelve power-up icons exist already.
 | `fx.shadow_grow` | alpha | 1 | 2.0 x 1.0 at full size | under a falling bomb, growing from 0.3x to 1x (later: boulders, shells) |
 
 The explosion of a rocket is `fx.explosion` at 0.8x with its glow and ring; an airstrike bomb is `fx.bigboom` at 0.5x.
+
+## 17. Content pass assets, steps 3 and 4
+
+New global atlases: `atlas_foes.png` and `atlas_foes_2.png` (giant; archer, catapult, mine, cage, rail, wheeled posts)
+and `atlas_boss2.png` and `atlas_boss2_2.png` (the ogre's attacks, 256 colours like the props: each frame is on screen
+for under a second). The packer now pages a group that does not fit one 2048 x 2048 sheet (`<name>_2.png`), which also
+gave world 10 a second sheet (`atlas_props_w10_2.png`, tagged 10). A world's add-on attack frames are in its props
+atlas. `pack_atlas.py` writes every atlas and `sprites.txt` to a `.tmp` name and moves them into place together at the
+end. `assets/art` is 23.3 MB; the game now loads 9 global sheets and up to 2 per world.
+
+### Step 3
+
+| Kind | Frames, fps | Elevations | Size (units) | Notes |
+|---|---|---|---|---|
+| `haz.mine.still` | 2, 3 loop | 60/38/20 | 1.05 across, 0.6 tall | frame 0 = light off, 1 = light on (a red blink); blink faster as the squad nears by playing it at 3 to 10 fps. Burst: `fx.explosion` at 0.7x |
+| `archer.idle` | 8, 12 loop | 60/38/20 | 1.15 tall, the bow to 1.5 | a raider in a pointed felt cap with a feather, standing sideways, a tall pale bow in the left hand |
+| `archer.shoot` | 8, 12 once | 60/38/20 | the same | nocks and draws over frames 0-4, the arrow leaves at **frame 5**; point `release` (per elevation) = where it leaves |
+| `fx.arrow` | 1 | 0 | 0.18 x 0.92, pivot at the head | alpha; rotate it along its arc; under it `fx.shadow_grow` at 0.25x on the ground |
+| `gate.rail.still` | 1 | 60/38/20 | 1.0 wide | one unit of rail and sleepers: tile it along x across the road at the moving gate's z, drawn before the gate |
+| `gate.post_add_w`, `_mul_w`, `_neg_w`, `_wpn_w` | 1 | 60/38/20 | as the plain posts | the same posts on a four-wheeled cart instead of the stone foot |
+| `cage.back.still` | 1 | 60/38/20 | 1.75 square | the cage's floor (the far bars are hidden by the roof frame at these angles): draw it first |
+| `cage.prisoner.wave` | 8, 12 loop | 60/38/20 | 1.15 tall | a blue soldier, facing us, one arm waving: draw two at x -0.35 and +0.35 from the cage's centre, same z, after the back |
+| `cage.still` | 1 | 60/38/20 | 1.8 wide, 2.55 tall | the near bars, the gold lock and the open roof frame with a gold finial: draw it last. Green iron (`#2FA85A`) |
+| `fx.cage_open` | 8, 20 once | 0 | 3.2 | alpha; green bars and gold bits flying, on rescue; the prisoners then run to the squad (reuse the recruits' pop-in) |
+| `fx.coin` | 8, 12 loop | 0 | 0.45 | alpha; a spinning gold coin for gold-rush levels (burst 6-10 from each gate passed, ballistic, as confetti) |
+
+- **Cage light**: `fx.light_column` tinted `#6CFF8A` (multiply), no new sprite.
+- **Gold rush banner**: no sprite; use the gold ribbon (`ui.ribbon_gold_*`) with `BONUS ROAD`.
+- **Mode chips** (`atlas_ui.png`, drawn on a 24 dp square, a thinner outline than the 36-40 dp icons): `ui.mode_march`
+  (flag), `_boss` (ogre head), `_siege` (wall), `_rush` (winged boot), `_rescue` (cage), `_arsenal` (crossed guns),
+  `_gauntlet` (hammer), `_giants` (giant), `_gold` (coin), `_laststand` (clock). Place one in a 32 dp cream disc (ink
+  outline 2) to the right of the stars; MARCH needs no chip.
+
+### Step 4
+
+| Kind | Frames, fps | Elevations | Size (units) | Notes |
+|---|---|---|---|---|
+| `catapult.idle` | 1 | 60/38/20 | 2.7 wide, 3.0 tall with its flag | a timber frame on four iron-shod wheels, the arm cocked back with a stone in its cup, a red pennant; it faces down the road: stand it at x = +-3.5 |
+| `catapult.fire` | 8, 12 once | 60/38/20 | the arm reaches 4.3 | strains (frames 0-1), swings over (2-4), the stone leaves at **frame 4**, the arm rocks and stays up: go back to `idle` when the next stone is loaded. Point `release` = the cup at the top of the swing |
+| `fx.boulder` | 8, 12 loop | 0 | 1.3 | alpha; a tumbling grey rock (rendered in 3D), pivot at its centre; with `fx.shadow_grow` under it growing as it falls. Also the ogre's thrown rock at 1.5x |
+| `fx.warn_circle` | 8, 10 loop | 0 | 2.3 for a radius of 1: scale by the blast radius | additive; a red ring, a faint red fill and twelve teeth pointing in, pulsing; flat on the ground like `fx.ring` |
+| `fx.dirt_burst` | 8, 20 once | 0 | 3.4 (for a radius of 1.7: scale with the radius) | alpha; a fountain of earth and stones; with `fx.ring` |
+| `boss.slam` | 8, 12 once | 38/20 | the club reaches 10 units up | the club goes up past the head (frames 0-3) and comes down on the road in front: it lands at **frame 5**, then lifts |
+| `boss.throw` | 8, 12 once | 38/20 | | the free hand lifts a rock over the head (0-3) and hurls it: it leaves at **frame 5**; point `release`. From then draw `fx.boulder` |
+| `boss.roar` | 8, 10 once | 38/20 | | arms wide, chest back then forward, head up, a shake; with `fx.ring` at 1.5x from the head |
+| `wN.boss_addon.slam` / `.throw` / `.roar` | as the boss's | 38/20 | | worlds 2-10: every add-on rides the head or shoulders, which move in the attacks, so each has its own frames; drawn over the boss exactly as in `march` |
+| `fx.warn_half` | 8, 10 loop | 0 | a tile 2.5 square | additive; red with chevrons running toward the squad; tiles in both directions: lay it flat over the threatened half of the road |
+| `fx.wave_ridge` | 8, 10 loop | 0 | a tile 2.0 wide, 1.3 tall, pivot at its foot | alpha; a rolling ridge of dust; tile it across the road leaving the gap, upright at the wave's z |
+| `fx.arrow_ground` | 1 | 0 | 1.6 | alpha; a yellow arrow with an ink outline, flat on the road in the gap, pointing up the road; pulse its alpha 60-100% |
+| `giant.march` | 8, 12 loop | 60/38/20 | 3.9 tall to the horns, the banner to 5.7, 2.4 wide | the brute at twice the size (twice the pixels), a spiked wooden club instead of the mace, no shield, a red banner on a pole on its back. Health bar 4.4 above its pivot |
+
+The boss's attack frames are rendered at 52 px a unit (its march at 72): they are on screen for under a second each.
+The ogre's `release` and the catapult's `release` are fixed points (they do not follow the hand frame by frame): start the
+projectile there on the release frame.

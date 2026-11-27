@@ -76,7 +76,14 @@ The text form, one string per level: `S<start> L<length×10> V<speed×100> B<bos
 A<star2> C<star3> R<botEnd>`, optional `K<spike> Y<pace×100> D<drain×10> P<planLook×10> Q<plan,...> G<gun>`, then
 `g<x0>,<x1>,<z>,<value>,<kind>,<grows>,<cap>` (x and z ×10; kind 2 is a weapon gate, its value the weapon),
 `b<x>,<z>,<hp>,<reward>`, `c<x>,<z>,<hp>,<weapon>` (a weapon crate, in the barrels' list), `s<x>,<z>,<hp>,<power>` (a
-supply crate, also there), `w<z>,<x0>,<x1>,<count>,<kind>`, `m<x>,<z>,<power>` (a medallion). `generate` returns a level that has been through this form, so the bake plays exactly
+supply crate, also there), `w<z>,<x0>,<x1>,<count>,<kind>`, `m<x>,<z>,<power>` (a medallion), `n<x>,<z>` (a mine),
+`k<x>,<z>,<prisoners>` (a cage); `M<mode>` the level's mode; `J<bits>` the boss's attacks (1 club, 2 boulders, 4 war cry,
+8 stomp); a gate's optional eighth number makes it move (its phase); a wave's optional sixth its hit points each (a
+giant's).
+
+Telegraphed blows (`Strike`: a boulder's circle, the club's half of the road, the stomp's gap) wait `t` seconds and then
+take the share of the squad's footprint standing in them, at most `cap` (`Battle::attacks`); the bot steps out of them
+before anything else. `generate` returns a level that has been through this form, so the bake plays exactly
 what the table will hold. `levelCount()`/`level(n)` decode `kBaked[]` once; a fallback level exists if the table is empty.
 
 ## 5. The view (`src/game/field.*`)

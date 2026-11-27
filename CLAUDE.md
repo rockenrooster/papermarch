@@ -2,8 +2,8 @@
 
 A real-time squad shooter (the owner's advertisement screenshots, 2026-11-26): the squad marches up a road firing; the
 player drags it through gates, shoots barrels and barricades, crushes red hordes and an ogre boss. The look is painted
-toy soldiers in a diorama (`docs/ART_DIRECTION.md`): creative, design and asset work goes to a Fable subagent (the
-owner's rule, 2026-11-26), engine work stays here. Read `docs/PLAN.md` first, then `docs/PROGRESS.md`;
+toy soldiers in a diorama (`docs/ART_DIRECTION.md`). A Fable subagent made the art up to the content pass's step 4;
+on 2026-11-27 the owner stopped it ("No more fable agent"): no Fable or other art subagents from then on. Read `docs/PLAN.md` first, then `docs/PROGRESS.md`;
 `docs/GAME_DESIGN.md` (rules, numbers, the difficulty curve) and `docs/TECH_SPEC.md` (code) by section.
 
 ## Commands (PowerShell 7, repo root; every script dot-sources `scripts\env.ps1`: 4 cores, silent, the tool paths)
@@ -43,9 +43,9 @@ errors, 4 benchmark invalid, 5 capture failed, 6 flow test failed, 7 a lint fail
 
 ## Owner's rules (they hold for every run)
 
-- **Subagents:** creative, design and asset work goes to a Fable subagent (`model: fable`), which owns
-  `docs/ART_DIRECTION.md`, `tools/art/`, `assets/art/` and `captures/art/` and does not run git; other work is done
-  directly, no other subagents unless the owner asks.
+- **Subagents:** none (the owner, 2026-11-27: "No more fable agent"). New art is made directly: reuse and tint the
+  existing sprites, draw effects in the view, or run the generators in `tools/art` (through `scripts\env.ps1`);
+  `docs/ART_DIRECTION.md` stays the reference for the look.
 - **PC runs are silent and off screen** (`--silent --offscreen`), on **at most 4 CPU cores**. Phones keep their sound.
 - **Shared devices** (PLAN 3): every adb command with `-s <serial>`; nothing device-wide; check the foreground app
   first; take the lock file in `D:\Stuff\DevFolder\Android_Games\Raveform\captures\locks\`; force-stop only

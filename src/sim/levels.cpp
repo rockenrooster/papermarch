@@ -37,6 +37,18 @@ const char* const kHints[kHintCount] = {
     "CALL THE AIRSTRIKE",                // 18: the first supply crate
     "POWER SHOT: DOUBLE DAMAGE",         // 19
     "FREEZE THE HORDE",                  // 20
+    "SHOOT MINES NEAR THE HORDE",        // 21: mines (13)
+    "BONUS ROAD: GRAB IT ALL",           // 22: every gold rush level
+    "ARCHERS SHOOT BACK",                // 23: archers (17)
+    "GATES ON THE MOVE",                 // 24: moving gates (19)
+    "FREE THE PRISONERS",                // 25: every rescue level
+    "ARSENAL: A WEAPON FROM THE START",  // 26: every arsenal level
+    "DODGE THE RED CIRCLE",              // 27: catapults (21)
+    "A GIANT BLOCKS THE ROAD",           // 28: giants (29)
+    "DODGE THE CLUB",                    // 29: the boss's club slam (30)
+    "WATCH THE SKY",                     // 30: its boulders (50)
+    "THE OGRE CALLS FOR HELP",           // 31: its war cry (60)
+    "FIND THE GAP",                      // 32: its stomp (70)
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -143,6 +155,8 @@ bool decodeLevel(const char* text, LevelDef& out) {
             case 'D': if (!num(p, v[0])) return false; out.drain = float(v[0]) / 10.0f; break;
             case 'P': if (!num(p, v[0])) return false; out.planLook = float(v[0]) / 10.0f; break;
             case 'G': if (!num(p, v[0]) || v[0] < 0 || v[0] >= kWeaponCount) return false; out.gun = u8(v[0]); break;
+            case 'M': if (!num(p, v[0]) || v[0] < 0 || v[0] >= kModeCount) return false; out.mode = u8(v[0]); break;
+            case 'J': if (!num(p, v[0]) || v[0] < 0 || v[0] > 15) return false; out.bossAttacks = u8(v[0]); break;
             case 'Q': {  // the plan's choices, one a row: Q-1,0,1
                 out.planCount = 0;
                 for (;;) {
@@ -153,10 +167,25 @@ bool decodeLevel(const char* text, LevelDef& out) {
                 }
                 break;
             }
-            case 'g': {
+            case 'g': {  // x0, x1, z, value, kind, grows, cap[, moves]
                 if (out.gateCount >= kMaxGates || !nums(p, v, 7)) return false;
+                v[7] = 0;
+                if (*p == ',') {
+                    ++p;
+                    if (!num(p, v[7])) return false;
+                }
                 out.gates[out.gateCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4]), u8(v[5]),
-                                              i32(v[6])};
+                                              i32(v[6]), u8(v[7])};
+                break;
+            }
+            case 'n': {  // a mine: x, z
+                if (out.mineCount >= kMaxMines || !nums(p, v, 2)) return false;
+                out.mines[out.mineCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f};
+                break;
+            }
+            case 'k': {  // a cage: x, z, prisoners
+                if (out.cageCount >= kMaxCages || !nums(p, v, 3)) return false;
+                out.cages[out.cageCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, i32(v[2])};
                 break;
             }
             case 'b': {
@@ -179,9 +208,14 @@ bool decodeLevel(const char* text, LevelDef& out) {
                 out.medals[out.medalCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, u8(v[2])};
                 break;
             }
-            case 'w': {
-                if (out.waveCount >= kMaxWaves || !nums(p, v, 5)) return false;
-                out.waves[out.waveCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4])};
+            case 'w': {  // z, x0, x1, count, kind[, hit points each]
+                if (out.waveCount >= kMaxWaves || !nums(p, v, 5) || v[4] < 0 || v[4] >= kEnemyKindCount) return false;
+                v[5] = 0;
+                if (*p == ',') {
+                    ++p;
+                    if (!num(p, v[5])) return false;
+                }
+                out.waves[out.waveCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4]), i32(v[5])};
                 break;
             }
             default:
@@ -209,6 +243,8 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     if (int(d.drain * 10.0f + 0.5f) != 220) put(" D%d", int(d.drain * 10.0f + 0.5f));
     if (d.planLook > 0) put(" P%d", t10(d.planLook));
     if (d.gun != kMusket) put(" G%d", d.gun);
+    if (d.mode != kModeMarch) put(" M%d", d.mode);
+    if (d.bossAttacks) put(" J%d", d.bossAttacks);
     if (d.planCount > 0) {
         put(" Q%d", d.plan[0]);
         for (int i = 1; i < d.planCount; ++i) put(",%d", d.plan[i]);
@@ -216,6 +252,7 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     for (int i = 0; i < d.gateCount; ++i) {
         const GateDef& g = d.gates[i];
         put(" g%d,%d,%d,%d,%d,%d,%d", t10(g.x0), t10(g.x1), t10(g.z), g.value, g.kind, g.grows, g.cap);
+        if (g.moves) put(",%d", g.moves);
     }
     for (int i = 0; i < d.barrelCount; ++i) {
         const BarrelDef& b = d.barrels[i];
@@ -224,9 +261,12 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
         else put(" b%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.reward);
     }
     for (int i = 0; i < d.medalCount; ++i) put(" m%d,%d,%d", t10(d.medals[i].x), t10(d.medals[i].z), d.medals[i].power);
+    for (int i = 0; i < d.mineCount; ++i) put(" n%d,%d", t10(d.mines[i].x), t10(d.mines[i].z));
+    for (int i = 0; i < d.cageCount; ++i) put(" k%d,%d,%d", t10(d.cages[i].x), t10(d.cages[i].z), d.cages[i].reward);
     for (int i = 0; i < d.waveCount; ++i) {
         const WaveDef& w = d.waves[i];
         put(" w%d,%d,%d,%d,%d", t10(w.z), t10(w.x0), t10(w.x1), w.count, w.kind);
+        if (w.hp > 0) put(",%d", w.hp);
     }
     return o < 0 ? 0 : o;
 }

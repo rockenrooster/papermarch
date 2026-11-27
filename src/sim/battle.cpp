@@ -13,6 +13,9 @@ const EnemyStats kStats[kEnemyKindCount] = {
     {2, 5.6f, 0.55f, 2},   // rider
     {8, 2.2f, 0.85f, 6},   // brute
     {1, 1.5f, 1.9f, 0},    // boss (its hit points come from the level; it drains the squad while it touches it)
+    {1, 0.0f, 0.42f, 1},   // archer: stands where it is and shoots (volleys)
+    {40, 0.0f, 1.2f, 0},   // catapult: a timber engine at the road's side (attacks); the squad smashes it in passing
+    {1, 1.8f, 1.3f, 25},   // giant: its hit points come from its wave (35% of a boss's); it drops a medallion
 };
 // docs/CONTENT_PASS.md 1 (rate and damage times the musket's; the twin fires pairs, the scattergun a fan of five).
 const WeaponStats kWeapons[kWeaponCount] = {
@@ -62,6 +65,19 @@ void Battle::init(const LevelDef& d) {
     shieldPool = 0;
     for (u8& m : medalTaken) m = 0;
     bombCount = 0;
+    for (int m = 0; m < kMaxMines; ++m) {
+        mineHp[m] = 3 * kHp;
+        mineGone[m] = 0;
+    }
+    for (u8& c : cageOpen) c = 0;
+    arrowCount = 0;
+    strikeCount = 0;
+    slamT = 2.0f;
+    tossT = 1.5f;
+    stompT = 3.0f;
+    criesDone = 0;
+    dropCount = 0;
+    for (u8& t : dropTaken) t = 0;
     fireAcc_ = 0;
     rng_ = d.seed * 2654435761u + 12345u;
     if (!rng_) rng_ = 1;
@@ -84,16 +100,60 @@ void Battle::spawnWave(int w, BattleEvents& ev) {
         if (e.x > wd.x1) e.x -= gap;
         e.x = clampv(e.x + jx, -kRoadHalf + 0.3f, kRoadHalf - 0.3f);
         e.z = wd.z + float(row) * gap * 0.9f + jz;
-        e.hp = st.hp * kHp;
+        e.hp = (wd.hp > 0 ? wd.hp : st.hp) * kHp;
         e.incoming = 0;
         e.kind = wd.kind;
         e.alive = 1;
         e.seed = u16(rand());
         e.hit = 99;
+        e.cool = float(rand() & 0xFFFF) / 65535.0f * 1.6f;  // archers loose out of step
         e.wave = i8(w);
         ++alive_;
     }
     ev.wave = w;
+}
+
+void Battle::gateSpan(int g, float t, float& lo, float& hi) const {
+    const GateDef& gd = def->gates[g];
+    lo = gd.x0;
+    hi = gd.x1;
+    if (!gd.moves) return;
+    const float half = 0.5f * (hi - lo), c0 = 0.5f * (lo + hi);
+    const float c = clampv(c0 + 3.0f * std::sin(6.2831853f * (t / 3.0f + float(gd.moves) / 256.0f)), -kRoadHalf + half, kRoadHalf - half);
+    lo = c - half;
+    hi = c + half;
+}
+
+void Battle::explode(int m, BattleEvents& ev) {
+    if (mineGone[m]) return;
+    mineGone[m] = 1;
+    ev.mine = m;
+    bucket();
+    blast(def->mines[m].x, def->mines[m].z, 2.5f, damage() * 10, -1, 3, ev);
+}
+
+void Battle::volleys(BattleEvents& ev) {
+    const bool frozen = powered(kFreeze);
+    for (int i = 0; i < enemyCount; ++i) {
+        Enemy& e = enemies[i];
+        const float d = e.z - z;
+        if (!e.alive || e.kind != kArcher || d <= 0.0f || d > 18.0f || (frozen && d < 45.0f)) continue;
+        e.cool -= kDt;
+        if (e.cool > 0.0f) continue;
+        e.cool += 1.6f;
+        if (arrowCount < kMaxArrows) {
+            arrows[arrowCount++] = {e.x, e.z, 0.8f, e.wave};
+            ++ev.arrows;
+        }
+    }
+    int o = 0;
+    for (int k = 0; k < arrowCount; ++k) {
+        Arrow a = arrows[k];
+        a.t -= kDt;
+        if (a.t <= 0.0f) lose(1, ev, a.wave);
+        else arrows[o++] = a;
+    }
+    arrowCount = o;
 }
 
 void Battle::bucket() {
@@ -251,6 +311,132 @@ void Battle::kill(int i, BattleEvents& ev) {
         won = true;
         ev.won = true;
     }
+    if (e.kind == kGiant && dropCount < kMaxDrops) {  // a giant drops a medallion where it falls
+        drops[dropCount] = {e.x, e.z, u8(e.seed & 1 ? kPowerShot : kRapid)};
+        dropTaken[dropCount++] = 0;
+    }
+}
+
+float Battle::share(float a, float b) const {
+    float lo, hi;
+    footprint(lo, hi);
+    return clampv((minv(hi, b) - maxv(lo, a)) / maxv(0.2f, hi - lo), 0.0f, 1.0f);
+}
+
+void Battle::strike(const Strike& s, BattleEvents& ev) {
+    if (strikeCount >= kMaxStrikes) return;
+    strikes[strikeCount++] = s;
+    ev.strikeShown = s.kind;
+}
+
+void Battle::attacks(BattleEvents& ev) {
+    const bool frozen = powered(kFreeze);
+    // Catapults within 45 units hurl a boulder at where the squad will be when it lands, 1.2 s later.
+    for (int i = 0; i < enemyCount; ++i) {
+        Enemy& e = enemies[i];
+        const float d = e.z - z;
+        if (!e.alive || e.kind != kCatapult || d < 6.0f || d > 45.0f || frozen) continue;
+        e.cool -= kDt;
+        if (e.cool > 0.0f) continue;
+        e.cool += 3.2f;
+        Strike s;
+        s.kind = 0;
+        s.x = x;
+        s.z = z + def->speed * 1.2f;
+        s.r = 1.7f;
+        s.t = s.full = 1.2f;
+        s.fromX = e.x;
+        s.fromZ = e.z;
+        s.cap = 14;
+        strike(s, ev);
+        ++ev.thrown;
+    }
+    // The boss's attacks while it is in sight and not frozen: the club when it is close, boulders while it is not, the
+    // stomp's ridge, a war cry at two thirds and one third of its strength.
+    if (boss_ >= 0 && def->bossAttacks && !(powerLeft[kFreeze] > powerFull[kFreeze] * 0.5f)) {
+        const Enemy& bo = enemies[boss_];
+        const float d = bo.z - z;
+        const u8 a = def->bossAttacks;
+        if (d < 60.0f) {
+            if ((a & kAttackSlam) && d < 14.0f && (slamT -= kDt) <= 0.0f) {
+                slamT = 4.5f;
+                Strike s;
+                s.kind = 1;
+                s.x = x < 0.0f ? -1.0f : 1.0f;
+                s.z = z;
+                s.t = s.full = 1.0f;
+                s.cap = maxv<i32>(1, squad * 12 / 100);
+                strike(s, ev);
+            }
+            if ((a & kAttackToss) && d >= 14.0f && (tossT -= kDt) <= 0.0f) {
+                tossT = 3.0f;
+                Strike s;
+                s.kind = 0;
+                s.x = x;
+                s.z = z + def->speed * 1.2f;
+                s.r = 2.0f;
+                s.t = s.full = 1.2f;
+                s.fromX = bo.x;
+                s.fromZ = bo.z;
+                s.cap = maxv<i32>(1, squad / 10);
+                s.byBoss = 1;
+                strike(s, ev);
+                ++ev.thrown;
+                ev.bossThrew = true;
+            }
+            if ((a & kAttackStomp) && (stompT -= kDt) <= 0.0f) {
+                stompT = 5.0f;
+                Strike s;
+                s.kind = 2;
+                s.x = -3.0f + 6.0f * float(rand() & 0xFFFF) / 65535.0f;
+                s.z = bo.z;
+                s.t = s.full = maxv(0.8f, d / 12.0f);  // the ridge rolls 12 units a second
+                s.cap = maxv<i32>(1, squad / 10);
+                strike(s, ev);
+            }
+            if (a & kAttackCry) {
+                const i32 full = def->bossHp * kHp;
+                for (int k = 0; k < 2; ++k) {
+                    if ((criesDone & (1 << k)) || bo.hp > full * (k == 0 ? 66 : 33) / 100) continue;
+                    criesDone = u8(criesDone | (1 << k));
+                    ev.roar = true;
+                    const int n = def->spike ? 24 : 16;  // its escort runs in from behind it
+                    for (int j = 0; j < n && enemyCount < kMaxEnemies; ++j) {
+                        Enemy& e = enemies[enemyCount++];
+                        e = Enemy{};
+                        e.x = -3.6f + 7.2f * float(j % 8) / 7.0f;
+                        e.z = bo.z + 2.0f + 0.9f * float(j / 8);
+                        e.hp = enemyStats(kFoot).hp * kHp;
+                        e.kind = kFoot;
+                        e.alive = 1;
+                        e.seed = u16(rand());
+                        e.hit = 99;
+                        ++alive_;
+                    }
+                }
+            }
+        }
+    }
+    // Blows land on whatever of the squad stands in them.
+    int o = 0;
+    for (int k = 0; k < strikeCount; ++k) {
+        Strike s = strikes[k];
+        s.t -= kDt;
+        if (s.t > 0.0f) {
+            strikes[o++] = s;
+            continue;
+        }
+        float f;
+        if (s.kind == 0) f = std::fabs(s.z - z) <= s.r + radius() * 0.6f ? share(s.x - s.r, s.x + s.r) : 0.0f;
+        else if (s.kind == 1) f = s.x < 0.0f ? share(-kRoadHalf, 0.0f) : share(0.0f, kRoadHalf);
+        else f = 1.0f - share(s.x - 1.5f, s.x + 1.5f);
+        const i32 n = minv(s.cap, i32(std::ceil(float(squad) * f - 0.001f)));
+        lose(n, ev);
+        ev.strikeLanded = s.kind;
+        ev.strikeX = s.x;
+        ev.strikeZ = s.kind == 0 ? s.z : z;
+    }
+    strikeCount = o;
 }
 
 void Battle::fire(BattleEvents& ev) {
@@ -315,14 +501,16 @@ void Battle::moveBullets(BattleEvents& ev) {
         const WeaponStats& w = weaponStats(b.kind);
         const float zp = b.z, zn = b.z + w.speed * kDt;
         b.x += b.vx * (zn - zp);
-        // The nearest thing it strikes along this step: a gate that grows, a barrel (or crate).
+        // The nearest thing it strikes along this step: a gate that grows, a barrel (or crate), a mine.
         float wallZ = 1e9f;
-        int kind = 0, which = -1;  // 1 gate, 2 barrel
+        int kind = 0, which = -1;  // 1 gate, 2 barrel, 3 mine
         for (int g = 0; g < def->gateCount; ++g) {
             const GateDef& gd = def->gates[g];
             const GateState& gs = gates[g];
-            if (gs.used || gs.passed || !gd.grows || gs.value >= gd.cap) continue;
-            if (gd.z < zp || gd.z > zn || b.x < gd.x0 || b.x > gd.x1) continue;
+            if (gs.used || gs.passed || !gd.grows || gs.value >= gd.cap || gd.z < zp || gd.z > zn) continue;
+            float g0, g1;
+            gateSpan(g, time, g0, g1);
+            if (b.x < g0 || b.x > g1) continue;
             if (gd.z < wallZ) {
                 wallZ = gd.z;
                 kind = 1;
@@ -336,6 +524,15 @@ void Battle::moveBullets(BattleEvents& ev) {
                 wallZ = bd.z - 0.6f;
                 kind = 2;
                 which = k;
+            }
+        }
+        for (int m = 0; m < def->mineCount; ++m) {
+            const MineDef& md = def->mines[m];
+            if (mineGone[m] || std::fabs(b.x - md.x) > 0.5f || md.z < zp - 0.5f || md.z > zn + 0.5f) continue;
+            if (md.z - 0.5f < wallZ) {
+                wallZ = md.z - 0.5f;
+                kind = 3;
+                which = m;
             }
         }
         // Enemies before that, nearest first: a ball stops at the first; a lance bolt goes through up to `pierce` of
@@ -384,19 +581,23 @@ void Battle::moveBullets(BattleEvents& ev) {
             }
         }
         if (stopped) continue;
-        if (kind != 0) {  // it strikes the gate or the barrel and stops there
+        if (kind != 0) {  // it strikes the gate, the barrel or the mine and stops there
             release(b);
             if (kind == 1) {
                 GateState& gs = gates[which];
                 if (b.grows) gs.value = minv(gs.value + 1, def->gates[which].cap);
                 gs.hit = 0;
                 ++ev.hits;
-            } else {
+            } else if (kind == 2) {
                 BarrelState& bs = barrels[which];
                 bs.hp -= b.dmg;
                 bs.hit = 0;
                 ++ev.hits;
                 if (bs.hp <= 0) breakBarrel(which, ev);
+            } else {
+                mineHp[which] -= b.dmg;
+                ++ev.hits;
+                if (mineHp[which] <= 0) explode(which, ev);
             }
             if (w.splash > 0.0f) blast(b.x, wallZ, w.splash, i32(float(b.dmg) * w.splashDamage / w.damage + 0.5f), -1, 0, ev);
             continue;
@@ -435,7 +636,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
             }
             continue;
         }
-        if (!(powered(kFreeze) && d < 45.0f)) {  // frozen within 45 units: it stands where it is
+        if (!(powered(kFreeze) && d < 45.0f) && e.kind != kArcher && e.kind != kCatapult) {  // frozen (or one that stands)
             e.z -= st.speed * def->pace * kDt;
             if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * def->pace * kDt;
         }
@@ -506,7 +707,9 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
         const GateDef& gd = def->gates[g];
         GateState& gs = gates[g];
         if (gs.used || gs.passed || gd.z <= zPrev || gd.z > z) continue;
-        if (x >= gd.x0 && x <= gd.x1) {
+        float g0, g1;
+        gateSpan(g, time, g0, g1);
+        if (x >= g0 && x <= g1) {
             ev.gate = g;
             ev.gateBefore = squad;
             if (gd.kind == kGateWeapon) {  // it hands over its weapon
@@ -515,6 +718,7 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
             } else {
                 const i64 s = gd.kind == kGateMul ? i64(squad) * gs.value : i64(squad) + gs.value;
                 squad = i32(clampv<i64>(s, 0, kSquadCap));
+                if (def->mode == kModeGold) squad = maxv(squad, minv<i32>(3, ev.gateBefore));  // a bonus road keeps 3
             }
             ev.gateAfter = squad;
             gs.used = 1;
@@ -555,9 +759,39 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
             take(md.power, ev);
         }
     }
+    // Medallions dropped by giants, the same way.
+    for (int m = 0; m < dropCount; ++m) {
+        const MedalDef& md = drops[m];
+        if (dropTaken[m] || md.z > z + r * 0.6f + 0.6f || md.z < z - r * 0.6f - 0.6f) continue;
+        if (md.x > lo - 0.6f && md.x < hi + 0.6f) {
+            dropTaken[m] = 1;
+            take(md.power, ev);
+        }
+    }
+    // Cages the footprint touches free their prisoners; mines it touches go off under it.
+    for (int c = 0; c < def->cageCount; ++c) {
+        const CageDef& cd = def->cages[c];
+        if (cageOpen[c] || cd.z > z + r * 0.6f + 0.8f || cd.z < z - r * 0.6f - 0.8f) continue;
+        if (cd.x > lo - 0.8f && cd.x < hi + 0.8f) {
+            cageOpen[c] = 1;
+            ev.cage = c;
+            squad = minv(squad + cd.reward, kSquadCap);
+        }
+    }
+    for (int m = 0; m < def->mineCount; ++m) {
+        const MineDef& md = def->mines[m];
+        if (mineGone[m] || md.z > z + r * 0.6f + 0.5f || md.z < z - r * 0.6f - 0.5f) continue;
+        if (md.x > lo - 0.5f && md.x < hi + 0.5f) {
+            ev.mineStepped = true;
+            lose(6, ev);
+            explode(m, ev);
+        }
+    }
     fire(ev);
     moveBullets(ev);
     moveEnemies(ev);
+    volleys(ev);
+    attacks(ev);
     powers(ev);
     for (int g = 0; g < def->gateCount; ++g) gates[g].hit += kDt;
     for (int k = 0; k < def->barrelCount; ++k) barrels[k].hit += kDt;

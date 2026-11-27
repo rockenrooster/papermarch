@@ -189,8 +189,6 @@ def reset():
 
 def render(kind, anim, frames, elevs, ppu, w, h, cz, pose=None, points=None, yc=0.0):
     """Render `frames` poses at each elevation. The view is w x h road units, centred on (0, yc, cz)."""
-    if ONLY and kind not in ONLY and kind.split('.')[0] not in ONLY:
-        return
     s = ppu * SS
     W, H = int(round(w * s)), int(round(h * s))
     scene.render.resolution_x, scene.render.resolution_y, scene.render.resolution_percentage = W, H, 100
@@ -217,8 +215,9 @@ def render(kind, anim, frames, elevs, ppu, w, h, cz, pose=None, points=None, yc=
         json.dump(meta, fh)
     print('rendered', kind, anim, flush=True)
 
-def want(kind):
-    return not ONLY or kind in ONLY or kind.split('.')[0] in ONLY
+def want(kind, anim):
+    """--only takes kinds (soldier), their first part (w3, ui) or kind:anim (boss:slam)."""
+    return not ONLY or kind in ONLY or kind.split('.')[0] in ONLY or '%s:%s' % (kind, anim) in ONLY or '%s:%s' % (kind.split('.')[0], anim) in ONLY
 
 # ---- units -------------------------------------------------------------------------------------------------------------
 def leg(parent, x, trouser, boot, r=0.08, length=0.3):
@@ -262,9 +261,37 @@ def weapon_parts(kind, gun, body):
         rod((0, 0.38, 0), (0, 0.58, 0), 0.07, 0.004, M(RED, 0.3), parent=g)
         box((0.03, 0.08, 0.08), M(BLACK), bevel=0, parent=g, loc=(0, 0.1, 0.1))
         return {'muzzle': E(g, (0, 0.6, 0))}
+    if kind == 'flame':         # two red tanks on the pack, a hose, a steel nozzle with a pilot light
+        for x in (-0.08, 0.08):
+            lathe([(0, 0), (0.075, 0.02), (0.075, 0.3), (0, 0.34)], M(0xE0482A, 0.3, 0.2), seg=12, smooth=True, parent=body, loc=(x, -0.33, 0.1))
+            ell((0.03, 0.03, 0.02), M(STEEL_L, 0.3, 0.7), parent=body, loc=(x, -0.33, 0.45))
+        rod((0.1, -0.3, 0.14), (0.24, -0.1, 0.18), 0.022, 0.022, M(BLACK, 0.5), parent=body, seg=6)
+        rod((0, -0.2, -0.02), (0, 0.34, 0.0), 0.04, 0.035, M(STEEL, 0.3, 0.7), parent=gun)
+        rod((0, 0.34, 0.0), (0, 0.46, 0.0), 0.035, 0.07, M(0x2E3038, 0.4, 0.6), parent=gun)
+        ell(0.04, GL(0xFFB03A, 10.0), parent=gun, loc=(0, 0.48, 0.0))
+        return {'muzzle': E(gun, (0, 0.5, 0))}
+    if kind == 'coil':          # a brass rod wound with copper rings, a glowing violet ball at its tip
+        rod((0, -0.2, -0.02), (0, 0.5, 0.0), 0.03, 0.026, M(0xD9A441, 0.25, 0.7), parent=gun)
+        for y in (0.12, 0.22, 0.32):
+            rod((0, y, 0), (0, y + 0.05, 0), 0.062, 0.062, M(0xC8643C, 0.3, 0.7), parent=gun)
+        ell(0.085, GL(0xB07AFF, 9.0), parent=gun, loc=(0, 0.57, 0))
+        return {'muzzle': E(gun, (0, 0.6, 0))}
+    if kind == 'mortar':        # a stubby tube carried at the chest, pointing up and forward, on a little base plate
+        g = E(body, (0.2, 0.12, 0.16), rot=(math.radians(58), 0, 0))
+        rod((0, -0.06, 0), (0, 0.36, 0), 0.085, 0.085, M(0x4F6240, 0.5), parent=g)
+        rod((0, 0.3, 0), (0, 0.38, 0), 0.1, 0.1, M(0x2E3A26, 0.5), parent=g)
+        rod((0, 0.375, 0), (0, 0.385, 0), 0.07, 0.07, M(BLACK), parent=g)
+        box((0.22, 0.05, 0.22), M(0x2E3A26, 0.5), bevel=0.01, parent=g, loc=(0, -0.08, 0))
+        return {'muzzle': E(g, (0, 0.42, 0))}
+    if kind == 'frost':         # a pale blue gun with a small tank and an ice crystal for a muzzle
+        rod((0, -0.2, -0.03), (0, 0.12, 0), 0.05, 0.04, M(0xDCE6F4, 0.3, 0.3), parent=gun)
+        rod((0, 0.06, 0.01), (0, 0.4, 0.01), 0.04, 0.034, M(0x6FC8F0, 0.25, 0.5), parent=gun)
+        ell((0.06, 0.09, 0.06), M(0xBFE8FF, 0.2, 0.3), parent=gun, loc=(0, 0.02, 0.08))
+        o = lathe([(0, 0), (0.07, 0.06), (0.05, 0.2), (0, 0.28)], GL(0x9CE4FF, 5.0), seg=6, flat=True, parent=gun, loc=(0, 0.4, 0.01), rot=(math.radians(-90), 0, 0))
+        return {'muzzle': E(gun, (0, 0.7, 0.01))}
     raise ValueError(kind)
 
-def soldier(cheer=False, turn=0.0, weapon='musket', overlay=False):
+def soldier(cheer=False, turn=0.0, weapon='musket', overlay=False, wave=False):
     root = E(scale=0.9, rot=(0, 0, turn))
     body = E(root, (0, 0, 0.36))
     legs = [leg(body, -0.09, M(NAVY), M(BLACK)), leg(body, 0.09, M(NAVY), M(BLACK))]
@@ -326,9 +353,16 @@ def soldier(cheer=False, turn=0.0, weapon='musket', overlay=False):
                 o.is_holdout = True
     if cheer:
         return root, cheer_pose, {}
+    if wave:        # a prisoner calling for help: one arm high, waving; a small bounce
+        def wave_pose(t):
+            body.location.z = 0.36 + 0.03 * abs(math.sin(TAU * t))
+            armL.rotation_euler = (math.radians(170), 0.5 * math.sin(TAU * t), 0)
+            armR.rotation_euler = (0.1, 0, 0)
+            head.rotation_euler.z = 0.15 * math.sin(TAU * t)
+        return root, wave_pose, {}
     return root, pose, points
 
-def raider(parent, scale=1.0, mounted=False):
+def raider(parent, scale=1.0, mounted=False, hood=False):
     """The red horde's body: used on foot and in the saddle. Faces +Y; the caller turns it round."""
     body = E(parent, (0, 0, 0.34), scale=scale)
     legs = []
@@ -342,10 +376,15 @@ def raider(parent, scale=1.0, mounted=False):
     for x in (-0.065, 0.065):
         ell(0.03, M(BLACK, 0.2), parent=head, loc=(x, 0.145, 0.11))
         box((0.09, 0.03, 0.03), M(BLACK), bevel=0, parent=head, loc=(x, 0.15, 0.16), rot=(0, 0.45 * (1 if x > 0 else -1), 0))
-    lathe([(0.2, 0.15), (0.185, 0.2), (0.15, 0.3), (0.06, 0.44), (0, 0.56)], M(STEEL, 0.3, 0.7), parent=head, smooth=True)
-    lathe([(0.185, 0.14), (0.215, 0.14), (0.215, 0.18), (0.185, 0.18)], M(STEEL_L, 0.3, 0.7), parent=head)
-    box((0.04, 0.03, 0.14), M(STEEL_L, 0.3, 0.7), bevel=0, parent=head, loc=(0, 0.175, 0.12))   # nasal guard
-    ell(0.04, M(RED), parent=head, loc=(0, 0, 0.56))
+    if hood:
+        lathe([(0.2, 0.17), (0.19, 0.24), (0.11, 0.42), (0.02, 0.54), (0, 0.54)], M(RED_D, 0.7, 0, 0), parent=head, smooth=True)   # a pointed felt cap
+        lathe([(0.19, 0.16), (0.25, 0.17), (0.19, 0.2)], M(0x7A0F18, 0.7, 0, 0), parent=head, loc=(0, 0.03, 0))
+        rod((-0.14, -0.05, 0.26), (-0.3, -0.16, 0.62), 0.035, 0.004, M(CREAM, 0.6, 0, 0), parent=head, seg=5)                        # a feather
+    else:
+        lathe([(0.2, 0.15), (0.185, 0.2), (0.15, 0.3), (0.06, 0.44), (0, 0.56)], M(STEEL, 0.3, 0.7), parent=head, smooth=True)
+        lathe([(0.185, 0.14), (0.215, 0.14), (0.215, 0.18), (0.185, 0.18)], M(STEEL_L, 0.3, 0.7), parent=head)
+        box((0.04, 0.03, 0.14), M(STEEL_L, 0.3, 0.7), bevel=0, parent=head, loc=(0, 0.175, 0.12))   # nasal guard
+        ell(0.04, M(RED), parent=head, loc=(0, 0, 0.56))
     arms = []
     for x in (-0.23, 0.23):
         a = E(body, (x, 0, 0.32))
@@ -426,8 +465,8 @@ def rider():
         lance.rotation_euler.x = math.radians(-6) - 0.05 * c
     return root, pose, {}
 
-def brute():
-    root = E(rot=(0, 0, math.pi))
+def brute(giant=False):
+    root = E(rot=(0, 0, math.pi), scale=2.0 if giant else 1.0)
     body = E(root, (0, 0, 0.38))
     legs = [leg(body, x, M(0x3A3340), M(WOOD_D), r=0.15, length=0.34) for x in (-0.22, 0.22)]
     ell((0.52, 0.44, 0.5), M(OX), parent=body, loc=(0, 0, 0.5))
@@ -446,23 +485,38 @@ def brute():
         rod((0.36 * x, 0.02, 0.36), (0.44 * x, 0.04, 0.56), 0.045, 0.003, M(IVORY, 0.3), parent=head, seg=8)
     lathe([(0.225, 0.14), (0.22, 0.2), (0.17, 0.3), (0, 0.35)], M(STEEL, 0.3, 0.7), parent=head, smooth=True)
     lathe([(0.225, 0.13), (0.245, 0.13), (0.245, 0.17), (0.225, 0.17)], M(STEEL_L, 0.3, 0.7), parent=head)
-    armL = E(body, (-0.55, 0, 0.78), rot=(math.radians(55), 0, 0))
+    armL = E(body, (-0.55, 0, 0.78), rot=(math.radians(10 if giant else 55), 0, 0))
     ell((0.15, 0.15, 0.3), M(OX), parent=armL, loc=(0, 0, -0.22))
-    sh = E(body, (-0.3, 0.5, 0.42), rot=(math.radians(-78), 0, math.radians(12)))
-    lathe([(0, 0.08), (0.42, 0.03), (0.45, 0), (0, 0)], M(0x5B0E18), parent=sh)
-    lathe([(0.4, 0.035), (0.455, 0.0), (0.455, -0.02), (0.4, -0.02)], M(GOLD, 0.25, 0.3), parent=sh)
-    lathe([(0.13, 0.07), (0.1, 0.12), (0, 0.2)], M(GOLD, 0.25, 0.3), parent=sh, smooth=True)
-    for i in range(8):
-        ell(0.03, M(GOLD, 0.25, 0.3), parent=sh, loc=(0.3 * math.cos(TAU * i / 8), 0.3 * math.sin(TAU * i / 8), 0.055))
+    if not giant:
+        sh = E(body, (-0.3, 0.5, 0.42), rot=(math.radians(-78), 0, math.radians(12)))
+        lathe([(0, 0.08), (0.42, 0.03), (0.45, 0), (0, 0)], M(0x5B0E18), parent=sh)
+        lathe([(0.4, 0.035), (0.455, 0.0), (0.455, -0.02), (0.4, -0.02)], M(GOLD, 0.25, 0.3), parent=sh)
+        lathe([(0.13, 0.07), (0.1, 0.12), (0, 0.2)], M(GOLD, 0.25, 0.3), parent=sh, smooth=True)
+        for i in range(8):
+            ell(0.03, M(GOLD, 0.25, 0.3), parent=sh, loc=(0.3 * math.cos(TAU * i / 8), 0.3 * math.sin(TAU * i / 8), 0.055))
+    else:
+        ell(0.13, M(0xD99A72, 0.5, 0, 0.2), parent=armL, loc=(0, 0, -0.5))
+        lathe([(0.5, 0.3), (0.52, 0.42)], M(WOOD_D, 0.6), parent=body, scale=(1.03, 0.88, 1), rot=(0, 0.5, 0), loc=(0, 0, 0.1))   # a strap
+        rod((0, -0.4, 0.5), (0, -0.55, 2.3), 0.035, 0.03, M(WOOD, 0.6), parent=body)                                          # the banner
+        ell(0.07, M(GOLD, 0.2, 0.5), parent=body, loc=(0, -0.55, 2.34))
+        pennant(0.7, 0.55, M(RED, 0.6, 0, 0), swallow=True, parent=body, loc=(0.02, -0.53, 1.65))
+        ell((0.1, 0.03, 0.1), M(GOLD, 0.25, 0.4), parent=body, loc=(0.24, -0.56, 1.93))
     armR = E(body, (0.55, 0, 0.78), rot=(math.radians(35), 0, 0))
     ell((0.15, 0.15, 0.3), M(OX), parent=armR, loc=(0, 0, -0.22))
     ell(0.13, M(0xD99A72, 0.5, 0, 0.2), parent=armR, loc=(0, 0, -0.5))
     mace = E(armR, (0, 0, -0.5), rot=(math.radians(-70), 0, 0))
     rod((0, 0, -0.15), (0, 0, 0.75), 0.04, 0.04, M(WOOD_D), parent=mace)
-    ell(0.17, M(STEEL, 0.3, 0.7), parent=mace, loc=(0, 0, 0.85))
-    for i in range(10):
-        v = Vector((math.cos(i * 2.4), math.sin(i * 2.4), (i - 4.5) / 5.5)).normalized()
-        rod(Vector((0, 0, 0.85)) + v * 0.14, Vector((0, 0, 0.85)) + v * 0.3, 0.045, 0.002, M(STEEL_L, 0.3, 0.7), parent=mace, seg=5)
+    if not giant:
+        ell(0.17, M(STEEL, 0.3, 0.7), parent=mace, loc=(0, 0, 0.85))
+        for i in range(10):
+            v = Vector((math.cos(i * 2.4), math.sin(i * 2.4), (i - 4.5) / 5.5)).normalized()
+            rod(Vector((0, 0, 0.85)) + v * 0.14, Vector((0, 0, 0.85)) + v * 0.3, 0.045, 0.002, M(STEEL_L, 0.3, 0.7), parent=mace, seg=5)
+    else:
+        lathe([(0.05, 0.2), (0.2, 0.95), (0.17, 1.1), (0, 1.12)], M(WOOD, 0.7, 0, 0), parent=mace, smooth=True)
+        lathe([(0.16, 0.72), (0.185, 0.82)], M(STEEL, 0.35, 0.7), parent=mace)
+        for i in range(5):
+            v = Vector((math.cos(TAU * i / 5), math.sin(TAU * i / 5), 0))
+            rod(Vector((0, 0, 0.92)) + v * 0.17, Vector((0, 0, 0.92)) + v * 0.34, 0.05, 0.003, M(IVORY, 0.3), parent=mace, seg=5)
     def pose(t):
         a = math.sin(TAU * t)
         legs[0].rotation_euler.x, legs[1].rotation_euler.x = 0.6 * a, -0.6 * a
@@ -470,9 +524,10 @@ def brute():
         body.rotation_euler = (0.08, 0.09 * a, 0.12 * a)
         armR.rotation_euler.x = math.radians(35) + 0.2 * a
         head.rotation_euler.z = -0.1 * a
+        if giant: armL.rotation_euler.x = math.radians(10) - 0.35 * a
     return root, pose, {}
 
-def ogre(addon=None, skin=0x6FAE3C, belly=0x9CCB5A, cloth=RED):
+def ogre(addon=None, anim='march', skin=0x6FAE3C, belly=0x9CCB5A, cloth=RED):
     root = E(rot=(0, 0, math.pi), scale=2.4)
     S, B, I = M(skin, 0.55, 0, 0.15), M(belly, 0.55, 0, 0.15), M(IVORY, 0.3)
     IRON = M(STEEL, 0.35, 0.7)
@@ -546,13 +601,42 @@ def ogre(addon=None, skin=0x6FAE3C, belly=0x9CCB5A, cloth=RED):
         arms[0][0].rotation_euler.x = -0.35 * s
         arms[1][0].rotation_euler.x = 0.25 * s
         club.rotation_euler.x = math.radians(-55) + 0.15 * c
+    def sm(a, b, t):
+        k = min(1.0, max(0.0, (t - a) / (b - a)))
+        return k * k * (3 - 2 * k)
+    def slam(t):        # the club goes up (frames 0-3), comes down (it lands at frame 5), and is lifted again
+        r, d, c = sm(0, 0.45, t), sm(0.5, 0.66, t), sm(0.78, 1, t)
+        arms[1][0].rotation_euler.x = 0.25 + 2.6 * r - 2.55 * d - 0.05 * c       # up past the head, then down to the road
+        club.rotation_euler.x = math.radians(-55) - math.radians(125) * r + math.radians(125) * c   # in line with the forearm, like a bat
+        club.rotation_euler.y = math.radians(-28) * (1 - r + c)
+        torso.rotation_euler = (0.06 - 0.22 * r + 0.55 * d - 0.33 * c, 0, 0.1 * r - 0.1 * d)
+        body.location.z = 0.56 + 0.06 * r - 0.14 * d + 0.08 * c
+        arms[0][0].rotation_euler.x = -0.4 * r + 0.6 * d - 0.2 * c
+    rock = None
+    if anim == 'throw':
+        rock = blob(0.36, MT(0x8E97A3), seed=5, sub=1, smooth=False, rough=0.2, parent=arms[0][1], loc=(0, 0.1, -0.9))
+    def throw(t):       # a rock lifted over the head with the free hand (frames 0-3) and hurled (it leaves at frame 5)
+        r, d, c = sm(0, 0.45, t), sm(0.5, 0.64, t), sm(0.75, 1, t)
+        arms[0][0].rotation_euler.x = 2.9 * r - 1.7 * d - 1.2 * c
+        torso.rotation_euler = (0.06 - 0.2 * r + 0.45 * d - 0.25 * c, 0, -0.08 * r + 0.08 * d)
+        body.location.z = 0.56 + 0.05 * r - 0.1 * d + 0.05 * c
+        rock.scale = (0, 0, 0) if t >= 0.6 else (0.36, 0.36, 0.36)
+    def roar(t):        # arms thrown wide, the chest back and then forward, the head up, a shake
+        k = math.sin(math.pi * t)
+        arms[0][0].rotation_euler = (-0.5 * k, 1.1 * k, 0)
+        arms[1][0].rotation_euler = (-0.3 * k, -1.1 * k, 0)
+        torso.rotation_euler = (0.06 - 0.25 * math.sin(TAU * t), 0, 0)
+        head.rotation_euler.x = -0.35 * k
+        body.location.z = 0.56 + 0.03 * math.sin(4 * TAU * t) * k
+    pose = {'march': pose, 'slam': slam, 'throw': throw, 'roar': roar}[anim]
+    points = {'release': E(root, (-0.8, 0.6, 2.35))} if anim == 'throw' else {}
     ogre.head = head
     if addon:   # the ogre hides what is behind it but is not drawn: the add-on is a sprite over the shared boss
         for o in list(bpy.data.objects):
             if o.type == 'MESH' and o.visible_camera:
                 o.is_holdout = True
         addon(head, torso)
-    return root, pose, {}
+    return root, pose, points
 
 # ---- barrel, gate parts ------------------------------------------------------------------------------------------------
 def barrel():
@@ -569,8 +653,15 @@ def barrel():
     rod((0.2, 0.1, 1.12), (0.26, 0.12, 1.3), 0.02, 0.015, M(BLACK))
     ell(0.05, M(0xFFB020, 0.2, 0, 0, 12.0), loc=(0.265, 0.122, 1.33))
 
-def gate_post(kind):
-    lathe([(0, 0), (0.3, 0), (0.3, 0.12), (0.22, 0.2), (0.22, 0.3), (0, 0.3)], M(0xCFC5B4, 0.8, 0, 0), seg=16)
+def gate_post(kind, wheels=False):
+    if wheels:      # a little cart that runs on gate.rail
+        box((0.62, 0.5, 0.16), MT(0x8A5A34), bevel=0.03, loc=(0, 0, 0.24))
+        for x in (-0.2, 0.2):
+            for y in (-0.3, 0.3):
+                lathe([(0, -0.05), (0.17, -0.05), (0.17, 0.05), (0, 0.05)], M(STEEL, 0.35, 0.7), seg=14, loc=(x, y, 0.17), rot=(math.radians(90), 0, 0))
+                lathe([(0, -0.06), (0.06, -0.06), (0.06, 0.06), (0, 0.06)], M(GOLD, 0.25, 0.5), seg=10, loc=(x, y, 0.17), rot=(math.radians(90), 0, 0))
+    else:
+        lathe([(0, 0), (0.3, 0), (0.3, 0.12), (0.22, 0.2), (0.22, 0.3), (0, 0.3)], M(0xCFC5B4, 0.8, 0, 0), seg=16)
     if kind == 'neg':
         lathe([(0.17, 0.3), (0.12, 2.3), (0, 2.65)], M(WOOD_D, 0.8, 0, 0), seg=10)
         for z in (0.8, 1.7):
@@ -1118,6 +1209,295 @@ def medal():
         spin.location.z = 1.0 + 0.06 * math.sin(TAU * t)
     return spin, pose, {}
 
+# ---- content pass, steps 3 and 4: archer, catapult, mine, rail, cage, boulder -------------------------------------------
+def stretch(o, p0, p1):
+    """Lay a unit rod (built from the origin to z = 1) between two points."""
+    p0, p1 = Vector(p0), Vector(p1)
+    o.location = p0
+    o.rotation_mode = 'QUATERNION'
+    o.rotation_quaternion = (p1 - p0).to_track_quat('Z', 'Y')
+    o.scale = (1, 1, (p1 - p0).length)
+
+def archer(anim='idle'):
+    root = E(rot=(0, 0, math.pi))
+    turn = E(root, rot=(0, 0, math.radians(-65)))                 # a sideways stance, so the bow shows
+    body, legs, arms, head = raider(turn, hood=True)
+    head.rotation_euler.z = math.radians(65)                      # the face still looks down the road
+    rod((0.1, -0.2, 0.08), (-0.04, -0.22, 0.5), 0.06, 0.065, M(WOOD_D, 0.6), parent=body)      # quiver
+    for dx in (-0.03, 0.02):
+        ell((0.03, 0.03, 0.06), M(CREAM, 0.6), parent=body, loc=(-0.05 + dx, -0.22, 0.56))
+    arms[0].rotation_euler.x = math.radians(82)                   # the bow arm, straight out
+    bow = E(body, (-0.23, 0.3, 0.3))
+    n, hw = 8, 0.72
+    pts = [(0, 0.22 * (1 - ((-hw + 2 * hw * k / n) / hw) ** 2), -hw + 2 * hw * k / n) for k in range(n + 1)]
+    for p0, p1 in zip(pts, pts[1:]):
+        rod(p0, p1, 0.036, 0.036, M(0xE0B070, 0.5), parent=bow, seg=8)
+    strings = [rod((0, 0, 0), (0, 0, 1), 0.012, 0.012, M(CREAM), parent=bow, seg=4) for _ in range(2)]
+    arrow = E(bow)
+    rod((0, 0, 0), (0, 0.66, 0), 0.02, 0.02, M(WOOD, 0.6), parent=arrow, seg=5)
+    rod((0, 0.66, 0), (0, 0.76, 0), 0.03, 0.002, M(STEEL_L, 0.25, 0.8), parent=arrow, seg=4)
+    ell((0.035, 0.07, 0.035), M(RED, 0.6), parent=arrow, loc=(0, 0.05, 0))
+    release = E(bow, (0, 0.45, 0))
+    def pose(t):
+        if anim == 'idle':
+            pull, up, vis = 0.02, -0.25 + 0.05 * math.sin(TAU * t), 0
+            body.rotation_euler.z = 0.05 * math.sin(TAU * t)
+        else:               # nock and draw (frames 0-4), loose at frame 5, lower
+            d = min(1.0, t / 0.5) if t < 0.62 else 0.0
+            pull, up, vis = 0.02 + 0.34 * d, 0.5 * min(1.0, t / 0.3) * (1 - max(0.0, (t - 0.75) / 0.25)), 1 if t < 0.62 else 0
+            body.rotation_euler.x = -0.1 * d
+            arms[1].rotation_euler.x = math.radians(78)
+            arms[1].location.y = -0.3 * d
+        bow.rotation_euler.x = up
+        nock = (0, -pull, 0)
+        stretch(strings[0], pts[0], nock); stretch(strings[1], pts[-1], nock)
+        arrow.location, arrow.scale = nock, (vis, vis, vis)
+    return root, pose, {'release': release}
+
+def catapult(anim='idle'):
+    root = E(rot=(0, 0, math.pi))
+    T, TD, IR = MT(0x8A5A34), MT(0x5A3A22), M(STEEL, 0.35, 0.7)
+    for x in (-0.7, 0.7):
+        box((0.22, 2.7, 0.22), T, bevel=0.03, parent=root, loc=(x, 0, 0.5))
+        box((0.2, 0.2, 1.45), T, bevel=0.03, parent=root, loc=(x, 0.25, 1.2))
+        rod((x, -0.95, 0.55), (x, 0.25, 1.75), 0.07, 0.07, TD, parent=root, seg=6)
+        for y in (-0.9, 0.9):
+            w = E(root, (x * 1.3, y, 0.42), rot=(0, math.radians(90), 0))
+            lathe([(0, -0.08), (0.42, -0.08), (0.42, 0.08), (0, 0.08)], TD, seg=16, parent=w)
+            lathe([(0, -0.1), (0.12, -0.1), (0.12, 0.1), (0, 0.1)], IR, seg=10, parent=w)
+            lathe([(0.38, -0.09), (0.43, -0.09), (0.43, 0.09), (0.38, 0.09), (0.38, -0.09)], IR, seg=16, parent=w)
+    for y in (-1.15, 1.15):
+        box((1.62, 0.2, 0.2), TD, bevel=0.03, parent=root, loc=(0, y, 0.5))
+    rod((-0.85, 0.25, 1.85), (0.85, 0.25, 1.85), 0.07, 0.07, IR, parent=root, seg=8)
+    rod((0.7, 0.25, 1.9), (0.7, 0.25, 2.9), 0.03, 0.03, TD, parent=root, seg=6)
+    pennant(0.6, 0.36, M(RED, 0.6, 0, 0), swallow=True, parent=root, loc=(0.7, 0.25, 2.5))
+    arm = E(root, (0, 0.25, 1.85))
+    box((0.17, 3.1, 0.17), T, bevel=0.03, parent=arm, loc=(0, -0.95, 0))
+    lathe([(0, 0), (0.24, 0.02), (0.34, 0.16), (0.36, 0.3), (0.31, 0.3), (0.28, 0.16), (0, 0.08)], IR, seg=14, parent=arm, loc=(0, -2.4, 0.02))
+    stone = blob(0.3, MT(0x8E97A3), seed=5, sub=1, smooth=False, rough=0.2, parent=arm, loc=(0, -2.4, 0.38))
+    box((0.6, 0.5, 0.6), IR, bevel=0.05, parent=arm, loc=(0, 0.55, -0.32))
+    release = E(root, (0, 0.7, 4.2))
+    def pose(t):
+        if anim == 'idle':
+            a = 25
+        else:               # strain (frames 0-1), the arm swings over (2-4), the stone leaves at frame 4, the arm rocks
+            k = min(1.0, max(0.0, (t - 0.2) / 0.3)); k = k * k * (3 - 2 * k)
+            a = 25 + 3 * math.sin(TAU * t * 4) * (t < 0.2) - 125 * k
+            if t > 0.5: a += 14 * math.exp(-(t - 0.5) * 7) * math.sin((t - 0.5) * 26)
+            stone.scale = (0, 0, 0) if t >= 0.5 else (0.3, 0.3, 0.3)
+        arm.rotation_euler.x = math.radians(a)
+    return root, pose, {'release': release}
+
+def mine():
+    lathe([(0, 0), (0.5, 0), (0.52, 0.08), (0.44, 0.2), (0.26, 0.33), (0, 0.38)], M(0x2E3038, 0.35, 0.6), seg=20, smooth=True)
+    lathe([(0.5, 0.03), (0.54, 0.06), (0.5, 0.1)], M(STEEL_L, 0.3, 0.7), seg=20)
+    for i in range(8):
+        a = TAU * i / 8
+        ell(0.055, M(RED, 0.3), loc=(0.4 * math.cos(a), 0.4 * math.sin(a), 0.24))
+    rod((0, 0, 0.36), (0, 0, 0.46), 0.05, 0.05, M(STEEL_L, 0.3, 0.7), seg=8)
+    off = ell(0.085, M(0x7A1418, 0.3), loc=(0, 0, 0.5))
+    on = ell(0.095, GL(0xFF3020, 30.0), loc=(0, 0, 0.5))
+    def pose(t):
+        on.scale, off.scale = ((0.095,) * 3, (0, 0, 0)) if t >= 0.5 else ((0, 0, 0), (0.085,) * 3)
+    return pose
+
+def gate_rail():
+    """One unit of the rail a moving gate runs on, across the road: tile it along x."""
+    for x in (-0.25, 0.25):
+        box((0.18, 0.9, 0.07), MT(0x6A4A30), bevel=0.015, loc=(x, 0, 0.035))
+    for y in (-0.3, 0.3):
+        rod((-0.5, y, 0.1), (0.5, y, 0.1), 0.04, 0.04, M(STEEL_L, 0.3, 0.8), seg=8)
+
+def cage(part):
+    """A green iron cage, 1.7 square and 2.5 tall with its finial, in two sprites: the back (floor, far bars) and the front (near bars, roof).
+    Draw back, the prisoners, front."""
+    G, GD = M(0x2FA85A, 0.35, 0.5), M(0x1F7A40, 0.4, 0.5)
+    back, front = [], []
+    back.append(box((1.75, 1.75, 0.12), GD, bevel=0.02, loc=(0, 0, 0.06)))
+    xs = [-0.8 + 1.6 * k / 5 for k in range(6)]
+    for x in xs:
+        back.append(rod((x, 0.8, 0.1), (x, 0.8, 1.9), 0.04, 0.04, G, seg=8))
+        front.append(rod((x, -0.8, 0.1), (x, -0.8, 1.9), 0.04, 0.04, G, seg=8))
+    for x in (-0.8, 0.8):
+        for y in (0.27, -0.27):
+            (back if y > 0 else front).append(rod((x, y, 0.1), (x, y, 1.9), 0.04, 0.04, G, seg=8))
+    front.append(box((1.78, 0.12, 0.14), GD, bevel=0.02, loc=(0, -0.82, 0.14)))
+    for y in (-0.82, 0.82):                                             # an open roof: a frame and two cross bars, so the prisoners show from above
+        front.append(box((1.8, 0.14, 0.14), GD, bevel=0.02, loc=(0, y, 1.95)))
+        front.append(box((0.14, 1.8, 0.14), GD, bevel=0.02, loc=(y, 0, 1.95)))
+    front.append(box((1.7, 0.1, 0.1), G, bevel=0.02, loc=(0, 0, 1.95)))
+    front.append(box((0.1, 1.7, 0.1), G, bevel=0.02, loc=(0, 0, 1.95)))
+    front.append(rod((0, 0, 1.95), (0, 0, 2.3), 0.05, 0.04, G, seg=8))
+    front.append(ell(0.14, M(GOLD, 0.2, 0.5), loc=(0, 0, 2.4)))
+    front.append(box((0.3, 0.06, 0.36), M(GOLD, 0.25, 0.5), bevel=0.02, loc=(0, -0.86, 1.0)))       # the lock
+    for o in (front if part == 'back' else back):
+        o.is_holdout = True
+
+def boulder():
+    r = E(loc=(0, 0, 1.0))
+    blob(0.55, MT(0x8E97A3), seed=5, sub=1, smooth=False, rough=0.22, parent=r)
+    blob(0.3, MT(0x767F8C), seed=8, sub=1, smooth=False, rough=0.2, parent=r, loc=(0.3, 0.1, 0.25))
+    def pose(t):
+        r.rotation_euler = (TAU * t, 0.4, 0)
+    return pose
+
+# ---- content pass, step 5: shield bearer, bomber, drummer, the field cannon, small 3D effects ----------------------------
+def shieldman():
+    """Marches behind a tower shield; the shield itself is the overlay shield.front (three stages of damage)."""
+    root = E(rot=(0, 0, math.pi))
+    body, legs, arms, head = raider(root)
+    lathe([(0.03, 0.3), (0.05, 0.56), (0, 0.6)], M(RED, 0.5), parent=head, seg=4, scale=(0.5, 3.4, 1))    # a red crest on the helmet
+    for a in arms: a.rotation_euler.x = math.radians(62)
+    sword = E(body, (0.27, 0.2, 0.14), rot=(math.radians(-18), 0, 0))
+    rod((0, 0, -0.08), (0, 0, 0.06), 0.03, 0.03, M(WOOD_D), parent=sword, seg=6)
+    box((0.16, 0.04, 0.03), M(GOLD, 0.25, 0.4), bevel=0, parent=sword, loc=(0, 0, 0.07))
+    lathe([(0.035, 0.08), (0.03, 0.55), (0, 0.66)], M(STEEL_L, 0.2, 0.8), parent=sword, seg=4, scale=(1, 0.35, 1))
+    def pose(t):
+        a = math.sin(TAU * t)
+        legs[0].rotation_euler.x, legs[1].rotation_euler.x = 0.6 * a, -0.6 * a
+        body.location.z = 0.34 + 0.03 * abs(math.cos(TAU * t))
+        body.rotation_euler = (0.1, 0.04 * a, 0.06 * a)
+        sword.rotation_euler.x = math.radians(-18) + 0.08 * a
+    return root, pose, {}
+
+def shield_front():
+    """The tower shield, 0.8 wide and 1.1 tall, standing in front of the shieldman: frame 0 whole, 1 cracked, 2 broken."""
+    root = E(rot=(0, 0, math.pi))
+    sh = E(root, (0, 0.34, 0.08), rot=(math.radians(-8), 0, 0))
+    IR, RD = M(STEEL, 0.3, 0.7), M(0xC81E28, 0.35)
+    whole = [box((0.8, 0.07, 1.1), IR, bevel=0.035, parent=sh, loc=(0, 0, 0.55)),
+             box((0.68, 0.03, 0.98), RD, bevel=0.02, parent=sh, loc=(0, 0.04, 0.55)),
+             lathe([(0, 0.06), (0.12, 0.03), (0.15, 0)], M(GOLD, 0.2, 0.5), seg=14, smooth=True, parent=sh, loc=(0, 0.055, 0.58), rot=(math.radians(-90), 0, 0)),
+             box((0.68, 0.035, 0.07), M(GOLD, 0.25, 0.4), bevel=0, parent=sh, loc=(0, 0.045, 0.2)),
+             box((0.68, 0.035, 0.07), M(GOLD, 0.25, 0.4), bevel=0, parent=sh, loc=(0, 0.045, 0.92))]
+    K = M(0x1A1A22, 0.6)
+    crack1 = [box((0.03, 0.02, 0.42), K, bevel=0, parent=sh, loc=(0.16, 0.062, 0.78), rot=(0, 0.5, 0)),
+              box((0.03, 0.02, 0.26), K, bevel=0, parent=sh, loc=(0.03, 0.062, 0.52), rot=(0, -0.6, 0)),
+              box((0.03, 0.02, 0.2), K, bevel=0, parent=sh, loc=(-0.2, 0.062, 0.34), rot=(0, 0.9, 0))]
+    crack2 = [box((0.035, 0.02, 0.5), K, bevel=0, parent=sh, loc=(-0.14, 0.062, 0.7), rot=(0, -0.35, 0)),
+              box((0.035, 0.02, 0.36), K, bevel=0, parent=sh, loc=(0.2, 0.062, 0.32), rot=(0, 0.7, 0)),
+              box((0.05, 0.02, 0.3), K, bevel=0, parent=sh, loc=(0.0, 0.062, 0.3), rot=(0, 0.1, 0))]
+    bite = box((0.5, 0.3, 0.5), K, bevel=0, parent=sh, loc=(0.34, 0, 1.02), rot=(0, 0.7, 0))      # cuts the top corner away (a hold-out)
+    bite.is_holdout = True
+    def pose(t):
+        stage = int(round(t * 3))
+        for o in crack1: o.scale = (1, 1, 1) if stage >= 1 else (0, 0, 0)
+        for o in crack2: o.scale = (1, 1, 1) if stage >= 2 else (0, 0, 0)
+        bite.scale = (1, 1, 1) if stage >= 2 else (0, 0, 0)
+    return root, pose, {}
+
+def bomber():
+    root = E(rot=(0, 0, math.pi))
+    body, legs, arms, head = raider(root, scale=0.85)
+    for a in arms: a.rotation_euler.x = math.radians(172)
+    keg = E(body, (0, 0.02, 0.98))
+    lathe([(0, 0), (0.17, 0), (0.22, 0.12), (0.22, 0.24), (0.17, 0.36), (0, 0.36)], M(0x26262E, 0.35, 0.3), seg=16, smooth=True, parent=keg)
+    for z in (0.07, 0.29):
+        lathe([(0.2, z - 0.025), (0.215, z), (0.2, z + 0.025)], M(STEEL_L, 0.3, 0.7), seg=16, parent=keg)
+    star(0.09, 0.04, 0.02, M(RED, 0.4), parent=keg, loc=(0, 0.225, 0.18), rot=(0, 0, math.pi))
+    rod((0, 0, 0.36), (0.07, 0, 0.5), 0.02, 0.015, M(CREAM, 0.7), parent=keg, seg=5)
+    spark = blob(0.06, GL(0xFFB03A, 30.0), seed=4, sub=1, parent=keg, loc=(0.075, 0, 0.53))
+    point = E(keg, (0, 0, 0.18))
+    def pose(t):
+        a = math.sin(TAU * t)
+        legs[0].rotation_euler.x, legs[1].rotation_euler.x = 0.95 * a, -0.95 * a
+        body.location.z = 0.34 + 0.05 * abs(math.cos(TAU * t))
+        body.rotation_euler = (0.2, 0.05 * a, 0.1 * a)
+        keg.rotation_euler.y = 0.08 * a
+        k = 0.06 * (0.7 + 0.5 * abs(math.sin(TAU * t * 2)))
+        spark.scale = (k, k, k)
+    return root, pose, {'keg': point}
+
+def drummer():
+    root = E(rot=(0, 0, math.pi))
+    body, legs, arms, head = raider(root)
+    drum = E(body, (0, 0.3, 0.02))
+    lathe([(0, 0), (0.24, 0), (0.25, 0.14), (0.24, 0.28), (0, 0.28)], M(RED, 0.35), seg=18, smooth=False, parent=drum)
+    for z in (0.0, 0.26):
+        lathe([(0.24, z), (0.265, z), (0.265, z + 0.04), (0.24, z + 0.04)], M(GOLD, 0.25, 0.5), seg=18, parent=drum)
+    lathe([(0, 0.3), (0.235, 0.3)], M(CREAM, 0.6, 0, 0), seg=18, parent=drum)
+    for i in range(8):
+        a0, a1 = TAU * i / 8, TAU * (i + 0.5) / 8
+        rod((0.255 * math.cos(a0), 0.255 * math.sin(a0), 0.03), (0.255 * math.cos(a1), 0.255 * math.sin(a1), 0.27), 0.012, 0.012, M(CREAM), parent=drum, seg=4)
+    sticks = []
+    for i, a in enumerate(arms):
+        a.rotation_euler.x = math.radians(55)
+        st = E(a, (0, 0, -0.25))
+        rod((0, 0, 0), (0, 0.26, 0.02), 0.016, 0.014, M(0xE0B070, 0.5), parent=st, seg=5)
+        ell(0.03, M(CREAM, 0.5), parent=st, loc=(0, 0.27, 0.02))
+        sticks.append(a)
+    point = E(drum, (0, 0, 0.3))
+    def pose(t):
+        a = math.sin(TAU * t)
+        legs[0].rotation_euler.x, legs[1].rotation_euler.x = 0.7 * a, -0.7 * a
+        body.location.z = 0.34 + 0.035 * abs(math.cos(TAU * t))
+        body.rotation_euler = (0.03, 0.04 * a, 0.08 * a)
+        sticks[0].rotation_euler.x = math.radians(55) + 0.45 * max(0.0, math.sin(TAU * t * 2))
+        sticks[1].rotation_euler.x = math.radians(55) + 0.45 * max(0.0, -math.sin(TAU * t * 2))
+    return root, pose, {'drum': point}
+
+def field_cannon():
+    """The squad's brass field gun, rolling up the road (+Y): 1.9 long, 1.3 wide."""
+    root = E()
+    BR, IR, WD = M(0xD9A441, 0.2, 0.75), M(STEEL, 0.35, 0.7), MT(0x7A4E2C)
+    carriage = E(root, (0, 0, 0.5))
+    box((0.34, 1.5, 0.16), WD, bevel=0.03, parent=carriage, loc=(0, -0.45, -0.12), rot=(math.radians(-14), 0, 0))     # the trail
+    box((0.9, 0.3, 0.2), WD, bevel=0.03, parent=carriage, loc=(0, 0.05, 0.0))
+    barrel = E(carriage, (0, 0.05, 0.2), rot=(math.radians(6), 0, 0))
+    lathe([(0, -0.5), (0.2, -0.48), (0.22, -0.3), (0.17, 0.3), (0.15, 0.85), (0.19, 0.87), (0.19, 0.98), (0.11, 0.98), (0.11, 0.9), (0, 0.9)], BR, seg=18, parent=barrel, rot=(math.radians(-90), 0, 0))
+    ell(0.09, BR, parent=barrel, loc=(0, -0.56, 0))
+    for y in (-0.2, 0.25):
+        lathe([(0.2, y - 0.03), (0.225, y), (0.2, y + 0.03)], M(GOLD, 0.2, 0.6), seg=18, parent=barrel, rot=(math.radians(-90), 0, 0))
+    muzzle = E(barrel, (0, 1.0, 0))
+    wheels = []
+    for x in (-0.58, 0.58):
+        w = E(carriage, (x, 0.05, 0.0), rot=(0, math.radians(90), 0))
+        lathe([(0.42, -0.05), (0.5, -0.05), (0.5, 0.05), (0.42, 0.05), (0.42, -0.05)], IR, seg=20, parent=w)
+        lathe([(0, -0.07), (0.1, -0.07), (0.1, 0.07), (0, 0.07)], BR, seg=10, parent=w)
+        for i in range(8):
+            a = TAU * i / 8
+            rod((0.08 * math.cos(a), 0.08 * math.sin(a), 0), (0.44 * math.cos(a), 0.44 * math.sin(a), 0), 0.03, 0.025, WD, parent=w, seg=5)
+        wheels.append(w)
+    def pose(t):
+        for w in wheels: w.rotation_euler.z = -TAU * t / 8        # one spoke's turn a cycle: the loop is seamless
+        carriage.location.z = 0.5 + 0.012 * math.sin(TAU * t * 2)
+        carriage.rotation_euler.x = 0.012 * math.sin(TAU * t * 2 + 1)
+    return root, pose, {'muzzle': muzzle}
+
+def cannonball():
+    r = E(loc=(0, 0, 0.6))
+    ell(0.3, M(0x22242C, 0.3, 0.6), parent=r)
+    lathe([(0.3, -0.03), (0.31, 0), (0.3, 0.03)], M(STEEL_L, 0.3, 0.7), seg=18, parent=r)
+    for v in ((0, 0.29, 0.1), (0.2, -0.2, 0.1), (-0.2, 0.05, -0.22)):
+        ell(0.045, M(STEEL_L, 0.3, 0.7), parent=r, loc=v)
+    def pose(t):
+        r.rotation_euler = (TAU * t, 0, 0.3)
+    return pose
+
+def recruit_fly():
+    spin = E(loc=(0, 0, 1.2))
+    root, _, _ = soldier(weapon=None)
+    root.parent = spin
+    root.location = (0, 0, -0.55)
+    def pose(t):
+        spin.rotation_euler = (TAU * t, 0.3, 0.2)
+    return pose
+
+def parachute():
+    swing = E(loc=(0, 0, 2.5))
+    for i, (z0, z1, c) in enumerate(((0.0, 0.16, BLUE), (0.16, 0.3, 0xE9DFCE), (0.3, 0.4, BLUE), (0.4, 0.45, 0xE9DFCE))):
+        r0, r1 = 0.8 * math.cos(z0 / 0.45 * 1.45), 0.8 * math.cos(z1 / 0.45 * 1.45)
+        lathe([(r0, z0), (max(r1, 0.0), z1)], M(c, 0.7, 0, 0), seg=16, parent=swing)
+    root, _, _ = soldier(weapon=None)
+    root.parent = swing
+    root.location = (0, 0, -1.55)
+    for i in range(6):
+        a = TAU * i / 6
+        rod((0.78 * math.cos(a), 0.78 * math.sin(a), 0.0), (0.12 * math.cos(a), 0.1 * math.sin(a), -0.85), 0.008, 0.008, M(CREAM), parent=swing, seg=4)
+    def pose(t):
+        swing.rotation_euler = (0, 0.16 * math.sin(TAU * t), 0)
+    return pose
+
 # ---- the list ----------------------------------------------------------------------------------------------------------
 UE, PE = [60, 38, 20], [45, 20]
 S, Mv, T, L, XL = (2.6, 2.4, 0.5), (4.6, 5.6, 2.0), (3.4, 6.4, 2.6), (5.6, 8.4, 3.2), (8.0, 10.0, 3.6)    # view w, h, centre z
@@ -1138,8 +1518,13 @@ def P(kind, build, view=Mv, frames=1, scale=1):
 def EDGE(w, post_args, banner_args):
     JOBS.append(('w%d.post' % w, lambda: post(*post_args), 'still', 1, UE, 84, (0.9, 1.9, 0.6), 0.0, 1))
     P('w%d.banner' % w, lambda: banner(*banner_args), (2.6, 4.6, 1.8))
+BOSS_ATTACKS = ('slam', 'throw', 'roar')
+ATTACK_VIEW = (9.6, 12.0, 4.6)      # the raised club reaches 10 units; these anims are rendered at 52 px a unit
+ADDON_VIEW = (6.0, 6.8, 4.8)        # add-ons sit on the head and shoulders: a tighter view (the pivot is computed, so any view lines up)
 def ADDON(w, fn):
     JOBS.append(('w%d.boss_addon' % w, lambda: ogre(addon=fn), 'march', 8, [38, 20], 72, (7.2, 8.4, 2.9), -0.4, 1))
+    for a in BOSS_ATTACKS:
+        JOBS.append(('w%d.boss_addon' % w, lambda a=a: ogre(addon=fn, anim=a), a, 8, [38, 20], 52, ADDON_VIEW, -0.4, 1))
 
 JOBS += [
     ('soldier', lambda: soldier(cheer=True, weapon=None), 'cheer', 8, UE, 100, (1.5, 2.9, 0.95), 0.15, 1),
@@ -1158,8 +1543,35 @@ JOBS += [
     ('ui.trophy', ui_trophy, 'still', 1, [12], 180, (2.2, 2.2, 0.95), 0.0, 1),
     ('icon.bust', lambda: soldier(turn=math.pi - 0.5), 'still', 1, [8], 420, (1.3, 1.3, 0.78), 0.0, 1),
 ]
-for _w in ('musket', 'twin', 'scatter', 'lance', 'rocket'):     # the gun alone, over soldier.march
+for _w in ('musket', 'twin', 'scatter', 'lance', 'rocket', 'flame', 'coil', 'mortar', 'frost'):     # the gun alone, over soldier.march
     JOBS.append(('wpn.' + _w, lambda _w=_w: soldier(weapon=_w, overlay=True), 'march', 8, UE, 100, (1.3, 1.9, 0.55), 0.15, 1))
+for _a in BOSS_ATTACKS:
+    JOBS.append(('boss', lambda _a=_a: ogre(anim=_a), _a, 8, [38, 20], 52, ATTACK_VIEW, -0.4, 1))
+JOBS += [
+    ('giant', lambda: brute(giant=True), 'march', 8, UE, 84, (5.0, 7.6, 2.2), 0.0, 1),
+    ('archer', lambda: archer('idle'), 'idle', 8, UE, 84, (2.2, 3.0, 0.85), 0.0, 1),
+    ('archer', lambda: archer('shoot'), 'shoot', 8, UE, 84, (2.2, 3.0, 0.85), 0.0, 1),
+    ('catapult', lambda: catapult('idle'), 'idle', 1, UE, 64, (3.6, 7.6, 2.3), 0.0, 1),
+    ('catapult', lambda: catapult('fire'), 'fire', 8, UE, 64, (3.6, 7.6, 2.3), 0.0, 1),
+    ('haz.mine', mine, 'still', 2, UE, 90, (1.4, 1.2, 0.25), 0.0, 1),
+    ('gate.rail', gate_rail, 'still', 1, UE, 84, (1.3, 1.5, 0.1), 0.0, 1),
+    ('cage.back', lambda: cage('back'), 'still', 1, UE, 84, (2.6, 4.4, 1.3), 0.0, 1),
+    ('cage', lambda: cage('front'), 'still', 1, UE, 84, (2.6, 4.4, 1.3), 0.0, 1),
+    ('cage.prisoner', lambda: soldier(turn=math.pi, weapon=None, wave=True), 'wave', 8, UE, 100, (1.3, 2.2, 0.7), 0.0, 1),
+    ('fx.boulder', boulder, 'play', 8, [35], 64, (1.8, 1.8, 1.0), 0.0, 1),
+]
+JOBS += [
+    ('shieldman', shieldman, 'march', 8, UE, 84, (1.5, 2.3, 0.75), 0.0, 1),
+    ('shield.front', shield_front, 'still', 3, UE, 84, (1.5, 2.3, 0.75), 0.0, 1),
+    ('bomber', bomber, 'march', 8, UE, 84, (1.5, 2.6, 0.85), 0.0, 1),
+    ('drummer', drummer, 'march', 8, UE, 84, (1.6, 2.3, 0.75), 0.0, 1),
+    ('squad.cannon', field_cannon, 'march', 8, UE, 100, (1.8, 3.0, 0.6), 0.1, 1),
+    ('fx.cannonball', cannonball, 'play', 8, [35], 80, (1.0, 1.0, 0.6), 0.0, 1),
+    ('fx.recruit_fly', recruit_fly, 'play', 8, [35], 64, (1.9, 1.9, 1.2), 0.0, 1),
+    ('fx.parachute', parachute, 'play', 8, [30], 64, (2.4, 3.4, 1.75), 0.0, 1),
+]
+for _k in ('add', 'mul', 'neg', 'wpn'):
+    JOBS.append(('gate.post_%s_w' % _k, lambda _k=_k: gate_post(_k, wheels=True), 'still', 1, UE, 84, (1.8, 3.6, 1.4), 0.0, 1))
 # 1 GREENMEADOW
 P('w1.tree_a', lambda: tree_round((0x4FB04A, 0x3C9440, 0x7FD060), fruit=(RED,))); P('w1.tree_b', poplar, T); P('w1.tree_c', blossom)
 P('w1.bush', bush, S); P('w1.rock', rock, S); P('w1.flowers', flowers, S); P('w1.haystack', haystack, (2.4, 2.8, 0.8))
@@ -1207,7 +1619,7 @@ P('w10.balloons', balloons, (2.6, 4.6, 1.6)); P('w10.ferris', ferris, XL, 8); P(
 EDGE(10, (0xE8413A, 0xFFD23A, 'lantern'), (0x9B4DFF, 0xFFD23A)); ADDON(10, a_lanterns)
 
 for kind, build, anim, frames, elevs, ppu, (w, h, cz), yc, scale in JOBS:
-    if not want(kind):
+    if not want(kind, anim):
         continue
     reset()
     res = build()

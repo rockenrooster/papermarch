@@ -63,6 +63,19 @@ background objects on the sides".
   crates (GAME_DESIGN 4), brought in on levels 11, 18, 23, 29 and 32, then placed before hordes now and then. The
   shield is a dome that cracks as it absorbs; frozen enemies stand tinted with ice at their feet; bombs fall with
   growing shadows; the HUD shows running power-ups in draining rings.
+- **0.7.0, step 3:** mines (13), archers and their arrows (17), moving gates on rails (19), cages of prisoners (24);
+  the modes gold rush (15, then every 5th level: a bonus road that cannot be lost), arsenal (22, every 2nd: a weapon
+  from the start) and rescue (24, every 4th: start with 3, free the prisoners), each with its hint and its icon in
+  the level chip (GAME_DESIGN 5).
+- **0.7.0, step 4:** catapults at the road's side (21) hurling boulders at red circles; giants with health bars that
+  drop medallions (29); the boss's attacks shown on the road and dodged sideways: the club (30), boulders (50), the war
+  cry (60), the stomp's ridge with a gap (70), each world its own (GAME_DESIGN 5). Released with step 3 as 0.7.0.
+  Fable's art for steps 3-4 (ART_DIRECTION 17) is in: archers, catapults, giants, mines, cages, wheeled posts and
+  rails, the warnings and the ogre's attack poses with each world's add-on; the art array is now 11 layers of
+  2048 x 2048 (about 180 MB with mipmaps: the first thing to measure on a phone).
+- **2026-11-27, the owner: "No more fable agent".** The Fable art agent was stopped while starting step 5 (its
+  partial effect generators are in `tools/art/make_content.py`, not run). Steps 5-7 go on without new Blender art:
+  reused and tinted sprites, effects drawn in the view, and the existing generators.
 
 ## Status
 

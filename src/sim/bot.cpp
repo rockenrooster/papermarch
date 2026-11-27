@@ -22,6 +22,22 @@ float botSteer(const Battle& b) {
     const LevelDef& d = *b.def;
     const float r = b.radius();
     const float look = d.planLook > 0 ? d.planLook : 15.0f;
+    // Where a gate will be when the squad gets to it (a moving gate slides meanwhile).
+    auto span = [&](int g, float& lo, float& hi) { b.gateSpan(g, b.time + maxv(0.0f, d.gates[g].z - b.z) / maxv(0.5f, d.speed), lo, hi); };
+    // 0. A blow shown on the road beats every other goal: out of a boulder's circle, off the club's half, into the
+    // stomp's gap.
+    for (int k = 0; k < b.strikeCount; ++k) {
+        const Strike& s = b.strikes[k];
+        const float half = minv(r, 4.0f);
+        if (s.kind == 1) return s.x < 0.0f ? 2.8f : -2.8f;
+        if (s.kind == 2) return s.x;
+        if (std::fabs(b.x - s.x) >= s.r + half) continue;
+        const float left = s.x - s.r - half - 0.2f, right = s.x + s.r + half + 0.2f;
+        const bool leftOk = left > -kRoadHalf, rightOk = right < kRoadHalf;
+        if (leftOk && (!rightOk || b.x - left <= right - b.x)) return left;
+        if (rightOk) return right;
+        return s.x < 0.0f ? kRoadHalf : -kRoadHalf;  // no way out: the side with more room
+    }
     // 1. The next row of gates (within `look` units): the plan's gate, else the one that leaves the biggest squad, or a
     // gap if every gate hurts.
     float rowZ = 1e9f;
@@ -44,8 +60,9 @@ float botSteer(const Battle& b) {
                     idx[at] = g;
                 }
             if (d.plan[ri] < k) {
-                const GateDef& gd = d.gates[idx[int(d.plan[ri])]];
-                return (gd.x0 + gd.x1) * 0.5f;
+                float g0, g1;
+                span(idx[int(d.plan[ri])], g0, g1);
+                return (g0 + g1) * 0.5f;
             }
         }
         i64 best = b.squad;  // passing no gate at all
@@ -58,14 +75,16 @@ float botSteer(const Battle& b) {
             const GateState& gs = b.gates[g];
             if (gs.used || gs.passed || std::fabs(gd.z - rowZ) > 0.5f) continue;
             const i64 after = gateWorth(b, gd, gs);
+            float g0, g1;
+            span(g, g0, g1);
             if (nc < 8) {
-                covered0[nc] = gd.x0;
-                covered1[nc] = gd.x1;
+                covered0[nc] = g0;
+                covered1[nc] = g1;
                 ++nc;
             }
             if (after > best || (!gateBest && after >= best)) {
                 best = after;
-                bestX = (gd.x0 + gd.x1) * 0.5f;
+                bestX = (g0 + g1) * 0.5f;
                 gateBest = true;
             }
         }
@@ -90,6 +109,19 @@ float botSteer(const Battle& b) {
         const float w = 1.0f / (1.0f + dz * 0.2f) * (e.kind == kBoss ? 20.0f : 1.0f);
         sumX += e.x * w;
         sumW += w;
+    }
+    // A mine about to be stepped on: step aside.
+    for (int m = 0; m < d.mineCount; ++m) {
+        const MineDef& md = d.mines[m];
+        const float dz = md.z - b.z;
+        if (b.mineGone[m] || dz < -1.0f || dz > 5.0f || std::fabs(md.x - b.x) > r + 0.9f) continue;
+        return md.x >= b.x ? md.x - (r + 1.2f) : md.x + (r + 1.2f);
+    }
+    // A cage within reach: its prisoners are worth a detour.
+    for (int c = 0; c < d.cageCount; ++c) {
+        const CageDef& cd = d.cages[c];
+        const float dz = cd.z - b.z;
+        if (!b.cageOpen[c] && dz > -0.5f && dz < 24.0f) return cd.x;
     }
     // A medallion within reach, unless the horde is upon the squad.
     for (int m = 0; m < d.medalCount && nearestEnemy > 6.0f; ++m) {

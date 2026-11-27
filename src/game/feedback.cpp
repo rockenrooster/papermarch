@@ -78,6 +78,13 @@ void Feedback::cue(const CueEvent& c, double now) {
             play(kSndBoom, 0.95f, c.pan, jitter * 0.8f);
             haptic(kHapticStrong, now);
             break;
+        case kCueCage:  // freed: a cheer of chimes and coins
+            play(kSndGlock, 0.7f, c.pan, 1.5f);
+            play(kSndGlock, 0.6f, c.pan, 2.0f, 0.07f);
+            play(kSndCoin, 0.6f, c.pan, 1.0f, 0.12f);
+            haptic(kHapticMedium, now);
+            break;
+        case kCueArrow: play(kSndSwish, minv(0.6f, 0.25f + 0.05f * float(c.step)), c.pan, jitter * 1.8f); break;
         case kCueHit: play(kSndThwack, 0.45f, c.pan, jitter * 1.2f); break;
         case kCueKill:
             play(c.step == sim::kBrute ? kSndClash : kSndFlip, c.step == sim::kBrute ? 0.7f : 0.5f, c.pan, jitter);

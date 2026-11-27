@@ -84,6 +84,16 @@ bool medalPower(u8 p) { return p == kRapid || p == kPowerShot || p == kShield; }
 
 }  // namespace
 
+u8 levelMode(int n) {
+    const int slot = (n - 1) % 10 + 1;
+    if (slot == 10) return kModeBoss;
+    if (isSpike(n)) return kModeMarch;
+    if (slot == 5 && n >= 15) return kModeGold;
+    if (slot == 2 && n >= 22) return kModeArsenal;
+    if (slot == 4 && n >= 24) return kModeRescue;  // (slot 3 once the gauntlet takes slot 4: step 6)
+    return kModeMarch;
+}
+
 int weaponOffer(int n) {
     int prev = 0;
     for (int k = 9; k <= n; ++k) {
@@ -155,7 +165,46 @@ void build(int n, u64 seed, Shape& out) {
         case 23: d.hint = 18; break;  // the first supply crate (the airstrike)
         case 29: d.hint = 19; break;
         case 32: d.hint = 20; break;
+        case 13: d.hint = 21; break;  // mines
+        case 17: d.hint = 23; break;  // archers
+        case 19: d.hint = 24; break;  // moving gates
         default: break;
+    }
+    d.mode = levelMode(n);
+    const bool gold = d.mode == kModeGold, rescue = d.mode == kModeRescue, arsenal = d.mode == kModeArsenal;
+    if (gold) d.hint = 22;
+    if (rescue) {
+        d.hint = 25;
+        d.start = 3;
+    }
+    if (arsenal) d.hint = 26;
+    // What this level knows (docs/CONTENT_PASS.md 4.2): mines from 13, archers from 17, moving gates from 19, catapults
+    // from 21, cages from 24, giants from 29; each is brought in on its first level.
+    const bool mines = n >= 13, archers = n >= 17, moving = n >= 19, catapults = n >= 21, cages = n >= 24, giants = n >= 29;
+    if (n == 21) d.hint = 27;
+    if (n == 29) d.hint = 28;
+    // The boss's attacks: the world's own (docs/CONTENT_PASS.md 4.3), each once it has come in (the club on 30, boulders on
+    // 50, the war cry on 60, the stomp on 70); worlds 9 and 10 pick two of all of them.
+    {
+        static const u8 kWorldAttacks[10] = {kAttackSlam, kAttackToss, kAttackSlam | kAttackStomp, kAttackCry | kAttackSlam,
+                                             kAttackToss | kAttackStomp, kAttackCry, kAttackStomp | kAttackCry, kAttackToss | kAttackSlam,
+                                             15, 15};
+        u8 known = 0;
+        if (n >= 30) known |= kAttackSlam;
+        if (n >= 50) known |= kAttackToss;
+        if (n >= 60) known |= kAttackCry;
+        if (n >= 70) known |= kAttackStomp;
+        u8 a = u8(kWorldAttacks[d.world - 1] & known);
+        if (d.world >= 9) {  // two of those known, at random
+            u8 pick = 0;
+            for (int tries = 0; tries < 8 && __builtin_popcount(pick) < 2 && a; ++tries) pick = u8(pick | (1 << (r.next() % 4u)));
+            a = u8(pick & known);
+        }
+        d.bossAttacks = a;
+        if (n == 30) d.hint = 29;
+        if (n == 50) d.hint = 30;
+        if (n == 60) d.hint = 31;
+        if (n == 70) d.hint = 32;
     }
     // Power-ups: the one this level brings in (on its first horde), else now and then one of those known, before a horde.
     int powersKnown = 0, introPower = 0;
@@ -163,10 +212,15 @@ void build(int n, u64 seed, Shape& out) {
         if (n >= kPowerIntro[k]) powersKnown = k + 1;
         if (n == kPowerIntro[k]) introPower = kPowerOrder[k];
     }
-    int pickups = 0;
+    int pickups = 0, minefields = 0, archerRanks = 0;
     // A weapon on offer (the same for every seed of this level): a crate now and then once crates are known, else a gate
     // beside a sum or, with two weapons known, beside another weapon.
-    const int offer = weaponOffer(n);
+    int offer = weaponOffer(n);
+    if (arsenal) {  // the weapon is in hand from the start; nothing more on offer
+        d.gun = u8(offer > 0 ? offer : 1 + int(r.next() % u32(weaponsKnown(n))));
+        offer = 0;
+    }
+    if (gold) offer = 0;
     const bool crate = offer > 0 && (n == 14 || (n > 14 && n != 22 && n != 28 && r.f01() < 0.4f));
     int rival = 0;
     if (offer > 0 && !crate && weaponsKnown(n) >= 2 && n != 9 && n != 22 && n != 28 && r.f01() < 0.3f) {
@@ -174,7 +228,9 @@ void build(int n, u64 seed, Shape& out) {
         if (rival == offer) rival = rival % weaponsKnown(n) + 1;
     }
     const bool pairs = n >= 2, barrels = n >= 4, mul = n >= 5, blocks = n >= 6, riders = n >= 7, brutes = n >= 12, triple = n >= 20;
-    const bool bossHere = d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 100 ? 0.6f : 0.45f));
+    const bool bossHere = !gold && (d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 100 ? 0.6f : 0.45f)));
+    if (!bossHere) d.bossAttacks = 0;
+    int catapultsLaid = 0, giantsLaid = 0;
     // E: the squad the bot really has where the next section starts, measured by playing the road built so far, so
     // every section is sized against it (gates worth taking, barrels worth shooting, hordes that bite).
     float E = float(d.start);
@@ -183,21 +239,26 @@ void build(int n, u64 seed, Shape& out) {
     int sinceWave = 0;
     int section = 0, last = -1;
     while (z < end) {
-        const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount;
-        // What comes next: a horde after every two or three other sections; else a mix of what this level knows, never
-        // the same twice running. The first section is always gates.
+        const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount,
+                  minesBefore = d.mineCount, cagesBefore = d.cageCount;
+        // What comes next: a horde after every two or three other sections (never on a gold rush); else a mix of what
+        // this level knows, never the same twice running. The first section is always gates.
         int kind;
         if (section == 0) kind = n < 10 || r.f01() < 0.5f ? 0 : 1;
         else if (section == 1 && offer > 0) kind = 6;
-        else if (sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
+        else if (section == 1 && n == 19) kind = 7;  // the first moving gate
+        else if (!gold && sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
         else {
-            float w[6] = {n <= 3 ? 3.0f : 0.9f, pairs ? 2.2f : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f : 0.0f, 0.0f, triple ? 1.1f : 0.0f};
-            if (last >= 0 && last < 6) w[last] *= 0.12f;
+            // Gold rush: gates, barrels, medallions; rescue: few gates.
+            const float gk = rescue ? 0.4f : 1.0f;
+            float w[9] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
+                          triple ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f};
+            if (last >= 0 && last < 9) w[last] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
             float x = r.f01() * sum;
             kind = 0;
-            for (int k = 0; k < 6; ++k) {
+            for (int k = 0; k < 9; ++k) {
                 if (x < w[k]) {
                     kind = k;
                     break;
@@ -296,7 +357,39 @@ void build(int n, u64 seed, Shape& out) {
                 ++sinceWave;
                 break;
             }
+            case 7: {  // a gate on the move (and on a gold rush often a second behind it): worth catching
+                const int k = gold ? 2 : 1;
+                for (int i = 0; i < k; ++i) {
+                    const float gx = uni(r, -2.0f, 2.0f);
+                    const i32 a = friendly(maxv(3.0f, E * uni(r, 0.4f, 0.9f)));
+                    gate(d, gx - 1.3f, gx + 1.3f, z + 4.0f + 7.0f * float(i), a, kGateAdd, 1, a + 2 + a / 2);
+                    d.gates[d.gateCount - 1].moves = u8(1 + r.next() % 255u);
+                }
+                z += 8.0f + 7.0f * float(k);
+                ++sinceWave;
+                break;
+            }
+            case 8: {  // a gold rush's medallions, one or two across the road
+                const int k = 1 + int(r.next() % 2u);
+                for (int i = 0; i < k && d.medalCount < kMaxMedals; ++i)
+                    d.medals[d.medalCount++] = {k == 1 ? uni(r, -2.5f, 2.5f) : (i == 0 ? -2.6f : 2.6f), z + 4.0f,
+                                                kPowerOrder[r.next() % u32(powersKnown)]};
+                z += 10.0f;
+                ++sinceWave;
+                break;
+            }
             default: {  // a horde, as big as it must be to cost the bot about `bite` of its squad (measured)
+                // Mines in front of it (the horde walks over them: shoot them then); on 13, the first horde's alone.
+                if (mines && (n == 13 ? minefields == 0 : r.f01() < 0.3f)) {
+                    const int k = 3 + int(r.next() % 4u);
+                    for (int i = 0; i < k && d.mineCount < kMaxMines; ++i)
+                        d.mines[d.mineCount++] = {uni(r, -4.2f, 4.2f), z + uni(r, 3.0f, 9.0f)};
+                    ++minefields;
+                }
+                // Prisoners in a cage among it: every horde on a rescue, now and then elsewhere once cages are known.
+                if ((rescue || (cages && r.f01() < 0.2f)) && d.cageCount < kMaxCages)
+                    d.cages[d.cageCount++] = {uni(r, -3.0f, 3.0f), z + 12.0f,
+                                              friendly(maxv(rescue ? 10.0f : 5.0f, E * (rescue ? uni(r, 0.8f, 1.6f) : uni(r, 0.3f, 0.6f))))};
                 // A power-up on the way in: the level's new one on its first horde, else now and then one already known.
                 if (powersKnown > 0 && pickups < 2 && (introPower > 0 ? pickups == 0 : r.f01() < 0.45f)) {
                     const u8 p = introPower > 0 ? u8(introPower) : kPowerOrder[r.next() % u32(powersKnown)];
@@ -312,6 +405,16 @@ void build(int n, u64 seed, Shape& out) {
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
                 const bool withRiders = riders && r.f01() < 0.4f, withBrutes = brutes && r.f01() < 0.35f;
+                const bool withArchers = archers && (n == 17 ? archerRanks == 0 : r.f01() < 0.3f);
+                if (withArchers) ++archerRanks;
+                // A catapult at the road's side beyond it; a giant at its head (with three seconds of the squad's fire in
+                // it), each brought in on its own level.
+                const bool withCatapult = catapults && (n == 21 ? catapultsLaid == 0 : r.f01() < 0.25f);
+                const bool withGiant = !gold && giants && (n == 29 ? giantsLaid == 0 : r.f01() < 0.18f);
+                if (withCatapult) ++catapultsLaid;
+                if (withGiant) ++giantsLaid;
+                const float catX = r.f01() < 0.5f ? -3.6f : 3.6f;
+                const i32 giantHp = maxv<i32>(30, i32(dps(E) * 3.0f));
                 const float zw = z;
                 auto lay = [&](float count) {  // this section's waves for `count` foot; past 900 the rest are brutes
                     d.waveCount = wavesBefore;
@@ -320,12 +423,16 @@ void build(int n, u64 seed, Shape& out) {
                     if (withRiders) d.waves[d.waveCount++] = {zw + 14.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider};
                     const i32 heavy = (withBrutes ? maxv<i32>(1, foot / 12) : 0) + maxv<i32>(0, foot - 900) / 8;
                     if (heavy > 0) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(heavy, 320), kBrute};
+                    // Archers behind it all, standing in their ranks.
+                    if (withArchers) d.waves[d.waveCount++] = {zw + 21.0f, -4.2f, 4.2f, minv(maxv<i32>(3, foot / 5), 80), kArcher};
+                    if (withCatapult) d.waves[d.waveCount++] = {zw + 26.0f, catX, catX, 1, kCatapult};
+                    if (withGiant) d.waves[d.waveCount++] = {zw + 9.0f, -0.6f, 0.6f, 1, kGiant, giantHp};
                 };
                 // Its cost: the soldiers its own enemies take (played to past its end).
                 const float goal = bite(n) * uni(r, 0.6f, 1.4f) * E;
                 float lo = 2.0f, hi = maxv(60.0f, E * 14.0f), pick = lo;
                 static const bool trace = std::getenv("PM_GEN_TRACE") != nullptr;
-                for (int it = 0; it < 8 && d.waveCount + 3 <= kMaxWaves; ++it) {
+                for (int it = 0; it < 8 && d.waveCount + 6 <= kMaxWaves; ++it) {
                     const float mid = std::sqrt(lo * hi);
                     lay(mid);
                     const float cost = hordeCost(d, zw + 47.0f, wavesBefore);
@@ -339,8 +446,8 @@ void build(int n, u64 seed, Shape& out) {
                         if (cost >= goal * 0.8f) break;
                     }
                 }
-                if (d.waveCount + 3 <= kMaxWaves) lay(pick);
-                z += 22.0f;
+                if (d.waveCount + 6 <= kMaxWaves) lay(pick);
+                z += withArchers ? 26.0f : 22.0f;
                 sinceWave = 0;
                 break;
             }
@@ -354,6 +461,8 @@ void build(int n, u64 seed, Shape& out) {
             d.barrelCount = barrelsBefore;
             d.waveCount = wavesBefore;
             d.medalCount = medalsBefore;
+            d.mineCount = minesBefore;
+            d.cageCount = cagesBefore;
         }
     }
     // The end: the boss, or a last stand of the horde across the road; finish() sizes it.
@@ -369,8 +478,10 @@ void finish(const Shape& s, float m, LevelDef& out) {
     if (!dp) dp = new LevelDef();
     LevelDef& d = *dp;
     d = s.d;
-    if (s.boss) {  // as many hit points as the squad at the end deals in m seconds (it crushes a ninth of whatever squad
-                   // meets it every second: Battle::moveEnemies)
+    if (d.mode == kModeGold) {
+        // A bonus road ends at its finish line: nothing to size.
+    } else if (s.boss) {  // as many hit points as the squad at the end deals in m seconds (it crushes a ninth of whatever
+                          // squad meets it every second: Battle::moveEnemies)
         d.bossHp = maxv<i32>(20, i32(dps(s.endSquad) * m));
     } else if (d.waveCount + 3 <= kMaxWaves) {  // m times the squad's number, foot and riders and brutes
         const i32 foot = maxv<i32>(5, i32(s.endSquad * m));
@@ -396,8 +507,9 @@ Baked bakeLevel(int n, int maxSeeds) {
     // The margin the best run (the planner's) must win by: the share of its peak squad still standing at the end. It
     // falls from about 60% to under 3% at level 300; the hard levels thrown in ask for a third of their neighbours'.
     const float target = marginTarget(n);
-    const float lo = n <= 10 ? 0.45f : target * 0.6f;
-    const float hi = n <= 10 ? 1.0f : minv(1.0f, target * 1.5f);
+    const bool gold = levelMode(n) == kModeGold;  // a bonus road has no end fight: any win will do
+    const float lo = gold ? 0.0f : (n <= 10 ? 0.45f : target * 0.6f);
+    const float hi = gold || n <= 10 ? 1.0f : minv(1.0f, target * 1.5f);
     best.target = target;
     float bestErr = 1e9f;
     thread_local Shape* sp = nullptr;  // large: one per thread

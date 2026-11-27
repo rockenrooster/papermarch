@@ -17,7 +17,9 @@ enum Cue : u8 {
     kCueBlast,   // a rocket's burst
     kCuePower,   // a power-up taken (step: its kind)
     kCueShield,  // the shield absorbs a hit (step 1: it breaks)
-    kCueBomb     // an airstrike's bomb lands
+    kCueBomb,    // an airstrike's bomb lands
+    kCueCage,    // prisoners freed
+    kCueArrow    // archers loose
 };
 struct CueEvent {
     u8 cue = 0;
@@ -91,6 +93,14 @@ private:
         int powIcon[sim::kPowerCount] = {-1, -1, -1, -1, -1, -1};
         int tracerHot = -1, gunGlow = -1, shieldDome = -1, shieldCrack = -1, shieldBreak = -1, frostRing = -1, frostOverlay = -1,
             bomb = -1, shadowGrow = -1;
+        // Step 3 (ART_DIRECTION 17): archers and arrows, mines, cages, moving gates' rail and wheeled posts, coins.
+        int archer = -1, archerShoot = -1, arrow = -1, mine = -1, cage = -1, prisoner = -1, lightGreen = -1, cageOpen = -1, rail = -1,
+            coin = -1;
+        int postWheel[4] = {-1, -1, -1, -1};  // add, multiply, negative, weapon
+        // Step 4: catapults and their boulders, the warnings on the road, giants, the boss's attack poses.
+        int catapult = -1, catapultFire = -1, boulder = -1, warnCircle = -1, dirtBurst = -1, warnHalf = -1, waveRidge = -1,
+            arrowGround = -1, giant = -1, bossSlam = -1, bossThrow = -1, bossRoar = -1, cageBack = -1;
+        int addonPose[10][3] = {};  // each world's add-on in the boss's attack poses (wN.boss_addon.slam/.throw/.roar)
         int confettiCount = 0;
     };
     // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation. Between
@@ -120,6 +130,8 @@ private:
     void drawGates(const sim::Battle& b, UiBatch& labels);
     void drawBarrels(const sim::Battle& b, UiBatch& labels);
     void drawPowers(const sim::Battle& b, UiBatch& labels);  // medallions, the shield's dome, bombs falling
+    void drawHazards(const sim::Battle& b, UiBatch& labels, float step);  // mines, cages, arrows in flight
+    void drawStrikes(const sim::Battle& b, float step);  // boulders' circles and flight, the club's half, the stomp's ridge
     void drawParticles();
     void label(UiBatch& b, const char* s, float x, float y, float size, u32 fill, u32 stroke);
     void burst(float x, float z, float y, int n, u32 c0, u32 c1, float speed, float size, u8 kind);
@@ -200,6 +212,9 @@ private:
     u8 weaponNow_ = 0;             // the squad's weapon as of the last step (its shots and its look)
     bool frozenNow_ = false;       // FREEZE is on (this frame), the squad at squadZ_
     float squadZ_ = 0;
+    float gateStep_ = 0;           // this frame's time past the last step (moving gates slide smoothly)
+    u8 bossAct_ = 0;               // the boss's attack pose (1 the club, 2 a throw, 3 a roar) and its clock
+    float bossActT_ = 9;
     float smokeClock_ = 0;         // rockets drop a puff of smoke every 0.05 s
 };
 

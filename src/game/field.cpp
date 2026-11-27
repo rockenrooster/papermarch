@@ -181,6 +181,37 @@ void Field::setArt(Art* art) {
     ids_.frostOverlay = kind("fx.frost_overlay");
     ids_.bomb = kind("fx.bomb");
     ids_.shadowGrow = kind("fx.shadow_grow");
+    ids_.archer = kind("archer.idle");
+    ids_.archerShoot = kind("archer.shoot");
+    ids_.arrow = kind("fx.arrow");
+    ids_.mine = kind("haz.mine");
+    ids_.cage = kind("cage.still");
+    ids_.prisoner = kind("cage.prisoner");
+    ids_.lightGreen = kind("fx.light_column_green");
+    ids_.cageOpen = kind("fx.cage_open");
+    ids_.rail = kind("gate.rail");
+    ids_.coin = kind("fx.coin");
+    const char* wheels[4] = {"gate.post_add_w", "gate.post_mul_w", "gate.post_neg_w", "gate.post_wpn_w"};
+    for (int i = 0; i < 4; ++i) ids_.postWheel[i] = kind(wheels[i]);
+    ids_.catapult = kind("catapult.idle");
+    ids_.catapultFire = kind("catapult.fire");
+    ids_.boulder = kind("fx.boulder");
+    ids_.warnCircle = kind("fx.warn_circle");
+    ids_.dirtBurst = kind("fx.dirt_burst");
+    ids_.warnHalf = kind("fx.warn_half");
+    ids_.waveRidge = kind("fx.wave_ridge");
+    ids_.arrowGround = kind("fx.arrow_ground");
+    ids_.giant = kind("giant.march");
+    ids_.bossSlam = kind("boss.slam");
+    ids_.bossThrow = kind("boss.throw");
+    ids_.bossRoar = kind("boss.roar");
+    ids_.cageBack = kind("cage.back");
+    const char* poses[3] = {"slam", "throw", "roar"};
+    for (int w = 0; w < 10; ++w)
+        for (int p = 0; p < 3; ++p) {
+            std::snprintf(name, sizeof name, "w%d.boss_addon.%s", w + 1, poses[p]);
+            ids_.addonPose[w][p] = art_->find(name);
+        }
     for (int i = 0; i < 6; ++i) {
         std::snprintf(name, sizeof name, "fx.confetti_%c", 'a' + i);
         const int c = kind(name);
@@ -529,7 +560,7 @@ void Field::setLevel(const sim::LevelDef& d, int number) {
 // ---- Events: what a step did becomes bursts, figures falling, numbers and cues ----------------------------------------
 
 void Field::cue(u8 c, int step, float x) {
-    static const float gap[24] = {0.075f, 0.05f, 0.035f, 0, 0, 0.06f, 0.07f, 0, 0, 0, 0, 0.09f, 0, 0.1f, 0, 0, 0, 0, 0.06f, 0, 0.12f, 0, 0, 0};
+    static const float gap[24] = {0.075f, 0.05f, 0.035f, 0, 0, 0.06f, 0.07f, 0, 0, 0, 0, 0.09f, 0, 0.1f, 0, 0, 0, 0, 0.06f, 0, 0.12f, 0, 0, 0.08f};
     if (c < 24 && gap[c] > 0) {
         if (time - cueClock_[c] < gap[c]) return;
         cueClock_[c] = time;
@@ -654,7 +685,10 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         const u8 kind = ev.killKind[i];
         if (kind == sim::kBoss) continue;
         const float size = kind == sim::kBrute ? 1.8f : (kind == sim::kRider ? 1.25f : 1.0f);
-        const int figure = kind == sim::kBrute ? ids_.brute : (kind == sim::kRider ? ids_.rider : ids_.foot);
+        const int figure = kind == sim::kBrute ? ids_.brute
+                           : kind == sim::kRider ? ids_.rider
+                           : kind == sim::kArcher && ids_.archer >= 0 ? ids_.archer
+                                                                      : ids_.foot;
         if (figure >= 0) {  // the art: knocked back 0.3, shrinks and fades into a puff of its colour
             dying(figure, ev.killX[i], ev.killZ[i], 0.3f, 0.12f);
             flipbook(ids_.poofRed, ev.killX[i], ev.killZ[i] - 0.05f, 0.0f, kind == sim::kBrute ? 1.6f : 1.0f);
@@ -682,11 +716,11 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     for (int g = 0; g < def_->gateCount; ++g) {
         const sim::GateState& gs = b.gates[g];
         if (gs.used || gs.hit > sim::kDt * 1.5f) continue;
-        cue(kCueGrow, minv(gs.value, 24), (def_->gates[g].x0 + def_->gates[g].x1) * 0.5f);
-        if (ids_.hit >= 0 && rnd() < 0.5f) {
-            const sim::GateDef& gd = def_->gates[g];
-            flipbook(ids_.hit, gd.x0 + 0.3f + rnd() * (gd.x1 - gd.x0 - 0.6f), gd.z - 0.05f, 0.5f + rnd() * 1.4f, 1.0f, rnd() * 6.28f);
-        }
+        float g0, g1;
+        b.gateSpan(g, b.time, g0, g1);
+        cue(kCueGrow, minv(gs.value, 24), (g0 + g1) * 0.5f);
+        if (ids_.hit >= 0 && rnd() < 0.5f)
+            flipbook(ids_.hit, g0 + 0.3f + rnd() * (g1 - g0 - 0.6f), def_->gates[g].z - 0.05f, 0.5f + rnd() * 1.4f, 1.0f, rnd() * 6.28f);
     }
     for (int k = 0; k < def_->barrelCount; ++k) {
         const sim::BarrelState& bs = b.barrels[k];
@@ -709,6 +743,16 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
             cue(kCueBlast, 0, x);
         } else if (ev.spotWhat[i] == 1) {
             if (ids_.pierce >= 0) flipbook(ids_.pierce, x, z - 0.05f, 0.7f, 1.0f);
+        } else if (ev.spotWhat[i] == 3) {  // a mine: a blast at 0.7, a ring
+            if (ids_.explosion >= 0) {
+                flipbook(ids_.explosionGlow, x, z - 0.12f, 0.0f, 0.7f);
+                flipbook(ids_.explosion, x, z - 0.1f, 0.0f, 0.7f);
+                flipbook(ids_.ring, x, z - 0.2f, 0.02f, 0.9f);
+            } else {
+                burst(x, z, 0.5f, 10, 0xFFB040, kSpark, 5.0f, 0.12f, 3);
+            }
+            shake_ = maxv(shake_, 0.3f);
+            cue(kCueBlast, 0, x);
         } else {  // an airstrike's bomb: a big blast, half size, its glow and a ring
             if (ids_.bigboom >= 0) {
                 flipbook(ids_.bigboomGlow, x, z - 0.12f, 0.0f, 0.5f);
@@ -739,6 +783,46 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         if (ids_.shieldBreak >= 0) flipbook(ids_.shieldBreak, b.x, b.z - b.radius() - 0.5f, 0.0f, maxv(1.0f, b.radius()));
         cue(kCueShield, 1, b.x);
     }
+    if (ev.cage >= 0) {  // prisoners freed: their number, a green burst, sparkles
+        const sim::CageDef& cd = def_->cages[ev.cage];
+        std::snprintf(t, sizeof t, "+%d", cd.reward);
+        floater(cd.x, cd.z, 2.4f, t, 0x8CFF9C, 0x16224F, 1.05f);
+        if (ids_.cageOpen >= 0) flipbook(ids_.cageOpen, cd.x, cd.z - 0.1f, 0.0f, 1.0f);
+        else burst(cd.x, cd.z, 0.8f, 14, 0x4ED87A, 0x2E9E4E, 5.0f, 0.13f, 0);
+        if (ids_.sparkle >= 0)
+            for (int i = 0; i < 8; ++i) flipbook(ids_.sparkle, cd.x + (rnd() - 0.5f) * 2.0f, cd.z + (rnd() - 0.5f), 0.8f, 1.0f, 0, 0.03f * float(i));
+        cue(kCueCage, 0, cd.x);
+        badgePop_ = 1;
+    }
+    if (ev.mineStepped) {
+        floater(0, 1.0f, 4.4f, "-6", 0xFF7A86, 0x16224F, 1.0f, true);
+        edge_ = 1.0f;
+    }
+    if (ev.arrows > 0) cue(kCueArrow, ev.arrows, b.x);
+    // The boss's attacks: its pose, a roar's ring of sound; blows landing (dirt, dust, a tremor).
+    if (ev.strikeShown == 1) bossAct_ = 1, bossActT_ = 0;
+    if (ev.bossThrew) bossAct_ = 2, bossActT_ = 0;
+    if (ev.roar) {
+        bossAct_ = 3, bossActT_ = 0;
+        if (const int bi1 = b.bossIndex(); bi1 >= 0 && ids_.ring >= 0) flipbook(ids_.ring, b.enemies[bi1].x, b.enemies[bi1].z - 0.5f, 3.0f, 2.0f);
+        floater(0, 1.0f, 5.0f, "WAR CRY!", 0xFF7A86, 0x16224F, 1.1f, true);
+        cue(kCueBoss, 0, 0);
+    }
+    if (ev.thrown > 0) cue(kCueArrow, 6, b.x);
+    if (ev.strikeLanded >= 0) {
+        const float x = ev.strikeX, z = ev.strikeZ;
+        if (ev.strikeLanded == 0) {
+            if (ids_.dirtBurst >= 0) flipbook(ids_.dirtBurst, x, z - 0.1f, 0.0f, 1.0f);
+            else burst(x, z, 0.4f, 12, 0x8A6A4A, 0x5A4A3A, 5.0f, 0.15f, 0);
+        } else {
+            for (int i = 0; i < 5; ++i) {
+                const float dx = ev.strikeLanded == 1 ? (x < 0.0f ? -1.0f : 1.0f) * (0.5f + rnd() * 4.0f) : (rnd() - 0.5f) * 9.0f;
+                flipbook(ids_.dust, dx, z + (rnd() - 0.3f) * 3.0f, 0.0f, 2.0f, 0, 0.03f * float(i));
+            }
+        }
+        shake_ = maxv(shake_, ev.strikeLanded == 0 ? 0.35f : 0.6f);
+        cue(kCueBomb, 0, x);
+    }
     if (ev.weapon >= 0 && ev.weapon < sim::kWeaponCount) {  // a new weapon: its name over the squad, a fanfare
         std::snprintf(t, sizeof t, "%s!", kWeaponName[ev.weapon]);
         floater(0, 1.0f, 4.8f, t, kOrangeC, 0x16224F, 1.15f, true);
@@ -757,10 +841,30 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         const u32 c = g.kind == sim::kGateMul ? kVioletC : (b.gates[ev.gate].value > 0 ? kBlue : kRed);
         gateUsedAt_[ev.gate] = time;
         const int side = g.kind == sim::kGateMul ? 1 : (ev.gateBefore >= 0 && b.gates[ev.gate].value >= 0 ? 0 : 2);
+        float g0, g1;
+        b.gateSpan(ev.gate, b.time, g0, g1);
+        if (def_->mode == sim::kModeGold && ids_.coin >= 0 && good)  // a bonus road: gold coins burst from every gate
+            for (int i = 0; i < (reduceEffects ? 4 : 9); ++i) {
+                Particle& p = parts_[partHead_];
+                partHead_ = (partHead_ + 1) % kParticles;
+                partCount_ = minv(partCount_ + 1, kParticles);
+                p = Particle{};
+                p.x = g0 + rnd() * (g1 - g0);
+                p.z = g.z;
+                p.y = 1.0f + rnd();
+                p.vx = (rnd() - 0.5f) * 3.0f;
+                p.vz = (rnd() - 0.3f) * 2.0f;
+                p.vy = 4.0f + rnd() * 3.0f;
+                p.max = p.life = 1.4f + rnd() * 0.6f;
+                p.size = 1.0f;
+                p.rot = rnd() * 6.28f;
+                p.kind = 0;  // ballistic, spinning
+                p.anim = i16(ids_.coin);
+            }
         if (ids_.gatePass[side] >= 0) {
-            flipbook(ids_.gatePass[side], (g.x0 + g.x1) * 0.5f, g.z - 0.05f, 1.2f, 1.0f);
+            flipbook(ids_.gatePass[side], (g0 + g1) * 0.5f, g.z - 0.05f, 1.2f, 1.0f);
             if (side < 2) {
-                confetti((g.x0 + g.x1) * 0.5f, g.z, 1.4f, 24, g.x1 - g.x0);
+                confetti((g0 + g1) * 0.5f, g.z, 1.4f, 24, g1 - g0);
             } else {
                 for (int i = 0; i < 10; ++i) flipbook(ids_.poofBlue, b.x + (rnd() - 0.5f) * b.radius() * 2.0f, b.z + (rnd() - 0.5f) * b.radius(), 0, 1.0f);
                 edge_ = 1.0f;
@@ -913,6 +1017,7 @@ void Field::update(float dt, const sim::Battle& b) {
     }
     shake_ = maxv(0.0f, shake_ - dt * 2.2f);
     zoom_ = maxv(0.0f, zoom_ - dt * 0.6f);
+    bossActT_ += dt;
     edge_ = maxv(0.0f, edge_ - dt / 0.3f);
     for (float& f : flash_) f = maxv(0.0f, f - dt);
     for (int i = 0; i < partCount_; ++i) {
@@ -1107,9 +1212,14 @@ void Field::drawGates(const sim::Battle& b, UiBatch& labels) {
             const bool grey = !mul && !wpn && gs.value == 0;
             const u32 C = grey ? 0x8C96A8 : kC[kind], Hc = grey ? 0xD8DEE8 : kH[kind];
             const float top = kBottom + (kTop - kBottom) * collapse;
+            // Where it stands now (a moving gate slides on a rail across the road, its posts on wheels).
+            float gx0, gx1;
+            b.gateSpan(g, b.time + gateStep_, gx0, gx1);
+            if (gd.moves && ids_.rail >= 0 && !gs.used)
+                for (float rx = -4.0f; rx <= 4.01f; rx += 2.0f) sprite(ids_.rail, rx, gd.z + 0.05f, 0, 0, 1.0f, fade);
             float xl, yb, sb, xr, yr, sr, xt, yt, st;
-            if (!cam_.project(gd.x0, gd.z, kBottom, xl, yb, sb) || !cam_.project(gd.x1, gd.z, kBottom, xr, yr, sr) ||
-                !cam_.project(gd.x0, gd.z, top, xt, yt, st))
+            if (!cam_.project(gx0, gd.z, kBottom, xl, yb, sb) || !cam_.project(gx1, gd.z, kBottom, xr, yr, sr) ||
+                !cam_.project(gx0, gd.z, top, xt, yt, st))
                 continue;
             const float hit = gs.hit < 0.1f ? (1.0f - gs.hit / 0.1f) * 0.55f : 0.0f;  // shot all the time: a gentle flash
             Sticker* p = add(gd.z, 1);
@@ -1130,13 +1240,14 @@ void Field::drawGates(const sim::Battle& b, UiBatch& labels) {
             p->c2[0] = u8(taken * 255.0f);
             p->c2[3] = gs.passed ? 0 : 255;
             // Its posts (over the panel's sides) and, for a barricade, sharpened stakes along its foot.
-            const int post = wpn ? (ids_.gatePostWpn >= 0 ? ids_.gatePostWpn : ids_.gatePost[0]) : ids_.gatePost[kind];
+            int post = wpn ? (ids_.gatePostWpn >= 0 ? ids_.gatePostWpn : ids_.gatePost[0]) : ids_.gatePost[kind];
+            if (gd.moves && ids_.postWheel[kind] >= 0) post = ids_.postWheel[kind];
             for (int side = 0; side < 2; ++side) {
-                const float x = side ? gd.x1 : gd.x0;
+                const float x = side ? gx1 : gx0;
                 if (sprite(post, x, gd.z, 0, time, 1.0f, fade).st) castShadow(x, gd.z, 2.7f, 0.18f);
             }
             if (kind == 2 && ids_.gateSpikes >= 0)
-                for (float x = gd.x0 + 0.5f; x < gd.x1 - 0.2f; x += 1.0f) sprite(ids_.gateSpikes, x, gd.z - 0.02f, 0, time, 1.0f, fade);
+                for (float x = gx0 + 0.5f; x < gx1 - 0.2f; x += 1.0f) sprite(ids_.gateSpikes, x, gd.z - 0.02f, 0, time, 1.0f, fade);
             if (wpn) {  // its weapon's icon, 1.3 units tall, the name under it
                 const int w = clampv<int>(gs.value, 0, sim::kWeaponCount - 1);
                 const float ph = yb - yt, cx = (xl + xr) * 0.5f;
@@ -1277,9 +1388,10 @@ void Field::drawBarrels(const sim::Battle& b, UiBatch& labels) {
 void Field::drawPowers(const sim::Battle& b, UiBatch& labels) {
     if (!art_) return;
     const float zMin = cam_.z + cam_.tBottom - 1.0f, zMax = cam_.z + cam_.tTop + 2.0f;
-    for (int m = 0; m < def_->medalCount; ++m) {
-        const sim::MedalDef& md = def_->medals[m];
-        if (b.medalTaken[m] || md.z < zMin || md.z > zMax) continue;
+    for (int m = 0; m < def_->medalCount + b.dropCount; ++m) {  // the level's medallions, then those giants dropped
+        const bool drop = m >= def_->medalCount;
+        const sim::MedalDef& md = drop ? b.drops[m - def_->medalCount] : def_->medals[m];
+        if ((drop ? b.dropTaken[m - def_->medalCount] : b.medalTaken[m]) || md.z < zMin || md.z > zMax) continue;
         const float t = time + float(m) * 0.31f;
         if (ids_.lightColumn >= 0) sprite(ids_.lightColumn, md.x, md.z + 0.01f, 0, t, 1.0f, 0.8f);
         const Placed pl = sprite(ids_.medal, md.x, md.z, 0, t, 1.0f, 1.0f);
@@ -1305,26 +1417,187 @@ void Field::drawPowers(const sim::Battle& b, UiBatch& labels) {
     }
 }
 
+// The blows shown on the road before they land: a boulder's red circle with the boulder arcing at it, the club's half of
+// the road in red chevrons, the stomp's ridge rolling down with its gap (an arrow on the road points at it). Warnings lie
+// flat: a sprite as wide as `width` road units, squashed by the view's elevation.
+void Field::drawStrikes(const sim::Battle& b, float step) {
+    auto flat = [&](int anim, float x, float z, float width, float alpha) {
+        if (anim < 0 || !art_) return false;
+        const SpriteFrame& f0 = art_->frame(anim, 0, 0);
+        const float unitsW = f0.w * f0.height / maxv(1.0f, f0.h);
+        const Placed pl = sprite(anim, x, z, 0.03f, time, width / maxv(0.01f, unitsW), alpha);
+        for (Sticker* q : {pl.st, pl.st2})
+            if (q) q->hh *= maxv(0.12f, std::sin(pl.elev * kPi / 180.0f));
+        return true;
+    };
+    auto redZone = [&](float x0, float x1, float z0, float z1, float alpha) {  // without the art: a red patch on the road
+        float ax, ay, as, bx, by, bs;
+        if (!cam_.project(0.5f * (x0 + x1), z0, 0, ax, ay, as) || !cam_.project(0.5f * (x0 + x1), z1, 0, bx, by, bs)) return;
+        Sticker* st = add(z1, 1);
+        if (st) *st = sticker(kShBox, 0.5f * (ax + bx), 0.5f * (ay + by), 0.5f * (x1 - x0) * 0.5f * (as + bs), maxv(2.0f, 0.5f * (ay - by)), 0xF0323C, 0xF0323C, 0xF0323C, alpha);
+    };
+    for (int k = 0; k < b.strikeCount; ++k) {
+        const sim::Strike& s = b.strikes[k];
+        const float left = maxv(0.0f, s.t - step), f = 1.0f - left / maxv(0.01f, s.full);  // 0 when shown, 1 as it lands
+        const float pulse = 0.6f + 0.4f * std::sin(time * 14.0f);
+        if (s.kind == 0) {  // the circle (2.3 units across for a radius of 1); the stone leaves the thrower's hand or cup on
+                            // its release frame (the boss's 5th, the catapult's 4th, at 12 a second) and arcs down onto it
+            if (!flat(ids_.warnCircle, s.x, s.z, 2.3f * s.r, 0.9f * pulse)) redZone(s.x - s.r, s.x + s.r, s.z - s.r, s.z + s.r, 0.35f * pulse);
+            const float rel = s.byBoss ? 5.0f / 12.0f : 4.0f / 12.0f, gone = f * s.full;
+            if (gone < rel) continue;
+            const float g = clampv((gone - rel) / maxv(0.05f, s.full - rel), 0.0f, 1.0f);
+            if (ids_.shadowGrow >= 0) sprite(ids_.shadowGrow, s.x, s.z + 0.02f, 0, 0, (0.3f + 0.7f * g) * s.r / 1.7f, 0.25f + 0.5f * g);
+            const float bx = s.fromX + (s.x - s.fromX) * g, bz = s.fromZ + (s.z - s.fromZ) * g, by = 3.0f + 9.0f * g * (1.0f - g) - 2.5f * g;
+            if (ids_.boulder >= 0) {
+                sprite(ids_.boulder, bx, bz, by, time, s.byBoss ? 1.5f : 1.0f, 1.0f);
+            } else {
+                float sx, sy, sc;
+                if (cam_.project(bx, bz, by, sx, sy, sc)) {
+                    Sticker* st = add(bz, 1);
+                    if (st) *st = sticker(kShEllipse, sx, sy, 0.6f * sc, 0.55f * sc, 0x7A6A5A, 0x5A4A3A, 0x5A4A3A);
+                }
+            }
+        } else if (s.kind == 1) {  // the club's half in 2.5-unit tiles, from just behind the squad to well ahead of it
+            const float x0 = s.x < 0.0f ? -sim::kRoadHalf : 0.0f;
+            if (ids_.warnHalf >= 0) {
+                for (float zz = b.z - 2.5f; zz < b.z + 8.0f; zz += 2.5f)
+                    for (int col = 0; col < 2; ++col) flat(ids_.warnHalf, x0 + 1.25f + 2.5f * float(col), zz, 2.5f, 0.85f * pulse);
+            } else {
+                redZone(x0, x0 + sim::kRoadHalf, b.z - 3.0f, b.z + 8.0f, 0.3f * pulse);
+            }
+        } else {  // the stomp's ridge (2-unit tiles, upright) rolls from the boss down to the squad, leaving its gap
+            const float zr = b.z + (s.z - b.z) * left / maxv(0.01f, s.full);
+            for (float xx = -4.0f; xx <= 4.01f; xx += 2.0f) {
+                if (std::fabs(xx - s.x) < 2.0f) continue;
+                if (ids_.waveRidge >= 0) sprite(ids_.waveRidge, xx, zr, 0, time + xx * 0.1f, 1.0f, 1.0f);
+                else redZone(xx - 1.0f, xx + 1.0f, zr - 0.4f, zr + 0.4f, 0.55f);
+            }
+            if (ids_.arrowGround >= 0) flat(ids_.arrowGround, s.x, b.z + 3.0f, 1.6f, 0.6f + 0.4f * pulse);
+        }
+    }
+}
+
+// Mines blinking on the road, cages with their prisoners waving in a green light, archers' arrows arcing at the squad.
+void Field::drawHazards(const sim::Battle& b, UiBatch& labels, float step) {
+    const float zMin = cam_.z + cam_.tBottom - 1.0f, zMax = cam_.z + cam_.tTop + 2.0f;
+    for (int m = 0; m < def_->mineCount; ++m) {
+        const sim::MineDef& md = def_->mines[m];
+        if (b.mineGone[m] || md.z < zMin || md.z > zMax) continue;
+        if (ids_.mine >= 0) {  // its light blinks faster as the squad comes near (3 to 10 times a second)
+            const float near = clampv(1.0f - (md.z - b.z) / 30.0f, 0.0f, 1.0f);
+            sprite(ids_.mine, md.x, md.z, 0, (time + float(m) * 0.37f) * (1.0f + 2.3f * near), 1.0f, 1.0f);
+            continue;
+        }
+        float sx, sy, s;
+        if (!cam_.project(md.x, md.z, 0, sx, sy, s)) continue;
+        Sticker* st = add(md.z, 2);
+        if (!st) return;
+        st[0] = sticker(kShEllipse, sx, sy - 0.12f * s, 0.5f * s, 0.24f * s, 0x2A2A30, 0x18181C, 0x18181C);
+        const bool on = std::fmod(time + float(m) * 0.37f, 0.8f) < 0.4f;
+        st[1] = sticker(kShEllipse, sx, sy - 0.3f * s, 0.09f * s, 0.07f * s, on ? 0xFF3030 : 0x601010, 0xFF3030, 0xFF3030);
+    }
+    for (int c = 0; c < def_->cageCount; ++c) {
+        const sim::CageDef& cd = def_->cages[c];
+        if (b.cageOpen[c] || cd.z < zMin || cd.z > zMax) continue;
+        // A green light over it; its floor, two prisoners waving, then the near bars and roof (ART_DIRECTION 17).
+        if (ids_.lightColumn >= 0) sprite(ids_.lightColumn, cd.x, cd.z + 0.02f, 0, time, 1.3f, 0.7f, 0, false, 0, 0x6CFF8A);
+        if (ids_.cageBack >= 0) sprite(ids_.cageBack, cd.x, cd.z + 0.015f, 0, 0, 1.0f, 1.0f);
+        if (ids_.prisoner >= 0)
+            for (int k = 0; k < 2; ++k) sprite(ids_.prisoner, cd.x + (k ? 0.35f : -0.35f), cd.z + 0.01f, 0, time + float(c * 2 + k) * 0.21f, 1.0f, 1.0f, 0, k == 1);
+        float sx, sy, s;
+        if (!cam_.project(cd.x, cd.z, 0, sx, sy, s)) continue;
+        if (ids_.cage >= 0) {
+            if (sprite(ids_.cage, cd.x, cd.z, 0, time, 1.0f, 1.0f).st) castShadow(cd.x, cd.z, 1.8f, 0.8f);
+        } else {
+            Sticker* st = add(cd.z, 3);
+            if (!st) return;
+            st[0] = sticker(kShBox, sx, sy - 0.9f * s, 0.8f * s, 0.9f * s, 0x2E9E4E, 0x1E6E36, 0x1E6E36, 0.45f);
+            st[1] = sticker(kShPawn, sx, sy - 0.6f * s, 0.25f * s, 0.42f * s, kBlue, kBlueDark, 0xF2C230);
+            st[2] = sticker(kShBox, sx, sy - 1.85f * s, 0.85f * s, 0.08f * s, 0x1E6E36, 0x1E6E36, 0x1E6E36);
+        }
+        char t[16];
+        std::snprintf(t, sizeof t, "+%d", cd.reward);
+        const float size = 0.72f * s * tune.tagScale;
+        if (size >= 7.0f) label(labels, t, sx, sy - 2.6f * s, size, kWhiteC, 0x1E6E36);
+    }
+    for (int k = 0; k < b.arrowCount; ++k) {  // from the archer to the squad in 0.8 s, along an arc
+        const sim::Arrow& a = b.arrows[k];
+        const float f = clampv(1.0f - (a.t - step) / 0.8f, 0.0f, 1.0f), f2 = minv(1.0f, f + 0.05f);
+        const float x = a.x0 + (b.x - a.x0) * f, z = a.z0 + (b.z - a.z0) * f, y = 1.4f + 10.0f * f * (1.0f - f);
+        const float x2 = a.x0 + (b.x - a.x0) * f2, z2 = a.z0 + (b.z - a.z0) * f2, y2 = 1.4f + 10.0f * f2 * (1.0f - f2);
+        float ax, ay, bx, by, s;
+        if (!cam_.project(x, z, y, ax, ay, s) || !cam_.project(x2, z2, y2, bx, by, s)) continue;
+        const float rot = std::atan2(bx - ax, ay - by);
+        if (ids_.arrow >= 0) {
+            sprite(ids_.arrow, x, z, y, 0, 1.0f, 1.0f, rot);
+        } else {
+            Sticker* st = add(z, 1);
+            if (!st) return;
+            st[0] = sticker(kShCapsule, ax, ay, maxv(3.0f, 0.5f * s), maxv(0.8f, 0.04f * s), 0x3A2A1A, 0x3A2A1A, 0x3A2A1A);
+            st[0].rot = rot - kPi * 0.5f;
+        }
+    }
+}
+
 void Field::drawEnemy(const sim::Enemy& e, float z) {
     float sx, sy, s;
     if (!cam_.project(e.x, z, 0, sx, sy, s)) return;
     const float W = float(L_.w), H = float(L_.h);
     if (sx < -60.0f || sx > W + 60.0f || sy < -40.0f || sy > H + 160.0f) return;
     const float flash = e.hit < 0.08f ? 1.0f - e.hit / 0.08f : 0.0f;
-    const int anim = e.kind == sim::kRider ? ids_.rider : (e.kind == sim::kBrute ? ids_.brute : ids_.foot);
+    // An archer in range draws its bow in time with its next arrow; out of range it stands at ease.
+    const bool aiming = e.kind == sim::kArcher && ids_.archerShoot >= 0 && e.z - squadZ_ > 0.0f && e.z - squadZ_ <= 18.0f;
+    if (e.kind == sim::kCatapult) {  // the engine at the road's side: its arm swings over (the stone leaves on frame 4, as
+                                     // the boulder is thrown) and stays up until the next stone is loaded
+        const float phase = std::fmod(3.2f - e.cool + 4.0f / 12.0f, 3.2f);
+        const bool swing = e.z - squadZ_ < 45.0f && e.z - squadZ_ > 6.0f && phase < 1.6f && ids_.catapultFire >= 0;
+        const int a = swing ? ids_.catapultFire : ids_.catapult;
+        if (a >= 0) {
+            if (sprite(a, e.x, z, 0, swing ? phase : 0.0f, 1.0f, 1.0f, 0, e.x < 0.0f, flash * 0.6f).st) castShadow(e.x, z, 2.4f, 1.2f);
+            return;
+        }
+        if (!cam_.project(e.x, z, 0, sx, sy, s)) return;
+        Sticker* st = add(z, 2);
+        if (!st) return;
+        st[0] = sticker(kShBox, sx, sy - 0.6f * s, 1.0f * s, 0.6f * s, mixc(0x7A5030, kWhiteC, flash), 0x5A3820, 0x5A3820);
+        st[1] = sticker(kShCapsule, sx, sy - 1.5f * s, 1.2f * s, 0.12f * s, 0x5A3820, 0x5A3820, 0x5A3820);
+        st[1].rot = swing ? -0.3f : -1.1f;
+        return;
+    }
+    const bool giant = e.kind == sim::kGiant;
+    const int anim = e.kind == sim::kRider    ? ids_.rider
+                     : e.kind == sim::kBrute  ? ids_.brute
+                     : giant                  ? (ids_.giant >= 0 ? ids_.giant : ids_.brute)
+                     : e.kind == sim::kArcher ? (aiming ? ids_.archerShoot : (ids_.archer >= 0 ? ids_.archer : ids_.foot))
+                                              : ids_.foot;
+    if (giant) {  // its health over its head
+        const i32 full = e.wave >= 0 && e.wave < def_->waveCount ? maxv<i32>(1, def_->waves[e.wave].hp * sim::kHp) : 1;
+        float hx, hy, hs;
+        if (cam_.project(e.x, z, 4.4f, hx, hy, hs)) {
+            const float frac = clampv(float(e.hp) / float(full), 0.0f, 1.0f), bw = 2.2f * hs, bh = maxv(4.0f, 0.2f * hs);
+            Sticker* st = add(z - 0.02f, 2);
+            if (st) {
+                st[0] = sticker(kShBox, hx, hy, bw * 0.5f + 1.5f, bh * 0.5f + 1.5f, 0x16224F, 0x16224F, 0x16224F);
+                st[1] = sticker(kShBox, hx - bw * 0.5f * (1.0f - frac), hy, maxv(0.5f, bw * 0.5f * frac), bh * 0.5f, 0xF0323C, 0xF0323C, 0xF0323C);
+            }
+        }
+    }
     if (anim >= 0) {
         // Each a little different: its size, a shade darker or lighter, its step.
-        const float var = 0.94f + 0.12f * h01(u32(e.seed) * 2654435761u + 3u);
+        const float var = (0.94f + 0.12f * h01(u32(e.seed) * 2654435761u + 3u)) * (giant && ids_.giant < 0 ? 2.0f : 1.0f);
         const float shade = 0.90f + 0.16f * h01(u32(e.seed) * 40503u + 11u);
         // Frozen (FREEZE): tinted ice blue, standing still, ice at its feet.
         const bool frozen = frozenNow_ && e.z - squadZ_ < 45.0f;
         const u32 tint = shade < 1.0f ? mixc(0x000000, 0xFFFFFF, shade) : 0xFFFFFF;
-        const Placed pl = sprite(anim, e.x, z, 0, frozen ? float(e.seed & 7) * 0.083f : time + float(e.seed & 255) * 0.043f, var, 1.0f, 0,
-                                 false, maxv(flash * 0.85f, shade - 1.0f), frozen ? mixc(tint, kFrostC, 0.6f) : tint);
+        // An aiming archer's draw is timed to its arrow (it leaves on frame 5 at 12 a second, as the arrow is loosed).
+        const float t = aiming ? std::fmod(1.6f - e.cool + 5.0f / 12.0f, 1.6f)
+                        : frozen ? float(e.seed & 7) * 0.083f
+                                 : time + float(e.seed & 255) * 0.043f;
+        const Placed pl = sprite(anim, e.x, z, 0, t, var, 1.0f, 0, false, maxv(flash * 0.85f, shade - 1.0f), frozen ? mixc(tint, kFrostC, 0.6f) : tint);
         if (frozen && pl.st && ids_.frostOverlay >= 0) sprite(ids_.frostOverlay, e.x, z - 0.05f, 0, 0, var, 1.0f);
         if (pl.st) {
-            const float h = e.kind == sim::kBrute ? 1.9f : (e.kind == sim::kRider ? 1.7f : 1.05f);
-            const float r = e.kind == sim::kBrute ? 0.65f : (e.kind == sim::kRider ? 0.5f : 0.27f);
+            const float h = giant ? 3.8f : e.kind == sim::kBrute ? 1.9f : (e.kind == sim::kRider ? 1.7f : 1.05f);
+            const float r = giant ? 1.3f : e.kind == sim::kBrute ? 0.65f : (e.kind == sim::kRider ? 0.5f : 0.27f);
             castShadow(e.x, z, h * var, r * var);
             ++figures_;
         }
@@ -1385,10 +1658,18 @@ void Field::drawBoss(const sim::Enemy& e, float z, UiBatch& labels) {
         // Hit all the time while the squad fires: a quick flicker, never a white-out.
         const float flicker = flash * 0.28f * (0.5f + 0.5f * std::sin(time * 47.0f));
         const WorldArt& wa = art_->world(def_->world);
-        // The world's recolour of the shared boss, and its add-on drawn over it in step.
-        const Placed pl = sprite(boss, e.x, z, 0, time, breathe, 1.0f, 0, false, flicker, wa.bossTint, wa.bossHue);
+        // The world's recolour of the shared boss, and its add-on drawn over it in step; while it attacks, its attack's
+        // pose (the club raised and down, a throw, a roar) for a second.
+        // The club lands on its 5th frame (12 a second) as the blow does: the slam starts 7/12 s after the half turns red.
+        const int pose = bossAct_ == 1 ? ids_.bossSlam : bossAct_ == 2 ? ids_.bossThrow : bossAct_ == 3 ? ids_.bossRoar : -1;
+        const float pt = bossAct_ == 1 ? bossActT_ - (1.0f - 5.0f / 12.0f) : bossActT_;
+        const bool posing = pose >= 0 && pt < 0.9f && (bossAct_ != 1 || bossActT_ < 1.4f);
+        const float at = posing ? maxv(0.0f, pt) : time;
+        const Placed pl = sprite(posing ? pose : boss, e.x, z, 0, at, breathe, 1.0f, 0, false, flicker, wa.bossTint, wa.bossHue);
         if (pl.st) {
-            if (wa.bossAddon >= 0) sprite(wa.bossAddon, e.x, z, 0, time, breathe, 1.0f, 0, false, flicker);
+            const int w = clampv<int>(def_->world, 1, 10) - 1;
+            const int addon = posing ? ids_.addonPose[w][bossAct_ - 1] : wa.bossAddon;
+            if (addon >= 0 && (posing || wa.bossAddon >= 0)) sprite(addon, e.x, z, 0, at, breathe, 1.0f, 0, false, flicker);
             castShadow(e.x, z, 4.6f, 1.7f);
             ++figures_;
         }
@@ -1678,11 +1959,14 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     // (fewer details when it is huge), bullets, bits.
     const float zLo = cam_.z + cam_.tBottom - 3.0f, zHi = cam_.z + cam_.tTop + 6.0f;
     if (!b.lost) drawSoldiers(b, viewZ_, viewX_, labels);
+    gateStep_ = alpha * sim::kDt;
+    frozenNow_ = b.powered(sim::kFreeze);
+    squadZ_ = b.z;
     drawGates(b, labels);
     drawBarrels(b, labels);
     drawPowers(b, labels);
-    frozenNow_ = b.powered(sim::kFreeze);
-    squadZ_ = b.z;
+    drawHazards(b, labels, alpha * sim::kDt);
+    drawStrikes(b, alpha * sim::kDt);
     if (art_ && (art_->world(def_->world).propCount > 0 || art_->world(def_->world).edgeCount > 0)) sceneryArt(zLo, zHi);
     else scenery(zLo, zHi);
     detailScale_ = b.aliveEnemies() > 700 ? 60.0f : (b.aliveEnemies() > 400 ? 42.0f : 30.0f);
