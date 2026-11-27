@@ -24,8 +24,11 @@ public:
     void pointerMove(i64 id, float x, float y);
     bool pointerUp(i64 id, float x, float y);
 
-    enum Style { kPrimary, kSecondary, kRound };
-    bool button(const char* label, const Rect& r, Style style = kSecondary, float textScale = 1.0f);
+    enum Style { kPrimary, kSecondary, kRound, kDanger, kMuted };  // kMuted: a level not played yet (cream shade)
+    // `labelShift`, `labelDy`: pixels the label moves right (room for an icon at the left) and down.
+    bool button(const char* label, const Rect& r, Style style = kSecondary, float textScale = 1.0f, float labelShift = 0,
+                float labelDy = 0);
+    bool pressing(const Rect& r, const char* label) { return hot(r, label); }
     bool toggle(const char* label, const Rect& r, bool& value);
     // Fires once after being held for `seconds`; `progress` 0..1 while held.
     bool holdButton(const char* label, const Rect& r, float seconds, float dt, float& progress);
@@ -49,6 +52,7 @@ public:
 
 private:
     bool hot(const Rect& r, const char* label);
+    void face(const Rect& r, float radius, u32 faceColor, u32 topColor, u32 lipColor, bool pressed);
     void record(const Rect& r, const char* label, float textWidth, u32 text, u32 fill, bool interactive);
     UiControl cur_[kMaxControls], prev_[kMaxControls];
     int curCount_ = 0, prevCount_ = 0;

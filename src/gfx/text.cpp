@@ -69,6 +69,25 @@ void UiBatch::rect(float cx, float cy, float w, float h, float radius, Rgba fill
     quad(a, b, c, d);
 }
 
+void UiBatch::sprite(const float uv[5], float cx, float cy, float w, float h, Rgba tint, float angle, float hue) {
+    UiVertex base{};
+    std::memcpy(base.fill, &tint, 4);
+    base.p0[0] = 4.0f;  // a sprite (text.frag)
+    base.p1[0] = uv[4];
+    base.p1[1] = hue;
+    const float hw = w * 0.5f, hh = h * 0.5f, c = std::cos(angle), s = std::sin(angle);
+    UiVertex q[4] = {base, base, base, base};
+    const float us[4] = {-hw, hw, -hw, hw}, vs[4] = {-hh, -hh, hh, hh};
+    const float tu[4] = {uv[0], uv[2], uv[0], uv[2]}, tv[4] = {uv[1], uv[1], uv[3], uv[3]};
+    for (int i = 0; i < 4; ++i) {
+        q[i].u = tu[i];
+        q[i].v = tv[i];
+        q[i].x = cx + us[i] * c - vs[i] * s;
+        q[i].y = cy + us[i] * s + vs[i] * c;
+    }
+    quad(q[0], q[1], q[2], q[3]);
+}
+
 void UiBatch::rectRotated(float cx, float cy, float w, float h, float radius, float angle, Rgba fill) {
     // The rounded rectangle's distance field lives in its own frame (u, v); only the corners turn.
     const float m = 2.0f;

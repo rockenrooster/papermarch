@@ -38,7 +38,7 @@ every unit so figures separate from each other in a crowd of 1,000.
 |---|---|---|
 | Squad coat | `#1F58F2` cobalt, hat `#1440C4` | the only large blue on the road |
 | Squad plume / belts | `#FFFFFF`, gold trim `#FFC83A` | the white plume is the top-down "dot" |
-| Squad pack | `#C9955A` tan leather, bedroll `#F2E9D0` | seen from behind, which is how the squad is always seen |
+| Squad pack | `#7A4E2C` dark leather, bedroll cobalt with gold ends, navy belt | seen from behind, which is how the squad is always seen; kept dark so the squad reads blue |
 | Horde tunic | `#E3262E` crimson, shade `#8E0F1E` | |
 | Horde metal | `#3A3F4C` dark steel, ivory `#F3E6C4` | dark helmets keep red figures apart from red gates |
 | Brute | `#A3131F` oxblood, shield `#5B0E18` with gold `#FFC83A` boss | darker than the foot |
@@ -85,13 +85,32 @@ figure's phase.
 | `foot` | 1.05 body, spear to 1.6 | 0.5 | Pointed dark steel helmet (a cone), crimson tunic, small round wooden shield, a spear held upright with a red pennant. From above: a dark point in a red blob, plus a thin tall line. |
 | `rider` | 1.7 | 0.7 wide, 1.5 long | A red raider on a galloping dark-brown **war boar** (tusks, bristle ridge), lance levelled forward with a long swallow-tail pennant. The only long, horizontal shape in the horde. |
 | `brute` | 1.9 | 1.3 wide | Twice as wide as a foot soldier: oxblood barrel body, tiny legs, horned steel helmet, a big round shield with a gold boss held in front, a spiked mace on the shoulder. From above: a dark-red disc with a gold dot and two ivory horns. |
-| `boss_w1` (per world: `boss_wN`) | 4.6 | 3.4 wide | The ogre: moss-green, huge pale belly, small head sunk between spiked iron pauldrons, two long ivory horns, under-bite tusks, glowing yellow eyes, crimson loincloth with a gold buckle, a tree-trunk club with iron bands in the right hand. Stomping walk. Nothing else on the road is green or that big. |
+| `boss` (one model for every world) | 5.8 | 4.3 wide | The ogre: moss-green, huge pale belly, small head sunk between spiked iron pauldrons, two long ivory horns, under-bite tusks, glowing yellow eyes, crimson loincloth with a gold buckle, a tree-trunk club with iron bands in the right hand. Stomping walk. Nothing else on the road is green or that big. |
 
-Boss variants per world (stage 2, same model re-rendered with other materials and one add-on prop): OGRE CHIEF (moss
-green, bone necklace), SAND OGRE (ochre, turban wrap), FROST OGRE (ice blue, fur mantle, icicle club), EMBER OGRE
-(charcoal with glowing orange cracks), SALT OGRE (pale grey-pink, crystal shards), THORN OGRE (dark green, thorn
-vines, flower crown), BOG OGRE (olive and mud, mushroom shoulders), CLOUD OGRE (white-violet, gold armour), ASH OGRE
-(black, embers, red eyes), LANTERN OGRE (plum, carrying paper lanterns).
+Boss per world: the one shared ogre, recoloured by the engine (`boss <hueDegrees> <tint>` in `worlds.txt`: rotate
+the hue, multiply by the tint) plus an add-on sprite drawn over it (`bossaddon wN.boss_addon`, rendered in the boss's
+frames with the ogre as a hold-out, so horns and arms cut into it correctly):
+
+| World | Boss | hue, tint | Add-on |
+|---|---|---|---|
+| 1 | OGRE CHIEF | 0, `#FFFFFF` | none |
+| 2 | SAND OGRE | -52, `#FFE9C4` (ochre) | a cream turban with a jewel and a plume |
+| 3 | FROST OGRE | 100, `#E6F2FF` (ice blue) | a white fur mantle |
+| 4 | EMBER OGRE | -88, `#D8B8A8` (burnt orange) | a crown of flames, burning eyes |
+| 5 | SALT OGRE | -125, `#C8D8D0` (dusty rose: a grey-green tint mutes the pink) | pink-white crystal shards on the shoulders |
+| 6 | THORN OGRE | 45, `#88B8A8` (dark teal green, clear of world 1's moss) | a flower crown |
+| 7 | BOG OGRE | -34, `#B8A878` (olive mud) | toadstools on the shoulders |
+| 8 | CLOUD OGRE | 150, `#F4F0FF` (blue-violet) | a gold crown with gems |
+| 9 | ASH OGRE | -100, `#6A5A60` (charred) | flames on the horn tips, red eyes |
+| 10 | LANTERN OGRE | 215, `#DCB4DC` (magenta plum) | paper lanterns hanging from the horns |
+
+The hue rotation also turns the loincloth and buckle; that is wanted (each ogre gets its own trim). Try values with
+`tools/art/boss_tints.py`, which uses the shader's maths (a multiply tint cannot lighten or desaturate: to mute a hue, tint
+with its complement).
+
+Two more squad sprites: `squad.banner.march` (8 frames, elevations 60/38/20, 2.0 x 1.1 unit cobalt cloth with a gold
+border on a 2.8 unit pole, leaning back to face the camera; point `text` = the cloth's centre) and `soldier.cheer` (8
+frames at 12 fps, a jump with both arms up and the hat thrown and caught; for the survivors after a win).
 
 Variation (engine request 5): per-figure scale 0.94-1.06, a multiply tint of value 0.90-1.06, phase offset. Do not
 mirror unit sprites (the sun would flip).
@@ -110,8 +129,8 @@ Chosen: **`camPitch = 30`, `camHeight = 15`, `camBack = 8.5`** (`camRoad` 0.92, 
   (`captures/art/cam_abc.png`: a = 30/14/9, b = 26/12/10, c = 32/16/8); lower than about 14 the far horde becomes too
   small to shoot at knowingly.
 
-Sprite elevations rendered: **60, 38, 20** degrees for units, barrel and gate parts (the boss: 38 and 20 only; it never
-gets nearer than about 11 units from the camera's foot). Props: 45 and 20. Effects and ambient: 0.
+Sprite elevations rendered: **60, 38, 20** degrees for units, barrel, gate parts and edge posts (the boss and its
+add-ons: 38 and 20 only; it never gets nearer than about 11 units from the camera's foot). Props: 45 and 20. Effects and ambient: 0.
 The engine picks the nearest (thresholds 49 and 29 for units).
 
 ## 6. Gates, barrels, barricades
@@ -150,7 +169,7 @@ A gate is a banner of light stretched between two posts across x0..x1, bottom 0.
 
 ### Barrel
 
-`barrel` (1.3 tall, 1.0 wide): a fat golden keg with cobalt iron bands, gold rivets and a white star on the front and
+`barrel` (1.6 tall, 1.25 wide: bigger than the sim's barrel so it reads at 40 units): a fat golden keg with cobalt iron bands, gold rivets and a white star on the front and
 the lid, a short lit fuse on top. Hit: the engine's white flash plus a 6% squash. Burst: `fx.explosion` (alpha, 14
 frames at 24 fps, 4.5 units), `fx.explosion_glow` under it (additive), `fx.ring` on the ground (additive, 5 units),
 8 `fx.debris` planks thrown as ballistic particles, then the freed recruits pop in (scale 0 to 1.15 to 1 over 0.2 s)
@@ -165,18 +184,30 @@ with `fx.sparkle` each.
 - **Land** `ground_w1_land.png` (1024x1024, 16 units a repeat): mown-meadow grass in two greens with darker tufts,
   clover patches and tiny white, yellow and pink flowers. Lower contrast than the road.
 - Finish line: keep the engine's checks, drawn over the road texture (black and white, 2 rows of 10, 1 unit squares).
-- Haze: distance fog to `#BFE0F2` from 60 to 150 units ahead of the camera, so the horizon melts into the sky.
-- Sky: `#4FA8F0` at the top, `#BFE0F2` at the horizon; backdrop strip `backdrop_w1.png` (far hills, a castle and
+- Haze: distance fog to `#9CCBEC` from 60 to 150 units ahead of the camera, so the horizon melts into the sky. The haze
+  colour must stay under the bloom threshold (luma below about 0.8), or the far road blooms into a white band.
+- Sky: `#3F98EA` at the top, `#9CCBEC` at the horizon; backdrop strip `backdrop_w1.png` (far hills, a castle and
   clouds) standing on the horizon.
 
 ## 8. Props and the ten worlds
 
-World 1 (stage 1) kinds: `w1.tree_a` (round oak), `w1.tree_b` (tall poplar), `w1.tree_c` (pink blossom tree),
-`w1.bush`, `w1.rock`, `w1.flowers`, `w1.haystack`, `w1.cottage`, `w1.windmill` (8 frames: the sails turn); edge props `w1.bollard` (a striped stone post
-on the curb every 3 units) and `w1.banner` (a pole with a cobalt banner and a white star every 12 units); ambient `w1.leaf` and `w1.petal`.
+Every world has 6 to 9 scattered props, two edge props (`wN.post` on the curb every 3 units, `wN.banner` every 12),
+one or two ambient particles and its boss add-on, all in one atlas (`atlas_props_wN.png`, 256 colours). The builders
+are shared and coloured per world (`render_sprites.py`); density is the `prop` lines of `worlds.txt` (written from
+`tools/art/worlds.py`). Big landmarks are rare and far from the road (x 12-22). As built:
 
-Density: `prop` lines in `worlds.txt` (weights and spacing); about 60 props on screen. Big landmarks (cottage,
-windmill) are rare and far from the road (x 12-22).
+| # | Props (`wN.` + name) | Post / banner | Ambient |
+|---|---|---|---|
+| 1 | tree_a (apple oak), tree_b (poplar), tree_c (blossom), bush, rock, flowers, haystack, cottage, windmill (8 frames, turning) | cobalt-white, gold ball / cobalt | leaf, petal |
+| 2 | palm, cactus, tent (magenta stripes), arch (sandstone), pots, rock | sand, gold point / magenta | sand |
+| 3 | fir (snowy), snowman, crystal (ice), cabin (snow roof), rock, bush (snow mound) | ice blue, lantern / ice blue | snow |
+| 4 | maple_a (red), maple_b (gold), pumpkins, scarecrow, haystack, barn, bush | timber, gold point / orange | leaf |
+| 5 | palm, umbrella, lighthouse, boat, rock, grass (dune grass) | white-teal, buoy / teal | feather, spray |
+| 6 | cherry, wisteria, tulip_a, tulip_b, beehive, bush, flowers | pink-white, flower box / pink | petal, petal_w |
+| 7 | mangrove, mushroom_a (red), mushroom_b (glowing teal), reeds, hut (on stilts), rock | timber, torch / green | firefly (add), spore |
+| 8 | column, ruin, statue (gold star), cloud_tree, airship, puff (cloud) | marble-gold / white-gold | feather, wisp |
+| 9 | charred, vent (lava), obsidian, lava_crystal, brazier, rock | black-red, skull / black, orange star | ember (add), ash |
+| 10 | lantern_tree, stall, tent_a, tent_b, balloons, ferris (8 frames, turning), bush | red-gold, lantern / violet | confetti, lantern (add) |
 
 The order of worlds is kept. Each world changes: ground textures, prop set, haze and sky, grade, ambient, edge props,
 the boss variant. Units keep their colours (readability), the grade tints them slightly.
@@ -204,7 +235,7 @@ colour in RGB, intensity in alpha, blend `SRC_ALPHA, ONE`.
 
 | Kind | Blend | Frames, fps | Size (units) | Use |
 |---|---|---|---|---|
-| `fx.muzzle` | add | 4, 30 | 0.9 | at the soldier's `muzzle` point on each shot shown (cap about 20 a frame) |
+| `fx.muzzle` | add | 4, 30 | 0.6 (dimmed: at 0.9 and full white it bloomed into big stars) | at the soldier's `muzzle` point on each shot shown (cap about 20 a frame) |
 | `fx.tracer` | add | 1 | 0.26 x 1.5 (pivot at the head) | each bullet: a stretched quad along its velocity, cream core, orange tail |
 | `fx.hit` | add | 6, 30 | 1.0 | bullet hits anything |
 | `fx.poof_red`, `fx.poof_blue` | alpha | 8, 20 | 1.6 | an enemy / a soldier dies: a puff with bits in its colour; the figure itself scales to 0.6 and fades in 0.12 s (no tip-over) |
@@ -213,10 +244,10 @@ colour in RGB, intensity in alpha, blend `SRC_ALPHA, ONE`.
 | `fx.bigboom` + `fx.bigboom_glow` | alpha + add | 16, 20 | 11 | boss death (3 of them over 0.6 s, then the big one), with shake and a 0.15 s hit-stop |
 | `fx.ring` | add | 8, 24 | 5 (drawn flat on the ground: squash y by sin(elevation)) | barrel burst, boss stomp, boss death |
 | `fx.dust` | alpha | 6, 12 | 0.9 | march dust: under the squad's back row and under riders, 10-20 a second; boss footfalls (scaled 3x) |
-| `fx.sparkle` | add | 6, 20 | 0.8 | recruits joining, gate growth, stars |
+| `fx.sparkle` | add | 6, 20 | 0.6 | recruits joining, gate growth, stars |
 | `fx.gatepass_add` / `_mul` / `_neg` | add | 10, 24 | 4 x 3 | gate passed |
 | `fx.confetti_a` .. `_f` | alpha | 8, 16 | 0.3 | six colours of tumbling paper: gate pass, victory (200 pieces, ballistic with flutter) |
-| `w1.leaf`, `w1.petal` | alpha | 8, 10 | 0.35 | ambient drift across the screen, upper-left to lower-right, 6 a second |
+| `wN.<ambient>` (table in section 8) | alpha, or add for firefly, ember, lantern | 8, 10 | 0.2-1.2 | ambient drift across the screen, upper-left to lower-right, 6 a second |
 
 Boss hits: `fx.hit` at 2x plus the white flash; every 10% of health lost, an `fx.explosion` at 0.6x on the body and a
 0.1 s shake. Boss stomp: on frames 0 and 4 of `boss.march` (each footfall) one `fx.ring` at 0.5x and 3 `fx.dust` at 3x.
@@ -234,20 +265,15 @@ In order, on a half-resolution chain where possible:
 4. Optional (high tier only): depth tilt-shift, a blur of up to 2 px on the top 18% of the screen. It sells the
    miniature diorama, but skip it if it costs a pass.
 
-## 11. HUD and screens (stage 3, notes only)
+## 11. HUD and screens
 
-- Keep the cream cards but give them a 2 px ink outline, a hard drop shadow and a cobalt header ribbon; numbers in the
-  existing font with a dark outline.
-- The squad badge: a cobalt pennant flag on a pole carried in the middle of the squad (a sprite in the world, drawn
-  above the squad), the number in white on it; it pops on every change.
-- Progress bar: a miniature road with the squad's shako icon marching along it and the boss's head at the end.
-- Victory: confetti, three gold stars slamming in with `fx.sparkle`, the squad cheering (hats in the air).
-- App icon: a soldier's head in three-quarter view with the plume, on a sunburst of cobalt and gold.
+See section 15.
 
 ## 12. Asset contract notes (as built)
 
 - Manifest `assets/art/sprites.txt` as agreed, with atlas ids as numbers and `atlas <id> <file> [world]`: an atlas
-  with a world number holds only that world's kinds (`wN.*` in `atlas_props_wN.png`, `boss_wN` in `atlas_boss_wN.png`). Kinds may contain dots (`gate.post_add`, `w1.tree_a`): parse the last
+  with a world number holds only that world's kinds (`wN.*` in `atlas_props_wN.png`). `atlas_boss.png` (kind `boss`),
+  `atlas_units.png` and `atlas_fx.png` are global. Kinds may contain dots (`gate.post_add`, `w1.tree_a`): parse the last
   three dot-separated fields of a sprite name as anim, elevation, frame.
 - `height` is the rect's height in road units; frames are trimmed per frame, so w, h, pivot and height differ from
   frame to frame of one anim (use each frame's own values).
@@ -260,6 +286,8 @@ In order, on a half-resolution chain where possible:
     the sky, before the ground, under the haze colour at 35%.
   - `shadow <dx> <dz> <alpha>`: cast-shadow offset per unit of the thing's height, and the shadow's opacity.
   - `grade <contrast> <saturation>` and `vignette <strength>`.
+  - `boss <hueDegrees> <0xRRGGBB>` and `bossaddon <kind>`: the add-on is an ordinary trimmed sprite with its own rect,
+    pivot and height per frame; draw it at the boss's ground point with the boss's scale, elevation and frame.
 
 ## 13. Engine requests, in order of visual payoff
 
@@ -284,21 +312,121 @@ In order, on a half-resolution chain where possible:
 
 ## 14. Sizes and budget
 
-Stage 1 as built (8.7 MB): `atlas_units.png` 2048x1024, 1.85 MB (soldier, foot, rider, brute, barrel, gate parts: 111
-frames); `atlas_fx.png` 2048x2048, 0.88 MB (193 frames); `atlas_props_w1.png` 2048x2048, 1.84 MB (53 frames, world
-1); `atlas_boss_w1.png` 2048x2048, 2.97 MB (16 frames, world 1); the road 0.59 MB and the land 0.85 MB (1024x1024,
-256-colour PNG); the backdrop 0.03 MB.
+Limit: about 28 MB for `assets/art`. As built, all ten worlds and the HUD: **16.4 MB**.
 
-A world costs about 6.3 MB at this quality (props 1.8, boss 3.0, ground 1.4), so ten worlds would be about 65 MB, not
-15. Ways down, to be decided before stage 2 (open question for the owner and the engineer):
+| Files | Size |
+|---|---|
+| `atlas_boss.png` (2048x2048, the shared ogre, 16 frames) | 3.2 MB |
+| `atlas_units.png` (2048x2048: soldier march and cheer, squad banner, foot, rider, brute, barrel, gate parts; 159 frames) | 2.9 MB |
+| `atlas_fx.png` (2048x2048, 193 frames) | 0.9 MB |
+| `atlas_props_w1..10.png` (2048 wide, 512 to 2048 tall, 256 colours with alpha) | 0.06-0.26 MB each, 1.2 MB |
+| `ground_wN_road.png` (1024x1024, 256 colours) | 0.5-0.7 MB each, 5.9 MB |
+| `ground_wN_land.png` (512x512, 256 colours) | 0.2 MB each, 2.1 MB |
+| `backdrop_wN.png` (1024x256 RGBA) | 0.03 MB each, 0.3 MB |
+| `atlas_ui.png` (2048x512, HUD sprites) | 0.4 MB |
 
-1. One boss model for all worlds, recoloured by the engine (a hue rotation and a multiply tint per world in
-   `worlds.txt`) plus a small per-world add-on sprite: saves 27 MB. Recommended.
-2. Props atlases at 1024x2048 with fewer elevations for small props (one instead of two): about 1.0 MB a world.
-3. Ground at 512x512 for the land (it is soft anyway): about 0.3 MB instead of 0.85.
-4. With 1-3: 8.7 + 9 x (1.0 + 0.9 + 0.05) = about 26 MB. To reach 15 MB the props would also have to be 256-colour
-   PNGs (visible banding on the smooth toy shading) or lossy WebP (about a quarter of the PNG size, needs a decoder in
-   the engine: libwebp, BSD). WebP for every atlas would put all ten worlds near 9 MB.
+Room left (11 MB) if something looks soft: props at a higher resolution or in full colour, or 1024 land textures.
 
-Props: the sun is baked in, so mirroring a prop flips its light. It does not show on trees, bushes and rocks; do not
-mirror `w1.cottage`, `w1.windmill` and `w1.banner`.
+The sun is baked into every sprite: nothing may be mirrored.
+
+## 15. HUD, screens, icon (stage 3)
+
+Sizes are in dp. Text stays Roboto Black. The look: cream toy-box cards with a navy outline and a hard drop shadow,
+chunky buttons with a lip that sinks when pressed, cobalt ribbons for titles, the game's own toys as icons.
+
+### 15.1 UI sprites (`atlas_ui.png`, global; `height` in dp; placed by their centre)
+
+| Kind | Height | Use |
+|---|---|---|
+| `ui.star_full`, `ui.star_empty` | 42.7 | stars everywhere; scale to the size given per place |
+| `ui.shako` | 41.7 | the squad's marker on the progress road: the soldier himself, facing us |
+| `ui.boss_head` | 40.7 | the ogre's head; draw it with the world's `boss` hue and tint |
+| `ui.skull` | 36.7 | HARD levels |
+| `ui.hand` | 62.7 | the drag hint; point `tip` = the fingertip |
+| `ui.trophy` | 122 | the end screen |
+| `ui.logo` | 35.7 (340 wide) | the title; draw at height 32 on a 360 dp wide screen |
+| `ui.ribbon_l/_m/_r`, `ui.ribbon_red_*`, `ui.ribbon_gold_*` | 53 / 41 / 53 | title ribbons: the pivot of each part is its joint (the caps' inner edge, the middle's centre) at the band's mid height. Stretch `_m` across the text width + 24, put `_l` and `_r` at its ends. The band is 40 tall; the tails hang 12 lower |
+| `ui.rays.play` | 252 | a white sunburst (alpha): tint it, spin it 10 degrees a second, behind stars, the logo and the trophy |
+
+Order: `ui.rays` under panels; every other UI sprite over panels and under text.
+
+### 15.2 Colours and code-drawn parts
+
+| Name | Value |
+|---|---|
+| Ink (outlines, text on light) | `#16224F` |
+| Cream (cards, chips) | `#FFF6E0`, shade `#E9DCC2` |
+| Cobalt | `#2F6BFF`, light `#8AB4FF`, dark `#1440C4` |
+| Gold | `#FFC83A`, light `#FFE07A`, dark `#D98A00` |
+| Red | `#E3262E`, light `#FF7A86`, dark `#A8141F` |
+| Scrim behind cards | `#16224F` at 45% |
+| Drop shadow | `#16224F` at 40%, offset (0, 6), no blur (a hard toy shadow) |
+
+**Card**: fill cream, outline 2.5 ink, radius 22, the drop shadow. Its title sits on a ribbon whose band centre is on
+the card's top edge; title text white, 24, with a 2 ink outline.
+
+**Buttons** (height 56, radius 16, outline 2.5 ink, label 22; a "lip" of the dark colour shows 6 below the face):
+
+| Kind | Face | Lip | Label | Hover (pointer) | Pressed |
+|---|---|---|---|---|---|
+| Primary (NEXT, RESUME, RETRY, UPDATE) | gold, the top 45% gold light | gold dark | ink | face gold light, outline 3 white | face moves down 4 (lip 2), face `#E8A81E`, outline 3 white |
+| Secondary (RESTART, LEVELS, SETTINGS, pager) | cream | `#C9B893` | ink | face white, outline 3 cobalt | down 4, face cobalt, label white, outline 3 white |
+| Danger (hold to reset) | red | red dark | white | face red light | down 4, face red dark, outline 3 white; the hold fills left to right in gold |
+| Round (pause), 48 | cream | `#C9B893` | ink bars | as secondary | as secondary |
+
+The pressed state inverts the secondary button (cream to cobalt) and puts a white outline on every kind, so it shows
+on any background. Disabled: face `#D8CFBC`, label `#9A927F`, no lip.
+
+**Toggle** (settings): a 56 x 30 pill, outline 2.5 ink; on = cobalt with a white knob (24) at the right, off = `#B8B0A0`
+with the knob at the left; the knob slides in 0.1 s; pressed = outline 3 white.
+
+### 15.3 HUD
+
+- **Level chip** (top left, 44 tall, radius 14): cream, outline 2.5 ink, `LEVEL N` in ink at 18.
+  **HARD level**: the chip is red with white text and `ui.skull` (26) inside its left end; it pulses to 1.05x once a second
+  for the first 3 s. The hint line reads `HARD LEVEL! EVERY SOLDIER COUNTS` on a red pill, and the progress road's fill is
+  red instead of cobalt.
+- **Stars**: three `ui.star_full` / `ui.star_empty` at 26, 2 apart, right of the chip.
+- **Pause**: the round button, top right.
+- **Progress road**: a track 14 tall, radius 7, ink at 60%, outline 1.5 white at 35%; the marched part cobalt with a 3
+  tall cobalt-light line along its top; `ui.shako` (34) centred on the fill's end, bobbing 1.5 at the march's rhythm;
+  at the far end `ui.star_full` (26) or, on a boss level, `ui.boss_head` (34).
+- **Boss bar** (replaces the road when the ogre is in sight): a track 22 tall, radius 11, ink; fill red with a red-light
+  line along the top; a gold strip shows the health just lost and shrinks after 0.4 s; the fill flashes white for 80 ms on
+  a hit; `ui.boss_head` (44) over the left end; the name centred, white at 14 with a 2 ink outline.
+- **Hint line**: a pill, ink at 88%, outline 1.5 white at 25%, text white at 15 (red pill on HARD levels).
+- **Squad banner**: the world sprite `squad.banner.march` planted at the squad's centre (sorted like a soldier at the
+  squad's z + 0.2), the count at its `text` point: white with a 0.05 unit ink outline, 0.62 units tall, scaled down to fit
+  1.7 units; it pops to 1.25x for 0.12 s on every change. It replaces the floating badge. Hide it when the squad is lost.
+- **Drag hint**: `ui.hand` (64) under the squad, swinging 60 left and right in 1.6 s, `DRAG TO MARCH` under it in white
+  at 20 with a 2 ink outline.
+- Floating numbers (+N, rewards): white with a 2 ink outline for gains, red-light for losses; they rise 1.5 units in 0.6 s.
+
+### 15.4 Screens
+
+- **Title** (cold start, over level 1): `ui.rays` (300, tinted gold light at 70%) spinning behind `ui.logo` (height 32)
+  at 24% of the screen's height, the logo bobbing 3 in 2 s; under it the tagline on a red pill (white, 14); `TAP TO
+  MARCH` pulsing near the bottom; the UPDATE pill is a small primary button (height 40).
+- **Victory**: scrim, a card with a cobalt ribbon `VICTORY!` (a gold ribbon and `PERFECT!` with three stars). Three
+  `ui.star_empty` slots at 64; each earned star slams in (scale 2.2 to 1 in 0.18 s, ease-out) with `ui.rays` (120, gold)
+  behind it and one `fx.sparkle`, 0.25 s apart. `SOLDIERS LEFT N` in ink at 18. NEXT (primary; FINISH on level 300);
+  RETRY (secondary) under three stars. On the field: the survivors play `soldier.cheer`, confetti falls.
+- **Defeated**: a card with the red ribbon `DEFEATED`; `YOU MARCHED N% OF THE ROAD` with a small progress road under it;
+  RETRY (primary), LEVELS (secondary).
+- **Pause**: a card with the cobalt ribbon `PAUSED`; RESUME (primary), RESTART, LEVELS, SETTINGS (secondary).
+- **Settings**: the cobalt ribbon `SETTINGS`; rows of label (ink, 18) and toggle: SOUND, MUSIC, HAPTICS, REDUCE EFFECTS;
+  the danger button; version and credits in ink at 60%, 12; BACK (secondary).
+- **Levels**: the cobalt ribbon carries the world's name (`WORLD 3 - FROSTVALE`). Cells 56 x 64, radius 12, outline 2.5
+  ink, the number at 20, three stars at 14 under it: played = cream; the next level to play = gold face (and it bobs);
+  not played yet = cream shade with the number at 50%. A HARD level has a red band across its top 12 and `ui.skull` (14)
+  in the top right corner; a boss level has `ui.boss_head` (18, the world's tint) there instead. Pressed cell = cobalt
+  with a white number and outline. -100, PREV, NEXT, +100 and BACK are secondary buttons.
+- **End**: `ui.rays` (320, gold) and `ui.trophy` (160) over the gold ribbon `ALL 300 LEVELS CONQUERED!` (text at 18),
+  the total of stars with a `ui.star_full` (26), a primary button, confetti, the squad cheering.
+
+### 15.5 App icon
+
+`tools/art/make_icon.py`: the squad's soldier, facing us (rendered as `icon.bust`), on a cobalt sunburst with a warm glow
+behind the head. Adaptive layers: the head and hat sit inside the 66 dp safe circle and the body runs off the bottom of
+the 108 dp layer, so every launcher mask cuts it cleanly. Legacy icons are the middle 72 dp in a rounded square; the web
+icons are the same picture, square.

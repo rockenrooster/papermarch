@@ -1,12 +1,22 @@
 # PAPERMARCH sprites: written by tools/art/pack_atlas.py, do not edit by hand.
 # atlas <id> <file> [world] | anim <kind>.<anim> <fps> <loop|once> <alpha|add> | sprite <kind>.<anim>.<elev>.<frame> <atlas> <x> <y> <w> <h> <pivotX> <pivotY> <height>
 # point <kind>.<anim>.<elev> <name> <x> <y>  (pixels in frame 0 of that elevation, same origin as its pivot)
-atlas 0 atlas_boss_w1.png 1
+atlas 0 atlas_boss.png
 atlas 1 atlas_fx.png
 atlas 2 atlas_props_w1.png 1
-atlas 3 atlas_units.png
+atlas 3 atlas_props_w10.png 10
+atlas 4 atlas_props_w2.png 2
+atlas 5 atlas_props_w3.png 3
+atlas 6 atlas_props_w4.png 4
+atlas 7 atlas_props_w5.png 5
+atlas 8 atlas_props_w6.png 6
+atlas 9 atlas_props_w7.png 7
+atlas 10 atlas_props_w8.png 8
+atlas 11 atlas_props_w9.png 9
+atlas 12 atlas_ui.png
+atlas 13 atlas_units.png
 anim barrel.still 12 loop alpha
-anim boss_w1.march 12 loop alpha
+anim boss.march 12 loop alpha
 anim brute.march 12 loop alpha
 anim foot.march 12 loop alpha
 anim fx.bigboom.play 20 once alpha
@@ -36,91 +46,210 @@ anim gate.post_mul.still 12 loop alpha
 anim gate.post_neg.still 12 loop alpha
 anim gate.spikes.still 12 loop alpha
 anim rider.march 12 loop alpha
+anim soldier.cheer 12 loop alpha
 anim soldier.march 12 loop alpha
+anim squad.banner.march 12 loop alpha
+anim ui.boss_head.still 12 loop alpha
+anim ui.hand.still 12 loop alpha
+anim ui.logo.still 12 loop alpha
+anim ui.rays.play 12 loop alpha
+anim ui.ribbon_gold_l.still 12 loop alpha
+anim ui.ribbon_gold_m.still 12 loop alpha
+anim ui.ribbon_gold_r.still 12 loop alpha
+anim ui.ribbon_l.still 12 loop alpha
+anim ui.ribbon_m.still 12 loop alpha
+anim ui.ribbon_r.still 12 loop alpha
+anim ui.ribbon_red_l.still 12 loop alpha
+anim ui.ribbon_red_m.still 12 loop alpha
+anim ui.ribbon_red_r.still 12 loop alpha
+anim ui.shako.still 12 loop alpha
+anim ui.skull.still 12 loop alpha
+anim ui.star_empty.still 12 loop alpha
+anim ui.star_full.still 12 loop alpha
+anim ui.trophy.still 12 loop alpha
 anim w1.banner.still 12 loop alpha
-anim w1.bollard.still 12 loop alpha
 anim w1.bush.still 12 loop alpha
 anim w1.cottage.still 12 loop alpha
 anim w1.flowers.still 12 loop alpha
 anim w1.haystack.still 12 loop alpha
 anim w1.leaf.play 10 loop alpha
 anim w1.petal.play 10 loop alpha
+anim w1.post.still 12 loop alpha
 anim w1.rock.still 12 loop alpha
 anim w1.tree_a.still 12 loop alpha
 anim w1.tree_b.still 12 loop alpha
 anim w1.tree_c.still 12 loop alpha
 anim w1.windmill.still 8 loop alpha
-sprite barrel.still.60.0 3 1403 593 110 123 55.0 87.2 1.3667
-sprite barrel.still.38.0 3 4 593 110 135 55.0 110.1 1.5000
-sprite barrel.still.20.0 3 1777 430 110 141 55.0 125.0 1.5667
-sprite boss_w1.march.38.0 0 1568 885 388 382 194.2 343.0 4.5476
-sprite boss_w1.march.38.1 0 4 885 387 388 205.2 348.0 4.6190
-sprite boss_w1.march.38.2 0 1179 445 386 391 209.2 345.0 4.6548
-sprite boss_w1.march.38.3 0 395 885 387 388 205.2 348.0 4.6190
-sprite boss_w1.march.38.4 0 4 1277 388 382 194.2 343.0 4.5476
-sprite boss_w1.march.38.5 0 786 885 387 388 182.2 348.0 4.6190
-sprite boss_w1.march.38.6 0 1569 445 385 391 176.2 345.0 4.6548
-sprite boss_w1.march.38.7 0 1177 885 387 388 182.2 348.0 4.6190
-sprite boss_w1.march.20.0 0 395 445 388 424 194.2 416.2 5.0476
-sprite boss_w1.march.20.1 0 783 4 387 436 205.2 419.2 5.1905
-sprite boss_w1.march.20.2 0 4 4 386 437 209.2 414.2 5.2024
-sprite boss_w1.march.20.3 0 1174 4 387 436 205.2 419.2 5.1905
-sprite boss_w1.march.20.4 0 787 445 388 424 194.2 416.2 5.0476
-sprite boss_w1.march.20.5 0 1565 4 387 436 182.2 419.2 5.1905
-sprite boss_w1.march.20.6 0 394 4 385 437 176.2 414.2 5.2024
-sprite boss_w1.march.20.7 0 4 445 387 436 182.2 419.2 5.1905
-sprite brute.march.60.0 3 71 732 138 120 70.8 91.3 1.4286
-sprite brute.march.60.1 3 485 732 141 118 73.8 90.3 1.4048
-sprite brute.march.60.2 3 905 732 143 117 75.8 88.3 1.3929
-sprite brute.march.60.3 3 630 732 141 118 73.8 90.3 1.4048
-sprite brute.march.60.4 3 213 732 138 120 70.8 91.3 1.4286
-sprite brute.march.60.5 3 1661 593 137 122 69.8 90.3 1.4524
-sprite brute.march.60.6 3 1517 593 140 123 70.8 88.3 1.4643
-sprite brute.march.60.7 3 1802 593 137 122 69.8 90.3 1.4524
-sprite brute.march.38.0 3 628 430 138 149 70.8 136.1 1.7738
-sprite brute.march.38.1 3 770 430 142 149 74.8 136.1 1.7738
-sprite brute.march.38.2 3 1486 430 143 148 75.8 134.1 1.7619
-sprite brute.march.38.3 3 916 430 142 149 74.8 136.1 1.7738
-sprite brute.march.38.4 3 1062 430 138 149 70.8 136.1 1.7738
-sprite brute.march.38.5 3 1204 430 137 149 69.8 136.1 1.7738
-sprite brute.march.38.6 3 1633 430 140 148 70.8 134.1 1.7619
-sprite brute.march.38.7 3 1345 430 137 149 69.8 136.1 1.7738
-sprite brute.march.20.0 3 115 258 138 167 70.8 160.5 1.9881
-sprite brute.march.20.1 3 987 4 141 171 73.8 161.5 2.0357
-sprite brute.march.20.2 3 1559 4 143 170 75.8 158.5 2.0238
-sprite brute.march.20.3 3 1132 4 141 171 73.8 161.5 2.0357
-sprite brute.march.20.4 3 257 258 138 167 70.8 160.5 1.9881
-sprite brute.march.20.5 3 1277 4 137 171 69.8 161.5 2.0357
-sprite brute.march.20.6 3 1706 4 140 170 70.8 158.5 2.0238
-sprite brute.march.20.7 3 1418 4 137 171 69.8 161.5 2.0357
-sprite foot.march.60.0 3 1099 857 95 80 54.0 69.0 0.9524
-sprite foot.march.60.1 3 524 857 96 83 54.0 68.0 0.9881
-sprite foot.march.60.2 3 624 857 96 83 54.0 67.0 0.9881
-sprite foot.march.60.3 3 724 857 94 83 52.0 68.0 0.9881
-sprite foot.march.60.4 3 1198 857 87 80 46.0 69.0 0.9524
-sprite foot.march.60.5 3 822 857 84 83 43.0 68.0 0.9881
-sprite foot.march.60.6 3 910 857 88 83 47.0 67.0 0.9881
-sprite foot.march.60.7 3 1002 857 93 83 52.0 68.0 0.9881
-sprite foot.march.38.0 3 1052 732 96 115 54.0 109.1 1.3690
-sprite foot.march.38.1 3 1152 732 96 115 54.0 108.1 1.3690
-sprite foot.march.38.2 3 4 857 96 113 54.0 106.1 1.3452
-sprite foot.march.38.3 3 1252 732 94 115 52.0 108.1 1.3690
-sprite foot.march.38.4 3 1350 732 88 115 46.0 109.1 1.3690
-sprite foot.march.38.5 3 1736 732 84 114 43.0 107.1 1.3571
-sprite foot.march.38.6 3 104 857 87 112 46.0 105.1 1.3333
-sprite foot.march.38.7 3 1442 732 93 115 52.0 108.1 1.3690
-sprite foot.march.20.0 3 118 593 95 135 53.0 133.7 1.6071
-sprite foot.march.20.1 3 406 593 95 134 53.0 132.7 1.5952
-sprite foot.march.20.2 3 820 593 96 132 54.0 130.7 1.5714
-sprite foot.march.20.3 3 505 593 94 134 52.0 132.7 1.5952
-sprite foot.march.20.4 3 217 593 88 135 46.0 133.7 1.6071
-sprite foot.march.20.5 3 603 593 83 134 42.0 132.7 1.5952
-sprite foot.march.20.6 3 920 593 87 132 46.0 130.7 1.5714
-sprite foot.march.20.7 3 309 593 93 135 52.0 133.7 1.6071
+anim w10.balloons.still 12 loop alpha
+anim w10.banner.still 12 loop alpha
+anim w10.boss_addon.march 12 loop alpha
+anim w10.bush.still 12 loop alpha
+anim w10.confetti.play 10 loop alpha
+anim w10.ferris.still 6 loop alpha
+anim w10.lantern.play 10 loop add
+anim w10.lantern_tree.still 12 loop alpha
+anim w10.post.still 12 loop alpha
+anim w10.stall.still 12 loop alpha
+anim w10.tent_a.still 12 loop alpha
+anim w10.tent_b.still 12 loop alpha
+anim w2.arch.still 12 loop alpha
+anim w2.banner.still 12 loop alpha
+anim w2.boss_addon.march 12 loop alpha
+anim w2.cactus.still 12 loop alpha
+anim w2.palm.still 12 loop alpha
+anim w2.post.still 12 loop alpha
+anim w2.pots.still 12 loop alpha
+anim w2.rock.still 12 loop alpha
+anim w2.sand.play 10 loop alpha
+anim w2.tent.still 12 loop alpha
+anim w3.banner.still 12 loop alpha
+anim w3.boss_addon.march 12 loop alpha
+anim w3.bush.still 12 loop alpha
+anim w3.cabin.still 12 loop alpha
+anim w3.crystal.still 12 loop alpha
+anim w3.fir.still 12 loop alpha
+anim w3.post.still 12 loop alpha
+anim w3.rock.still 12 loop alpha
+anim w3.snow.play 10 loop alpha
+anim w3.snowman.still 12 loop alpha
+anim w4.banner.still 12 loop alpha
+anim w4.barn.still 12 loop alpha
+anim w4.boss_addon.march 12 loop alpha
+anim w4.bush.still 12 loop alpha
+anim w4.haystack.still 12 loop alpha
+anim w4.leaf.play 10 loop alpha
+anim w4.maple_a.still 12 loop alpha
+anim w4.maple_b.still 12 loop alpha
+anim w4.post.still 12 loop alpha
+anim w4.pumpkins.still 12 loop alpha
+anim w4.scarecrow.still 12 loop alpha
+anim w5.banner.still 12 loop alpha
+anim w5.boat.still 12 loop alpha
+anim w5.boss_addon.march 12 loop alpha
+anim w5.feather.play 10 loop alpha
+anim w5.grass.still 12 loop alpha
+anim w5.lighthouse.still 12 loop alpha
+anim w5.palm.still 12 loop alpha
+anim w5.post.still 12 loop alpha
+anim w5.rock.still 12 loop alpha
+anim w5.spray.play 10 loop alpha
+anim w5.umbrella.still 12 loop alpha
+anim w6.banner.still 12 loop alpha
+anim w6.beehive.still 12 loop alpha
+anim w6.boss_addon.march 12 loop alpha
+anim w6.bush.still 12 loop alpha
+anim w6.cherry.still 12 loop alpha
+anim w6.flowers.still 12 loop alpha
+anim w6.petal.play 10 loop alpha
+anim w6.petal_w.play 10 loop alpha
+anim w6.post.still 12 loop alpha
+anim w6.tulip_a.still 12 loop alpha
+anim w6.tulip_b.still 12 loop alpha
+anim w6.wisteria.still 12 loop alpha
+anim w7.banner.still 12 loop alpha
+anim w7.boss_addon.march 12 loop alpha
+anim w7.firefly.play 10 loop add
+anim w7.hut.still 12 loop alpha
+anim w7.mangrove.still 12 loop alpha
+anim w7.mushroom_a.still 12 loop alpha
+anim w7.mushroom_b.still 12 loop alpha
+anim w7.post.still 12 loop alpha
+anim w7.reeds.still 12 loop alpha
+anim w7.rock.still 12 loop alpha
+anim w7.spore.play 10 loop alpha
+anim w8.airship.still 12 loop alpha
+anim w8.banner.still 12 loop alpha
+anim w8.boss_addon.march 12 loop alpha
+anim w8.cloud_tree.still 12 loop alpha
+anim w8.column.still 12 loop alpha
+anim w8.feather.play 10 loop alpha
+anim w8.post.still 12 loop alpha
+anim w8.puff.still 12 loop alpha
+anim w8.ruin.still 12 loop alpha
+anim w8.statue.still 12 loop alpha
+anim w8.wisp.play 10 loop alpha
+anim w9.ash.play 10 loop alpha
+anim w9.banner.still 12 loop alpha
+anim w9.boss_addon.march 12 loop alpha
+anim w9.brazier.still 12 loop alpha
+anim w9.charred.still 12 loop alpha
+anim w9.ember.play 10 loop add
+anim w9.lava_crystal.still 12 loop alpha
+anim w9.obsidian.still 12 loop alpha
+anim w9.post.still 12 loop alpha
+anim w9.rock.still 12 loop alpha
+anim w9.vent.still 12 loop alpha
+sprite barrel.still.60.0 13 1229 1110 136 152 68.0 108.5 1.6889
+sprite barrel.still.38.0 13 729 772 136 166 68.0 136.2 1.8444
+sprite barrel.still.20.0 13 364 542 136 174 68.0 155.2 1.9333
+sprite boss.march.38.0 0 850 1380 420 413 210.2 370.3 5.7361
+sprite boss.march.38.1 0 846 955 418 420 221.2 376.3 5.8333
+sprite boss.march.38.2 0 4 955 417 421 226.2 372.3 5.8472
+sprite boss.march.38.3 0 1268 955 418 420 221.2 376.3 5.8333
+sprite boss.march.38.4 0 1274 1380 420 413 210.2 370.3 5.7361
+sprite boss.march.38.5 0 4 1380 419 420 197.2 376.3 5.8333
+sprite boss.march.38.6 0 425 955 417 421 191.2 372.3 5.8472
+sprite boss.march.38.7 0 427 1380 419 420 197.2 376.3 5.8333
+sprite boss.march.20.0 0 850 480 420 458 210.2 449.9 6.3611
+sprite boss.march.20.1 0 846 4 418 471 221.2 453.9 6.5417
+sprite boss.march.20.2 0 4 4 417 472 226.2 447.9 6.5556
+sprite boss.march.20.3 0 1268 4 418 471 221.2 453.9 6.5417
+sprite boss.march.20.4 0 1274 480 420 458 210.2 449.9 6.3611
+sprite boss.march.20.5 0 4 480 419 471 197.2 453.9 6.5417
+sprite boss.march.20.6 0 425 4 417 472 191.2 447.9 6.5556
+sprite boss.march.20.7 0 427 480 419 471 197.2 453.9 6.5417
+sprite brute.march.60.0 13 1185 1426 138 120 70.8 91.3 1.4286
+sprite brute.march.60.1 13 1599 1426 141 118 73.8 90.3 1.4048
+sprite brute.march.60.2 13 4 1562 143 117 75.8 88.3 1.3929
+sprite brute.march.60.3 13 1744 1426 141 118 73.8 90.3 1.4048
+sprite brute.march.60.4 13 1327 1426 138 120 70.8 91.3 1.4286
+sprite brute.march.60.5 13 701 1426 137 122 69.8 90.3 1.4524
+sprite brute.march.60.6 13 487 1426 140 123 70.8 88.3 1.4643
+sprite brute.march.60.7 13 842 1426 137 122 69.8 90.3 1.4524
+sprite brute.march.38.0 13 1369 1110 138 149 70.8 136.1 1.7738
+sprite brute.march.38.1 13 1511 1110 142 149 74.8 136.1 1.7738
+sprite brute.march.38.2 13 286 1273 143 148 75.8 134.1 1.7619
+sprite brute.march.38.3 13 1657 1110 142 149 74.8 136.1 1.7738
+sprite brute.march.38.4 13 1803 1110 138 149 70.8 136.1 1.7738
+sprite brute.march.38.5 13 4 1273 137 149 69.8 136.1 1.7738
+sprite brute.march.38.6 13 433 1273 140 148 70.8 134.1 1.7619
+sprite brute.march.38.7 13 145 1273 137 149 69.8 136.1 1.7738
+sprite brute.march.20.0 13 4 772 138 167 70.8 160.5 1.9881
+sprite brute.march.20.1 13 947 542 141 171 73.8 161.5 2.0357
+sprite brute.march.20.2 13 1519 542 143 170 75.8 158.5 2.0238
+sprite brute.march.20.3 13 1092 542 141 171 73.8 161.5 2.0357
+sprite brute.march.20.4 13 146 772 138 167 70.8 160.5 1.9881
+sprite brute.march.20.5 13 1237 542 137 171 69.8 161.5 2.0357
+sprite brute.march.20.6 13 1666 542 140 170 70.8 158.5 2.0238
+sprite brute.march.20.7 13 1378 542 137 171 69.8 161.5 2.0357
+sprite foot.march.60.0 13 579 1683 95 80 54.0 69.0 0.9524
+sprite foot.march.60.1 13 4 1683 96 83 54.0 68.0 0.9881
+sprite foot.march.60.2 13 104 1683 96 83 54.0 67.0 0.9881
+sprite foot.march.60.3 13 204 1683 94 83 52.0 68.0 0.9881
+sprite foot.march.60.4 13 678 1683 87 80 46.0 69.0 0.9524
+sprite foot.march.60.5 13 302 1683 84 83 43.0 68.0 0.9881
+sprite foot.march.60.6 13 390 1683 88 83 47.0 67.0 0.9881
+sprite foot.march.60.7 13 482 1683 93 83 52.0 68.0 0.9881
+sprite foot.march.38.0 13 151 1562 96 115 54.0 109.1 1.3690
+sprite foot.march.38.1 13 251 1562 96 115 54.0 108.1 1.3690
+sprite foot.march.38.2 13 1053 1562 96 113 54.0 106.1 1.3452
+sprite foot.march.38.3 13 351 1562 94 115 52.0 108.1 1.3690
+sprite foot.march.38.4 13 449 1562 88 115 46.0 109.1 1.3690
+sprite foot.march.38.5 13 835 1562 84 114 43.0 107.1 1.3571
+sprite foot.march.38.6 13 1153 1562 87 112 46.0 105.1 1.3333
+sprite foot.march.38.7 13 541 1562 93 115 52.0 108.1 1.3690
+sprite foot.march.20.0 13 1227 1273 95 135 53.0 133.7 1.6071
+sprite foot.march.20.1 13 1515 1273 95 134 53.0 132.7 1.5952
+sprite foot.march.20.2 13 1929 1273 96 132 54.0 130.7 1.5714
+sprite foot.march.20.3 13 1614 1273 94 134 52.0 132.7 1.5952
+sprite foot.march.20.4 13 1326 1273 88 135 46.0 133.7 1.6071
+sprite foot.march.20.5 13 1712 1273 83 134 42.0 132.7 1.5952
+sprite foot.march.20.6 13 4 1426 87 132 46.0 130.7 1.5714
+sprite foot.march.20.7 13 1418 1273 93 135 52.0 133.7 1.6071
 sprite fx.bigboom.play.0.0 1 1259 284 162 162 82.5 96.3 6.0000
 sprite fx.bigboom.play.0.1 1 804 4 220 218 111.5 123.3 8.0741
 sprite fx.bigboom.play.0.2 1 4 4 278 276 141.5 151.3 10.2222
-sprite fx.bigboom.play.0.3 1 98 637 135 104 59.5 70.3 3.8519
+sprite fx.bigboom.play.0.3 1 4 637 135 104 59.5 70.3 3.8519
 sprite fx.bigboom.play.0.4 1 1099 486 160 125 71.5 81.3 4.6296
 sprite fx.bigboom.play.0.5 1 172 486 182 146 82.5 94.3 5.4074
 sprite fx.bigboom.play.0.6 1 1055 284 200 165 91.5 106.3 6.1111
@@ -133,88 +262,88 @@ sprite fx.bigboom.play.0.12 1 1028 4 247 213 124.5 142.3 7.8889
 sprite fx.bigboom.play.0.13 1 1748 4 232 202 118.5 139.3 7.4815
 sprite fx.bigboom.play.0.14 1 244 284 215 186 111.5 134.3 6.8889
 sprite fx.bigboom.play.0.15 1 686 284 193 168 101.5 128.3 6.2222
-sprite fx.bigboom_glow.play.0.0 1 142 915 58 58 29.0 29.0 7.2500
-sprite fx.bigboom_glow.play.0.1 1 1965 750 70 70 35.0 35.0 8.7500
-sprite fx.bigboom_glow.play.0.2 1 1139 750 76 76 38.0 38.0 9.5000
-sprite fx.bigboom_glow.play.0.3 1 626 750 82 82 41.0 41.0 10.2500
-sprite fx.bigboom_glow.play.0.4 1 1767 637 88 88 44.0 44.0 11.0000
-sprite fx.bigboom_glow.play.0.5 1 1859 637 88 88 44.0 44.0 11.0000
-sprite fx.bigboom_glow.play.0.6 1 1951 637 88 88 44.0 44.0 11.0000
-sprite fx.bigboom_glow.play.0.7 1 150 750 86 86 43.0 43.0 10.7500
-sprite fx.bigboom_glow.play.0.8 1 844 750 80 80 40.0 40.0 10.0000
-sprite fx.bigboom_glow.play.0.9 1 1219 750 76 76 38.0 38.0 9.5000
-sprite fx.bigboom_glow.play.0.10 1 4 841 70 70 35.0 35.0 8.7500
-sprite fx.bigboom_glow.play.0.11 1 824 841 64 64 32.0 32.0 8.0000
-sprite fx.bigboom_glow.play.0.12 1 1618 841 60 60 30.0 30.0 7.5000
-sprite fx.bigboom_glow.play.0.13 1 386 915 54 54 27.0 27.0 6.7500
-sprite fx.bigboom_glow.play.0.14 1 1982 915 48 48 24.0 24.0 6.0000
-sprite fx.bigboom_glow.play.0.15 1 271 978 44 44 22.0 22.0 5.5000
-sprite fx.confetti_a.play.0.0 1 1545 978 24 20 12.0 10.0 0.2500
-sprite fx.confetti_a.play.0.1 1 1125 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_a.play.0.2 1 1573 978 12 20 6.0 10.0 0.2500
-sprite fx.confetti_a.play.0.3 1 1151 978 14 22 7.0 11.0 0.2750
-sprite fx.confetti_a.play.0.4 1 953 978 20 24 10.0 12.0 0.3000
-sprite fx.confetti_a.play.0.5 1 1169 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_a.play.0.6 1 44 1030 20 12 10.0 6.0 0.1500
-sprite fx.confetti_a.play.0.7 1 1871 978 22 14 11.0 7.0 0.1750
-sprite fx.confetti_b.play.0.0 1 1589 978 24 20 12.0 10.0 0.2500
-sprite fx.confetti_b.play.0.1 1 1195 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_b.play.0.2 1 1617 978 12 20 6.0 10.0 0.2500
-sprite fx.confetti_b.play.0.3 1 1221 978 14 22 7.0 11.0 0.2750
-sprite fx.confetti_b.play.0.4 1 977 978 20 24 10.0 12.0 0.3000
-sprite fx.confetti_b.play.0.5 1 1239 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_b.play.0.6 1 68 1030 20 12 10.0 6.0 0.1500
-sprite fx.confetti_b.play.0.7 1 1897 978 22 14 11.0 7.0 0.1750
-sprite fx.confetti_c.play.0.0 1 1633 978 24 20 12.0 10.0 0.2500
-sprite fx.confetti_c.play.0.1 1 1265 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_c.play.0.2 1 1661 978 12 20 6.0 10.0 0.2500
-sprite fx.confetti_c.play.0.3 1 1291 978 14 22 7.0 11.0 0.2750
-sprite fx.confetti_c.play.0.4 1 1001 978 20 24 10.0 12.0 0.3000
-sprite fx.confetti_c.play.0.5 1 1309 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_c.play.0.6 1 92 1030 20 12 10.0 6.0 0.1500
-sprite fx.confetti_c.play.0.7 1 1923 978 22 14 11.0 7.0 0.1750
-sprite fx.confetti_d.play.0.0 1 1677 978 24 20 12.0 10.0 0.2500
-sprite fx.confetti_d.play.0.1 1 1335 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_d.play.0.2 1 1705 978 12 20 6.0 10.0 0.2500
-sprite fx.confetti_d.play.0.3 1 1361 978 14 22 7.0 11.0 0.2750
-sprite fx.confetti_d.play.0.4 1 1025 978 20 24 10.0 12.0 0.3000
-sprite fx.confetti_d.play.0.5 1 1379 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_d.play.0.6 1 116 1030 20 12 10.0 6.0 0.1500
-sprite fx.confetti_d.play.0.7 1 1949 978 22 14 11.0 7.0 0.1750
-sprite fx.confetti_e.play.0.0 1 1721 978 24 20 12.0 10.0 0.2500
-sprite fx.confetti_e.play.0.1 1 1405 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_e.play.0.2 1 1749 978 12 20 6.0 10.0 0.2500
-sprite fx.confetti_e.play.0.3 1 1431 978 14 22 7.0 11.0 0.2750
-sprite fx.confetti_e.play.0.4 1 1049 978 20 24 10.0 12.0 0.3000
-sprite fx.confetti_e.play.0.5 1 1449 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_e.play.0.6 1 140 1030 20 12 10.0 6.0 0.1500
-sprite fx.confetti_e.play.0.7 1 1975 978 22 14 11.0 7.0 0.1750
-sprite fx.confetti_f.play.0.0 1 1765 978 24 20 12.0 10.0 0.2500
-sprite fx.confetti_f.play.0.1 1 1475 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_f.play.0.2 1 1793 978 12 20 6.0 10.0 0.2500
-sprite fx.confetti_f.play.0.3 1 1501 978 14 22 7.0 11.0 0.2750
-sprite fx.confetti_f.play.0.4 1 1073 978 20 24 10.0 12.0 0.3000
-sprite fx.confetti_f.play.0.5 1 1519 978 22 22 11.0 11.0 0.2750
-sprite fx.confetti_f.play.0.6 1 164 1030 20 12 10.0 6.0 0.1500
-sprite fx.confetti_f.play.0.7 1 2001 978 22 14 11.0 7.0 0.1750
-sprite fx.debris.play.0.0 1 841 978 40 28 20.0 14.0 0.3500
-sprite fx.debris.play.0.1 1 723 978 34 34 17.0 17.0 0.4250
-sprite fx.debris.play.0.2 1 643 978 18 36 9.0 18.0 0.4500
-sprite fx.debris.play.0.3 1 665 978 14 36 7.0 18.0 0.4500
-sprite fx.debris.play.0.4 1 517 978 28 40 14.0 20.0 0.5000
-sprite fx.debris.play.0.5 1 761 978 34 34 17.0 17.0 0.4250
-sprite fx.debris.play.0.6 1 1809 978 36 18 18.0 9.0 0.2250
-sprite fx.debris.play.0.7 1 4 1030 36 14 18.0 7.0 0.1750
-sprite fx.dust.play.0.0 1 799 978 38 32 18.8 24.2 0.5000
-sprite fx.dust.play.0.1 1 593 978 46 37 22.8 28.2 0.5781
-sprite fx.dust.play.0.2 1 319 978 52 42 25.8 32.2 0.6562
-sprite fx.dust.play.0.3 1 160 978 57 47 28.8 36.2 0.7344
-sprite fx.dust.play.0.4 1 740 915 57 52 28.8 40.2 0.8125
-sprite fx.dust.play.0.5 1 801 915 57 52 28.8 40.2 0.8125
+sprite fx.bigboom_glow.play.0.0 1 4 909 58 58 29.0 29.0 7.2500
+sprite fx.bigboom_glow.play.0.1 1 1666 745 70 70 35.0 35.0 8.7500
+sprite fx.bigboom_glow.play.0.2 1 840 745 76 76 38.0 38.0 9.5000
+sprite fx.bigboom_glow.play.0.3 1 390 745 82 82 41.0 41.0 10.2500
+sprite fx.bigboom_glow.play.0.4 1 1499 637 88 88 44.0 44.0 11.0000
+sprite fx.bigboom_glow.play.0.5 1 1591 637 88 88 44.0 44.0 11.0000
+sprite fx.bigboom_glow.play.0.6 1 1683 637 88 88 44.0 44.0 11.0000
+sprite fx.bigboom_glow.play.0.7 1 1921 637 86 86 43.0 43.0 10.7500
+sprite fx.bigboom_glow.play.0.8 1 608 745 80 80 40.0 40.0 10.0000
+sprite fx.bigboom_glow.play.0.9 1 920 745 76 76 38.0 38.0 9.5000
+sprite fx.bigboom_glow.play.0.10 1 1740 745 70 70 35.0 35.0 8.7500
+sprite fx.bigboom_glow.play.0.11 1 648 835 64 64 32.0 32.0 8.0000
+sprite fx.bigboom_glow.play.0.12 1 1442 835 60 60 30.0 30.0 7.5000
+sprite fx.bigboom_glow.play.0.13 1 248 909 54 54 27.0 27.0 6.7500
+sprite fx.bigboom_glow.play.0.14 1 1886 909 48 48 24.0 24.0 6.0000
+sprite fx.bigboom_glow.play.0.15 1 165 971 44 44 22.0 22.0 5.5000
+sprite fx.confetti_a.play.0.0 1 1495 971 24 20 12.0 10.0 0.2500
+sprite fx.confetti_a.play.0.1 1 1075 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_a.play.0.2 1 1523 971 12 20 6.0 10.0 0.2500
+sprite fx.confetti_a.play.0.3 1 1101 971 14 22 7.0 11.0 0.2750
+sprite fx.confetti_a.play.0.4 1 931 971 20 24 10.0 12.0 0.3000
+sprite fx.confetti_a.play.0.5 1 1119 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_a.play.0.6 1 4 1022 20 12 10.0 6.0 0.1500
+sprite fx.confetti_a.play.0.7 1 1821 971 22 14 11.0 7.0 0.1750
+sprite fx.confetti_b.play.0.0 1 1539 971 24 20 12.0 10.0 0.2500
+sprite fx.confetti_b.play.0.1 1 1145 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_b.play.0.2 1 1567 971 12 20 6.0 10.0 0.2500
+sprite fx.confetti_b.play.0.3 1 1171 971 14 22 7.0 11.0 0.2750
+sprite fx.confetti_b.play.0.4 1 955 971 20 24 10.0 12.0 0.3000
+sprite fx.confetti_b.play.0.5 1 1189 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_b.play.0.6 1 28 1022 20 12 10.0 6.0 0.1500
+sprite fx.confetti_b.play.0.7 1 1847 971 22 14 11.0 7.0 0.1750
+sprite fx.confetti_c.play.0.0 1 1583 971 24 20 12.0 10.0 0.2500
+sprite fx.confetti_c.play.0.1 1 1215 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_c.play.0.2 1 1611 971 12 20 6.0 10.0 0.2500
+sprite fx.confetti_c.play.0.3 1 1241 971 14 22 7.0 11.0 0.2750
+sprite fx.confetti_c.play.0.4 1 979 971 20 24 10.0 12.0 0.3000
+sprite fx.confetti_c.play.0.5 1 1259 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_c.play.0.6 1 52 1022 20 12 10.0 6.0 0.1500
+sprite fx.confetti_c.play.0.7 1 1873 971 22 14 11.0 7.0 0.1750
+sprite fx.confetti_d.play.0.0 1 1627 971 24 20 12.0 10.0 0.2500
+sprite fx.confetti_d.play.0.1 1 1285 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_d.play.0.2 1 1655 971 12 20 6.0 10.0 0.2500
+sprite fx.confetti_d.play.0.3 1 1311 971 14 22 7.0 11.0 0.2750
+sprite fx.confetti_d.play.0.4 1 1003 971 20 24 10.0 12.0 0.3000
+sprite fx.confetti_d.play.0.5 1 1329 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_d.play.0.6 1 76 1022 20 12 10.0 6.0 0.1500
+sprite fx.confetti_d.play.0.7 1 1899 971 22 14 11.0 7.0 0.1750
+sprite fx.confetti_e.play.0.0 1 1671 971 24 20 12.0 10.0 0.2500
+sprite fx.confetti_e.play.0.1 1 1355 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_e.play.0.2 1 1699 971 12 20 6.0 10.0 0.2500
+sprite fx.confetti_e.play.0.3 1 1381 971 14 22 7.0 11.0 0.2750
+sprite fx.confetti_e.play.0.4 1 1027 971 20 24 10.0 12.0 0.3000
+sprite fx.confetti_e.play.0.5 1 1399 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_e.play.0.6 1 100 1022 20 12 10.0 6.0 0.1500
+sprite fx.confetti_e.play.0.7 1 1925 971 22 14 11.0 7.0 0.1750
+sprite fx.confetti_f.play.0.0 1 1715 971 24 20 12.0 10.0 0.2500
+sprite fx.confetti_f.play.0.1 1 1425 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_f.play.0.2 1 1743 971 12 20 6.0 10.0 0.2500
+sprite fx.confetti_f.play.0.3 1 1451 971 14 22 7.0 11.0 0.2750
+sprite fx.confetti_f.play.0.4 1 1051 971 20 24 10.0 12.0 0.3000
+sprite fx.confetti_f.play.0.5 1 1469 971 22 22 11.0 11.0 0.2750
+sprite fx.confetti_f.play.0.6 1 124 1022 20 12 10.0 6.0 0.1500
+sprite fx.confetti_f.play.0.7 1 1951 971 22 14 11.0 7.0 0.1750
+sprite fx.debris.play.0.0 1 819 971 40 28 20.0 14.0 0.3500
+sprite fx.debris.play.0.1 1 701 971 34 34 17.0 17.0 0.4250
+sprite fx.debris.play.0.2 1 621 971 18 36 9.0 18.0 0.4500
+sprite fx.debris.play.0.3 1 643 971 14 36 7.0 18.0 0.4500
+sprite fx.debris.play.0.4 1 411 971 28 40 14.0 20.0 0.5000
+sprite fx.debris.play.0.5 1 739 971 34 34 17.0 17.0 0.4250
+sprite fx.debris.play.0.6 1 1759 971 36 18 18.0 9.0 0.2250
+sprite fx.debris.play.0.7 1 1977 971 36 14 18.0 7.0 0.1750
+sprite fx.dust.play.0.0 1 777 971 38 32 18.8 24.2 0.5000
+sprite fx.dust.play.0.1 1 571 971 46 37 22.8 28.2 0.5781
+sprite fx.dust.play.0.2 1 213 971 52 42 25.8 32.2 0.6562
+sprite fx.dust.play.0.3 1 4 971 57 47 28.8 36.2 0.7344
+sprite fx.dust.play.0.4 1 644 909 57 52 28.8 40.2 0.8125
+sprite fx.dust.play.0.5 1 705 909 57 52 28.8 40.2 0.8125
 sprite fx.explosion.play.0.0 1 1535 486 123 123 62.5 73.0 2.4600
 sprite fx.explosion.play.0.1 1 883 284 168 166 85.5 94.0 3.3200
 sprite fx.explosion.play.0.2 1 1532 4 212 210 107.5 115.0 4.2000
-sprite fx.explosion.play.0.3 1 437 637 103 95 54.5 62.0 1.9000
+sprite fx.explosion.play.0.3 1 249 637 103 95 54.5 62.0 1.9000
 sprite fx.explosion.play.0.4 1 1780 486 123 111 65.5 71.0 2.2200
 sprite fx.explosion.play.0.5 1 1263 486 140 125 74.5 80.0 2.5000
 sprite fx.explosion.play.0.6 1 522 486 153 137 81.5 87.0 2.7400
@@ -225,157 +354,220 @@ sprite fx.explosion.play.0.10 1 1782 284 171 150 92.5 102.0 3.0000
 sprite fx.explosion.play.0.11 1 358 486 160 139 88.5 99.0 2.7800
 sprite fx.explosion.play.0.12 1 949 486 146 126 82.5 95.0 2.5200
 sprite fx.explosion.play.0.13 1 1907 486 128 111 75.5 90.0 2.2200
-sprite fx.explosion_glow.play.0.0 1 4 978 48 48 24.0 24.0 3.0000
-sprite fx.explosion_glow.play.0.1 1 204 915 58 58 29.0 29.0 3.6250
-sprite fx.explosion_glow.play.0.2 1 892 841 64 64 32.0 32.0 4.0000
-sprite fx.explosion_glow.play.0.3 1 78 841 70 70 35.0 35.0 4.3750
-sprite fx.explosion_glow.play.0.4 1 1737 750 72 72 36.0 36.0 4.5000
-sprite fx.explosion_glow.play.0.5 1 1813 750 72 72 36.0 36.0 4.5000
-sprite fx.explosion_glow.play.0.6 1 1889 750 72 72 36.0 36.0 4.5000
-sprite fx.explosion_glow.play.0.7 1 701 841 66 66 33.0 33.0 4.1250
-sprite fx.explosion_glow.play.0.8 1 1256 841 62 62 31.0 31.0 3.8750
-sprite fx.explosion_glow.play.0.9 1 266 915 56 56 28.0 28.0 3.5000
-sprite fx.explosion_glow.play.0.10 1 862 915 52 52 26.0 26.0 3.2500
-sprite fx.explosion_glow.play.0.11 1 221 978 46 46 23.0 23.0 2.8750
-sprite fx.explosion_glow.play.0.12 1 375 978 42 42 21.0 21.0 2.6250
-sprite fx.explosion_glow.play.0.13 1 683 978 36 36 18.0 18.0 2.2500
-sprite fx.gatepass_add.play.0.0 1 444 915 144 53 72.0 31.4 1.4722
-sprite fx.gatepass_add.play.0.1 1 918 915 144 52 72.0 30.4 1.4444
-sprite fx.gatepass_add.play.0.2 1 1066 915 144 52 72.0 30.4 1.4444
-sprite fx.gatepass_add.play.0.3 1 1686 915 144 51 72.0 29.4 1.4167
-sprite fx.gatepass_add.play.0.4 1 960 841 144 63 72.0 41.4 1.7500
-sprite fx.gatepass_add.play.0.5 1 1441 750 144 74 72.0 52.4 2.0556
-sprite fx.gatepass_add.play.0.6 1 330 750 144 83 72.0 61.4 2.3056
-sprite fx.gatepass_add.play.0.7 1 1293 637 132 91 66.0 69.4 2.5278
-sprite fx.gatepass_add.play.0.8 1 544 637 119 95 58.0 74.4 2.6389
-sprite fx.gatepass_add.play.0.9 1 913 637 118 92 58.0 77.4 2.5556
-sprite fx.gatepass_mul.play.0.0 1 592 915 144 53 72.0 31.4 1.4722
-sprite fx.gatepass_mul.play.0.1 1 1214 915 144 52 72.0 30.4 1.4444
-sprite fx.gatepass_mul.play.0.2 1 1362 915 144 52 72.0 30.4 1.4444
-sprite fx.gatepass_mul.play.0.3 1 1834 915 144 51 72.0 29.4 1.4167
-sprite fx.gatepass_mul.play.0.4 1 1108 841 144 63 72.0 41.4 1.7500
-sprite fx.gatepass_mul.play.0.5 1 1589 750 144 74 72.0 52.4 2.0556
-sprite fx.gatepass_mul.play.0.6 1 478 750 144 83 72.0 61.4 2.3056
-sprite fx.gatepass_mul.play.0.7 1 1429 637 132 91 66.0 69.4 2.5278
-sprite fx.gatepass_mul.play.0.8 1 667 637 119 95 58.0 74.4 2.6389
-sprite fx.gatepass_mul.play.0.9 1 1035 637 118 92 58.0 77.4 2.5556
-sprite fx.gatepass_neg.play.0.0 1 1322 841 144 62 72.0 31.4 1.7222
-sprite fx.gatepass_neg.play.0.1 1 1470 841 144 61 72.0 30.4 1.6944
-sprite fx.gatepass_neg.play.0.2 1 1746 841 144 59 72.0 29.4 1.6389
-sprite fx.gatepass_neg.play.0.3 1 1894 841 144 59 72.0 29.4 1.6389
-sprite fx.gatepass_neg.play.0.4 1 152 841 144 70 72.0 28.4 1.9444
-sprite fx.gatepass_neg.play.0.5 1 928 750 144 80 72.0 27.4 2.2222
-sprite fx.gatepass_neg.play.0.6 1 4 750 142 87 71.0 25.4 2.4167
-sprite fx.gatepass_neg.play.0.7 1 1157 637 132 92 66.0 23.4 2.5556
-sprite fx.gatepass_neg.play.0.8 1 790 637 119 95 58.0 20.4 2.6389
-sprite fx.gatepass_neg.play.0.9 1 1645 637 118 89 58.0 13.4 2.4722
-sprite fx.hit.play.0.0 1 549 978 40 40 20.0 20.0 0.4762
-sprite fx.hit.play.0.1 1 326 915 56 56 28.0 28.0 0.6667
-sprite fx.hit.play.0.2 1 300 841 70 70 35.0 35.0 0.8333
-sprite fx.hit.play.0.3 1 771 841 49 66 12.0 33.0 0.7857
-sprite fx.hit.play.0.4 1 374 841 51 69 12.0 34.0 0.8214
-sprite fx.hit.play.0.5 1 429 841 50 69 11.0 34.0 0.8214
-sprite fx.muzzle.play.0.0 1 4 637 90 109 45.0 78.2 1.0900
-sprite fx.muzzle.play.0.1 1 237 637 90 103 45.0 72.2 1.0300
-sprite fx.muzzle.play.0.2 1 1565 637 76 90 38.0 59.2 0.9000
-sprite fx.muzzle.play.0.3 1 1076 750 59 80 30.0 49.2 0.8000
-sprite fx.poof_blue.play.0.0 1 188 1030 10 10 5.2 17.5 0.1562
-sprite fx.poof_blue.play.0.1 1 885 978 30 27 10.2 27.5 0.4219
-sprite fx.poof_blue.play.0.2 1 421 978 44 41 15.2 36.5 0.6406
-sprite fx.poof_blue.play.0.3 1 1510 915 56 52 20.2 44.5 0.8125
-sprite fx.poof_blue.play.0.4 1 4 915 65 59 23.2 50.5 0.9219
-sprite fx.poof_blue.play.0.5 1 483 841 69 69 25.2 55.5 1.0781
-sprite fx.poof_blue.play.0.6 1 1299 750 67 76 25.2 55.5 1.1875
-sprite fx.poof_blue.play.0.7 1 712 750 62 81 26.2 54.5 1.2656
-sprite fx.poof_red.play.0.0 1 202 1030 10 10 5.2 17.5 0.1562
-sprite fx.poof_red.play.0.1 1 919 978 30 27 10.2 27.5 0.4219
-sprite fx.poof_red.play.0.2 1 469 978 44 41 15.2 36.5 0.6406
-sprite fx.poof_red.play.0.3 1 1570 915 56 52 20.2 44.5 0.8125
-sprite fx.poof_red.play.0.4 1 73 915 65 59 23.2 50.5 0.9219
-sprite fx.poof_red.play.0.5 1 556 841 69 69 25.2 55.5 1.0781
-sprite fx.poof_red.play.0.6 1 1370 750 67 76 25.2 55.5 1.1875
-sprite fx.poof_red.play.0.7 1 778 750 62 81 26.2 54.5 1.2656
-sprite fx.ring.play.0.0 1 1630 915 52 52 26.0 26.0 1.8571
-sprite fx.ring.play.0.1 1 629 841 68 68 34.0 34.0 2.4286
-sprite fx.ring.play.0.2 1 240 750 86 86 43.0 43.0 3.0714
-sprite fx.ring.play.0.3 1 331 637 102 102 51.0 51.0 3.6429
+sprite fx.explosion_glow.play.0.0 1 1938 909 48 48 24.0 24.0 3.0000
+sprite fx.explosion_glow.play.0.1 1 66 909 58 58 29.0 29.0 3.6250
+sprite fx.explosion_glow.play.0.2 1 716 835 64 64 32.0 32.0 4.0000
+sprite fx.explosion_glow.play.0.3 1 1814 745 70 70 35.0 35.0 4.3750
+sprite fx.explosion_glow.play.0.4 1 1438 745 72 72 36.0 36.0 4.5000
+sprite fx.explosion_glow.play.0.5 1 1514 745 72 72 36.0 36.0 4.5000
+sprite fx.explosion_glow.play.0.6 1 1590 745 72 72 36.0 36.0 4.5000
+sprite fx.explosion_glow.play.0.7 1 467 835 66 66 33.0 33.0 4.1250
+sprite fx.explosion_glow.play.0.8 1 1080 835 62 62 31.0 31.0 3.8750
+sprite fx.explosion_glow.play.0.9 1 128 909 56 56 28.0 28.0 3.5000
+sprite fx.explosion_glow.play.0.10 1 766 909 52 52 26.0 26.0 3.2500
+sprite fx.explosion_glow.play.0.11 1 65 971 46 46 23.0 23.0 2.8750
+sprite fx.explosion_glow.play.0.12 1 269 971 42 42 21.0 21.0 2.6250
+sprite fx.explosion_glow.play.0.13 1 661 971 36 36 18.0 18.0 2.2500
+sprite fx.gatepass_add.play.0.0 1 348 909 144 53 72.0 31.4 1.4722
+sprite fx.gatepass_add.play.0.1 1 822 909 144 52 72.0 30.4 1.4444
+sprite fx.gatepass_add.play.0.2 1 970 909 144 52 72.0 30.4 1.4444
+sprite fx.gatepass_add.play.0.3 1 1590 909 144 51 72.0 29.4 1.4167
+sprite fx.gatepass_add.play.0.4 1 784 835 144 63 72.0 41.4 1.7500
+sprite fx.gatepass_add.play.0.5 1 1142 745 144 74 72.0 52.4 2.0556
+sprite fx.gatepass_add.play.0.6 1 94 745 144 83 72.0 61.4 2.3056
+sprite fx.gatepass_add.play.0.7 1 1105 637 132 91 66.0 69.4 2.5278
+sprite fx.gatepass_add.play.0.8 1 356 637 119 95 58.0 74.4 2.6389
+sprite fx.gatepass_add.play.0.9 1 725 637 118 92 58.0 77.4 2.5556
+sprite fx.gatepass_mul.play.0.0 1 496 909 144 53 72.0 31.4 1.4722
+sprite fx.gatepass_mul.play.0.1 1 1118 909 144 52 72.0 30.4 1.4444
+sprite fx.gatepass_mul.play.0.2 1 1266 909 144 52 72.0 30.4 1.4444
+sprite fx.gatepass_mul.play.0.3 1 1738 909 144 51 72.0 29.4 1.4167
+sprite fx.gatepass_mul.play.0.4 1 932 835 144 63 72.0 41.4 1.7500
+sprite fx.gatepass_mul.play.0.5 1 1290 745 144 74 72.0 52.4 2.0556
+sprite fx.gatepass_mul.play.0.6 1 242 745 144 83 72.0 61.4 2.3056
+sprite fx.gatepass_mul.play.0.7 1 1241 637 132 91 66.0 69.4 2.5278
+sprite fx.gatepass_mul.play.0.8 1 479 637 119 95 58.0 74.4 2.6389
+sprite fx.gatepass_mul.play.0.9 1 847 637 118 92 58.0 77.4 2.5556
+sprite fx.gatepass_neg.play.0.0 1 1146 835 144 62 72.0 31.4 1.7222
+sprite fx.gatepass_neg.play.0.1 1 1294 835 144 61 72.0 30.4 1.6944
+sprite fx.gatepass_neg.play.0.2 1 1506 835 144 59 72.0 29.4 1.6389
+sprite fx.gatepass_neg.play.0.3 1 1654 835 144 59 72.0 29.4 1.6389
+sprite fx.gatepass_neg.play.0.4 1 1888 745 144 70 72.0 28.4 1.9444
+sprite fx.gatepass_neg.play.0.5 1 692 745 144 80 72.0 27.4 2.2222
+sprite fx.gatepass_neg.play.0.6 1 1775 637 142 87 71.0 25.4 2.4167
+sprite fx.gatepass_neg.play.0.7 1 969 637 132 92 66.0 23.4 2.5556
+sprite fx.gatepass_neg.play.0.8 1 602 637 119 95 58.0 20.4 2.6389
+sprite fx.gatepass_neg.play.0.9 1 1377 637 118 89 58.0 13.4 2.4722
+sprite fx.hit.play.0.0 1 443 971 40 40 20.0 20.0 0.4762
+sprite fx.hit.play.0.1 1 188 909 56 56 28.0 28.0 0.6667
+sprite fx.hit.play.0.2 1 4 835 70 70 35.0 35.0 0.8333
+sprite fx.hit.play.0.3 1 537 835 49 66 12.0 33.0 0.7857
+sprite fx.hit.play.0.4 1 78 835 51 69 12.0 34.0 0.8214
+sprite fx.hit.play.0.5 1 133 835 50 69 11.0 34.0 0.8214
+sprite fx.muzzle.play.0.0 1 187 835 58 69 29.0 48.0 0.6900
+sprite fx.muzzle.play.0.1 1 590 835 54 65 27.0 44.0 0.6500
+sprite fx.muzzle.play.0.2 1 1802 835 46 59 23.0 38.0 0.5900
+sprite fx.muzzle.play.0.3 1 306 909 38 54 20.0 33.0 0.5400
+sprite fx.poof_blue.play.0.0 1 148 1022 10 10 5.2 17.5 0.1562
+sprite fx.poof_blue.play.0.1 1 863 971 30 27 10.2 27.5 0.4219
+sprite fx.poof_blue.play.0.2 1 315 971 44 41 15.2 36.5 0.6406
+sprite fx.poof_blue.play.0.3 1 1414 909 56 52 20.2 44.5 0.8125
+sprite fx.poof_blue.play.0.4 1 1852 835 65 59 23.2 50.5 0.9219
+sprite fx.poof_blue.play.0.5 1 249 835 69 69 25.2 55.5 1.0781
+sprite fx.poof_blue.play.0.6 1 1000 745 67 76 25.2 55.5 1.1875
+sprite fx.poof_blue.play.0.7 1 476 745 62 81 26.2 54.5 1.2656
+sprite fx.poof_red.play.0.0 1 162 1022 10 10 5.2 17.5 0.1562
+sprite fx.poof_red.play.0.1 1 897 971 30 27 10.2 27.5 0.4219
+sprite fx.poof_red.play.0.2 1 363 971 44 41 15.2 36.5 0.6406
+sprite fx.poof_red.play.0.3 1 1474 909 56 52 20.2 44.5 0.8125
+sprite fx.poof_red.play.0.4 1 1921 835 65 59 23.2 50.5 0.9219
+sprite fx.poof_red.play.0.5 1 322 835 69 69 25.2 55.5 1.0781
+sprite fx.poof_red.play.0.6 1 1071 745 67 76 25.2 55.5 1.1875
+sprite fx.poof_red.play.0.7 1 542 745 62 81 26.2 54.5 1.2656
+sprite fx.ring.play.0.0 1 1534 909 52 52 26.0 26.0 1.8571
+sprite fx.ring.play.0.1 1 395 835 68 68 34.0 34.0 2.4286
+sprite fx.ring.play.0.2 1 4 745 86 86 43.0 43.0 3.0714
+sprite fx.ring.play.0.3 1 143 637 102 102 51.0 51.0 3.6429
 sprite fx.ring.play.0.4 1 1662 486 114 114 57.0 57.0 4.0714
 sprite fx.ring.play.0.5 1 1407 486 124 124 62.0 62.0 4.4286
 sprite fx.ring.play.0.6 1 815 486 130 130 65.0 65.0 4.6429
 sprite fx.ring.play.0.7 1 679 486 132 132 66.0 66.0 4.7143
-sprite fx.sparkle.play.0.0 1 1849 978 18 18 9.0 9.0 0.2250
-sprite fx.sparkle.play.0.1 1 56 978 48 48 24.0 24.0 0.6000
-sprite fx.sparkle.play.0.2 1 1682 841 60 60 30.0 30.0 0.7500
-sprite fx.sparkle.play.0.3 1 108 978 48 48 24.0 24.0 0.6000
-sprite fx.sparkle.play.0.4 1 1097 978 24 24 12.0 12.0 0.3000
-sprite fx.sparkle.play.0.5 1 216 1030 2 2 32.0 32.0 0.0250
+sprite fx.sparkle.play.0.0 1 2017 971 14 14 7.0 7.0 0.1750
+sprite fx.sparkle.play.0.1 1 487 971 38 38 19.0 19.0 0.4750
+sprite fx.sparkle.play.0.2 1 115 971 46 46 23.0 23.0 0.5750
+sprite fx.sparkle.play.0.3 1 529 971 38 38 19.0 19.0 0.4750
+sprite fx.sparkle.play.0.4 1 1799 971 18 18 9.0 9.0 0.2250
+sprite fx.sparkle.play.0.5 1 176 1022 2 2 24.0 24.0 0.0250
 sprite fx.tracer.play.0.0 1 1957 284 24 148 12.0 15.0 1.4800
-sprite gate.post_add.still.60.0 3 538 430 86 154 29.5 128.1 1.8333
-sprite gate.post_add.still.38.0 3 364 4 86 211 29.5 190.9 2.5119
-sprite gate.post_add.still.20.0 3 94 4 86 237 29.5 223.8 2.8214
-sprite gate.post_mul.still.60.0 3 448 430 86 156 29.5 130.1 1.8571
-sprite gate.post_mul.still.38.0 3 274 4 86 220 29.5 199.9 2.6190
-sprite gate.post_mul.still.20.0 3 4 4 86 250 29.5 236.8 2.9762
-sprite gate.post_neg.still.60.0 3 1891 430 86 141 29.5 115.1 1.6786
-sprite gate.post_neg.still.38.0 3 454 4 86 199 29.5 178.9 2.3690
-sprite gate.post_neg.still.20.0 3 184 4 86 226 29.5 212.8 2.6905
-sprite gate.spikes.still.60.0 3 1495 857 99 52 49.5 40.5 0.6190
-sprite gate.spikes.still.38.0 3 1392 857 99 68 49.5 57.9 0.8095
-sprite gate.spikes.still.20.0 3 1289 857 99 74 49.5 66.4 0.8810
-sprite rider.march.60.0 3 1836 258 107 159 75.0 98.0 1.8929
-sprite rider.march.60.1 3 1614 258 107 160 75.0 100.0 1.9048
-sprite rider.march.60.2 3 4 430 107 159 75.0 98.0 1.8929
-sprite rider.march.60.3 3 115 430 107 159 75.0 95.0 1.8929
-sprite rider.march.60.4 3 337 430 107 158 75.0 91.0 1.8810
-sprite rider.march.60.5 3 226 430 107 159 75.0 93.0 1.8929
-sprite rider.march.60.6 3 1503 258 107 161 75.0 96.0 1.9167
-sprite rider.march.60.7 3 1725 258 107 160 75.0 98.0 1.9048
-sprite rider.march.38.0 3 950 258 107 166 75.0 135.7 1.9762
-sprite rider.march.38.1 3 730 258 106 167 74.0 138.7 1.9881
-sprite rider.march.38.2 3 1850 4 106 170 74.0 138.7 2.0238
-sprite rider.march.38.3 3 655 4 106 172 74.0 135.7 2.0476
-sprite rider.march.38.4 3 765 4 107 172 75.0 130.7 2.0476
-sprite rider.march.38.5 3 544 4 107 173 75.0 132.7 2.0595
-sprite rider.march.38.6 3 876 4 107 172 75.0 135.7 2.0476
-sprite rider.march.38.7 3 4 258 107 168 75.0 135.7 2.0000
-sprite rider.march.20.0 3 1061 258 106 165 74.0 151.8 1.9643
-sprite rider.march.20.1 3 1171 258 106 165 74.0 155.8 1.9643
-sprite rider.march.20.2 3 840 258 106 166 74.0 157.8 1.9762
-sprite rider.march.20.3 3 399 258 106 167 74.0 154.8 1.9881
-sprite rider.march.20.4 3 509 258 106 167 74.0 150.8 1.9881
-sprite rider.march.20.5 3 619 258 107 167 75.0 152.8 1.9881
-sprite rider.march.20.6 3 1281 258 107 163 75.0 153.8 1.9405
-sprite rider.march.20.7 3 1392 258 107 161 75.0 153.8 1.9167
-sprite soldier.march.60.0 3 392 857 62 106 31.0 102.5 1.0600
-sprite soldier.march.60.1 3 1824 732 61 114 30.0 102.5 1.1400
-sprite soldier.march.60.2 3 1671 732 61 115 29.0 100.5 1.1500
-sprite soldier.march.60.3 3 1889 732 61 114 30.0 102.5 1.1400
-sprite soldier.march.60.4 3 458 857 62 106 31.0 102.5 1.0600
-sprite soldier.march.60.5 3 195 857 61 112 31.0 100.5 1.1200
-sprite soldier.march.60.6 3 260 857 63 112 32.0 97.5 1.1200
-sprite soldier.march.60.7 3 327 857 61 112 31.0 100.5 1.1200
-sprite soldier.march.38.0 3 1539 732 62 115 31.0 115.6 1.1500
-sprite soldier.march.38.1 3 775 732 61 118 30.0 113.6 1.1800
-sprite soldier.march.38.2 3 1943 593 61 121 29.0 113.6 1.2100
-sprite soldier.march.38.3 3 355 732 61 120 30.0 115.6 1.2000
-sprite soldier.march.38.4 3 1605 732 62 115 31.0 115.6 1.1500
-sprite soldier.march.38.5 3 840 732 61 118 31.0 113.6 1.1800
-sprite soldier.march.38.6 3 4 732 63 121 32.0 113.6 1.2100
-sprite soldier.march.38.7 3 420 732 61 120 31.0 115.6 1.2000
-sprite soldier.march.20.0 3 1271 593 62 129 31.0 131.8 1.2900
-sprite soldier.march.20.1 3 1011 593 61 132 30.0 130.8 1.3200
-sprite soldier.march.20.2 3 1076 593 60 132 29.0 128.8 1.3200
-sprite soldier.march.20.3 3 690 593 61 133 30.0 131.8 1.3300
-sprite soldier.march.20.4 3 1337 593 62 129 31.0 131.8 1.2900
-sprite soldier.march.20.5 3 1140 593 61 132 31.0 130.8 1.3200
-sprite soldier.march.20.6 3 1205 593 62 132 31.0 128.8 1.3200
-sprite soldier.march.20.7 3 755 593 61 133 31.0 131.8 1.3300
+sprite gate.post_add.still.60.0 13 1139 1110 86 154 29.5 128.1 1.8333
+sprite gate.post_add.still.38.0 13 184 542 86 211 29.5 190.9 2.5119
+sprite gate.post_add.still.20.0 13 1910 294 86 237 29.5 223.8 2.8214
+sprite gate.post_mul.still.60.0 13 1049 1110 86 156 29.5 130.1 1.8571
+sprite gate.post_mul.still.38.0 13 94 542 86 220 29.5 199.9 2.6190
+sprite gate.post_mul.still.20.0 13 1910 4 86 250 29.5 236.8 2.9762
+sprite gate.post_neg.still.60.0 13 717 1273 86 141 29.5 115.1 1.6786
+sprite gate.post_neg.still.38.0 13 274 542 86 199 29.5 178.9 2.3690
+sprite gate.post_neg.still.20.0 13 4 542 86 226 29.5 212.8 2.6905
+sprite gate.spikes.still.60.0 13 975 1683 99 52 49.5 40.5 0.6190
+sprite gate.spikes.still.38.0 13 872 1683 99 68 49.5 57.9 0.8095
+sprite gate.spikes.still.20.0 13 769 1683 99 74 49.5 66.4 0.8810
+sprite rider.march.60.0 13 4 1110 107 159 75.0 98.0 1.8929
+sprite rider.march.60.1 13 1655 943 107 160 75.0 100.0 1.9048
+sprite rider.march.60.2 13 115 1110 107 159 75.0 98.0 1.8929
+sprite rider.march.60.3 13 226 1110 107 159 75.0 95.0 1.8929
+sprite rider.march.60.4 13 588 1110 107 158 75.0 91.0 1.8810
+sprite rider.march.60.5 13 337 1110 107 159 75.0 93.0 1.8929
+sprite rider.march.60.6 13 1544 943 107 161 75.0 96.0 1.9167
+sprite rider.march.60.7 13 1766 943 107 160 75.0 98.0 1.9048
+sprite rider.march.38.0 13 979 772 107 166 75.0 135.7 1.9762
+sprite rider.march.38.1 13 619 772 106 167 74.0 138.7 1.9881
+sprite rider.march.38.2 13 1810 542 106 170 74.0 138.7 2.0238
+sprite rider.march.38.3 13 615 542 106 172 74.0 135.7 2.0476
+sprite rider.march.38.4 13 725 542 107 172 75.0 130.7 2.0476
+sprite rider.march.38.5 13 504 542 107 173 75.0 132.7 2.0595
+sprite rider.march.38.6 13 836 542 107 172 75.0 135.7 2.0476
+sprite rider.march.38.7 13 1920 542 107 168 75.0 135.7 2.0000
+sprite rider.march.20.0 13 1090 772 106 165 74.0 151.8 1.9643
+sprite rider.march.20.1 13 1200 772 106 165 74.0 155.8 1.9643
+sprite rider.march.20.2 13 869 772 106 166 74.0 157.8 1.9762
+sprite rider.march.20.3 13 288 772 106 167 74.0 154.8 1.9881
+sprite rider.march.20.4 13 398 772 106 167 74.0 150.8 1.9881
+sprite rider.march.20.5 13 508 772 107 167 75.0 152.8 1.9881
+sprite rider.march.20.6 13 1310 772 107 163 75.0 153.8 1.9405
+sprite rider.march.20.7 13 1433 943 107 161 75.0 153.8 1.9167
+sprite soldier.cheer.60.0 13 1643 1562 66 99 30.0 92.5 0.9900
+sprite soldier.cheer.60.1 13 631 1426 66 123 30.0 120.5 1.2300
+sprite soldier.cheer.60.2 13 983 1426 66 121 30.0 119.5 1.2100
+sprite soldier.cheer.60.3 13 1441 1562 66 107 30.0 104.5 1.0700
+sprite soldier.cheer.60.4 13 1713 1562 66 99 30.0 92.5 0.9900
+sprite soldier.cheer.60.5 13 1783 1562 66 99 30.0 92.5 0.9900
+sprite soldier.cheer.60.6 13 1853 1562 66 99 30.0 92.5 0.9900
+sprite soldier.cheer.60.7 13 1923 1562 66 99 30.0 92.5 0.9900
+sprite soldier.cheer.38.0 13 877 1273 66 139 30.0 136.1 1.3900
+sprite soldier.cheer.38.1 13 577 1273 66 146 30.0 151.1 1.4600
+sprite soldier.cheer.38.2 13 647 1273 66 143 30.0 152.1 1.4300
+sprite soldier.cheer.38.3 13 807 1273 66 141 30.0 146.1 1.4100
+sprite soldier.cheer.38.4 13 947 1273 66 139 30.0 136.1 1.3900
+sprite soldier.cheer.38.5 13 1017 1273 66 139 30.0 136.1 1.3900
+sprite soldier.cheer.38.6 13 1087 1273 66 139 30.0 136.1 1.3900
+sprite soldier.cheer.38.7 13 1157 1273 66 139 30.0 136.1 1.3900
+sprite soldier.cheer.20.0 13 699 1110 66 158 30.0 157.4 1.5800
+sprite soldier.cheer.20.1 13 448 1110 66 159 30.0 169.4 1.5900
+sprite soldier.cheer.20.2 13 1877 943 66 160 30.0 174.4 1.6000
+sprite soldier.cheer.20.3 13 518 1110 66 159 30.0 169.4 1.5900
+sprite soldier.cheer.20.4 13 769 1110 66 158 30.0 157.4 1.5800
+sprite soldier.cheer.20.5 13 839 1110 66 158 30.0 157.4 1.5800
+sprite soldier.cheer.20.6 13 909 1110 66 158 30.0 157.4 1.5800
+sprite soldier.cheer.20.7 13 979 1110 66 158 30.0 157.4 1.5800
+sprite soldier.march.60.0 13 1511 1562 62 106 31.0 102.5 1.0600
+sprite soldier.march.60.1 13 923 1562 61 114 30.0 102.5 1.1400
+sprite soldier.march.60.2 13 770 1562 61 115 29.0 100.5 1.1500
+sprite soldier.march.60.3 13 988 1562 61 114 30.0 102.5 1.1400
+sprite soldier.march.60.4 13 1577 1562 62 106 31.0 102.5 1.0600
+sprite soldier.march.60.5 13 1244 1562 61 112 31.0 100.5 1.1200
+sprite soldier.march.60.6 13 1309 1562 63 112 32.0 97.5 1.1200
+sprite soldier.march.60.7 13 1376 1562 61 112 31.0 100.5 1.1200
+sprite soldier.march.38.0 13 638 1562 62 115 31.0 115.6 1.1500
+sprite soldier.march.38.1 13 1889 1426 61 118 30.0 113.6 1.1800
+sprite soldier.march.38.2 13 1053 1426 61 121 29.0 113.6 1.2100
+sprite soldier.march.38.3 13 1469 1426 61 120 30.0 115.6 1.2000
+sprite soldier.march.38.4 13 704 1562 62 115 31.0 115.6 1.1500
+sprite soldier.march.38.5 13 1954 1426 61 118 31.0 113.6 1.1800
+sprite soldier.march.38.6 13 1118 1426 63 121 32.0 113.6 1.2100
+sprite soldier.march.38.7 13 1534 1426 61 120 31.0 115.6 1.2000
+sprite soldier.march.20.0 13 355 1426 62 129 31.0 131.8 1.2900
+sprite soldier.march.20.1 13 95 1426 61 132 30.0 130.8 1.3200
+sprite soldier.march.20.2 13 160 1426 60 132 29.0 128.8 1.3200
+sprite soldier.march.20.3 13 1799 1273 61 133 30.0 131.8 1.3300
+sprite soldier.march.20.4 13 421 1426 62 129 31.0 131.8 1.2900
+sprite soldier.march.20.5 13 224 1426 61 132 31.0 130.8 1.3200
+sprite soldier.march.20.6 13 289 1426 62 132 31.0 128.8 1.3200
+sprite soldier.march.20.7 13 1864 1273 61 133 31.0 131.8 1.3300
+sprite squad.banner.march.60.0 13 1421 772 235 163 118.0 155.3 1.6300
+sprite squad.banner.march.60.1 13 1660 772 234 163 109.0 155.3 1.6300
+sprite squad.banner.march.60.2 13 4 943 234 163 105.0 155.3 1.6300
+sprite squad.banner.march.60.3 13 242 943 234 163 108.0 155.3 1.6300
+sprite squad.banner.march.60.4 13 480 943 235 163 117.0 155.3 1.6300
+sprite squad.banner.march.60.5 13 719 943 234 163 125.0 155.3 1.6300
+sprite squad.banner.march.60.6 13 957 943 234 163 129.0 155.3 1.6300
+sprite squad.banner.march.60.7 13 1195 943 234 163 126.0 155.3 1.6300
+sprite squad.banner.march.38.0 13 4 294 235 244 118.0 236.5 2.4400
+sprite squad.banner.march.38.1 13 243 294 234 244 109.0 236.5 2.4400
+sprite squad.banner.march.38.2 13 481 294 234 244 105.0 236.5 2.4400
+sprite squad.banner.march.38.3 13 719 294 234 244 108.0 236.5 2.4400
+sprite squad.banner.march.38.4 13 957 294 235 244 117.0 236.5 2.4400
+sprite squad.banner.march.38.5 13 1196 294 234 244 125.0 236.5 2.4400
+sprite squad.banner.march.38.6 13 1434 294 234 244 129.0 236.5 2.4400
+sprite squad.banner.march.38.7 13 1672 294 234 244 126.0 236.5 2.4400
+sprite squad.banner.march.20.0 13 4 4 235 286 118.0 279.8 2.8600
+sprite squad.banner.march.20.1 13 482 4 234 285 109.0 278.8 2.8500
+sprite squad.banner.march.20.2 13 720 4 234 285 105.0 278.8 2.8500
+sprite squad.banner.march.20.3 13 958 4 234 285 108.0 278.8 2.8500
+sprite squad.banner.march.20.4 13 243 4 235 286 117.0 279.8 2.8600
+sprite squad.banner.march.20.5 13 1196 4 234 285 125.0 278.8 2.8500
+sprite squad.banner.march.20.6 13 1434 4 234 285 129.0 278.8 2.8500
+sprite squad.banner.march.20.7 13 1672 4 234 285 126.0 278.8 2.8500
+sprite ui.boss_head.still.0.0 12 56 375 121 122 60.5 61.0 40.6667
+sprite ui.hand.still.0.0 12 614 4 136 188 68.0 94.0 62.6667
+sprite ui.logo.still.0.0 12 311 375 1021 107 510.5 53.5 35.6667
+sprite ui.rays.play.0.0 12 358 4 252 252 126.0 126.0 252.0000
+sprite ui.ribbon_gold_l.still.0.0 12 754 4 132 159 132.0 61.0 53.0000
+sprite ui.ribbon_gold_m.still.0.0 12 1931 4 48 123 24.0 61.0 41.0000
+sprite ui.ribbon_gold_r.still.0.0 12 890 4 132 159 0.0 61.0 53.0000
+sprite ui.ribbon_l.still.0.0 12 1026 4 132 159 132.0 61.0 53.0000
+sprite ui.ribbon_m.still.0.0 12 1983 4 48 123 24.0 61.0 41.0000
+sprite ui.ribbon_r.still.0.0 12 1162 4 132 159 0.0 61.0 53.0000
+sprite ui.ribbon_red_l.still.0.0 12 1298 4 132 159 132.0 61.0 53.0000
+sprite ui.ribbon_red_m.still.0.0 12 4 375 48 123 24.0 61.0 41.0000
+sprite ui.ribbon_red_r.still.0.0 12 1434 4 132 159 0.0 61.0 53.0000
+sprite ui.shako.still.0.0 12 1846 4 81 125 40.5 62.5 41.6667
+sprite ui.skull.still.0.0 12 181 375 126 110 63.0 55.0 36.6667
+sprite ui.star_empty.still.0.0 12 1570 4 134 128 67.0 64.0 42.6667
+sprite ui.star_full.still.0.0 12 1708 4 134 128 67.0 64.0 42.6667
+sprite ui.trophy.still.0.0 12 4 4 350 367 175.0 183.5 122.3333
 sprite w1.banner.still.45.0 2 441 1015 72 174 16.2 162.7 2.7188
 sprite w1.banner.still.20.0 2 1323 731 72 220 16.2 213.5 3.4375
-sprite w1.bollard.still.60.0 2 1317 1015 37 68 18.5 52.2 0.8095
-sprite w1.bollard.still.38.0 2 808 1015 37 86 18.5 74.3 1.0238
-sprite w1.bollard.still.20.0 2 767 1015 37 93 18.5 85.7 1.1071
-sprite w1.bush.still.45.0 2 849 1015 120 86 53.8 63.1 1.3438
+sprite w1.bush.still.45.0 2 808 1015 120 86 53.8 63.1 1.3438
 sprite w1.bush.still.20.0 2 973 1015 120 82 53.8 69.1 1.2812
 sprite w1.cottage.still.45.0 2 4 1015 233 207 116.8 146.1 3.2344
 sprite w1.cottage.still.20.0 2 1599 731 233 207 116.8 176.4 3.2344
@@ -399,6 +591,9 @@ sprite w1.petal.play.0.4 2 1690 1015 20 18 10.0 9.0 0.2250
 sprite w1.petal.play.0.5 2 1774 1015 22 12 11.0 6.0 0.1500
 sprite w1.petal.play.0.6 2 1856 1015 22 6 11.0 3.0 0.0750
 sprite w1.petal.play.0.7 2 1800 1015 22 12 11.0 6.0 0.1500
+sprite w1.post.still.60.0 2 1317 1015 37 68 18.8 52.0 0.8095
+sprite w1.post.still.38.0 2 932 1015 37 85 18.8 73.5 1.0119
+sprite w1.post.still.20.0 2 767 1015 37 92 18.8 85.1 1.0952
 sprite w1.rock.still.45.0 2 1207 1015 106 73 43.2 50.1 1.1406
 sprite w1.rock.still.20.0 2 1097 1015 106 73 43.2 56.1 1.1406
 sprite w1.tree_a.still.45.0 2 1399 731 196 219 93.8 204.8 3.4219
@@ -423,6 +618,447 @@ sprite w1.windmill.still.20.4 2 1776 4 259 351 129.8 322.8 5.4844
 sprite w1.windmill.still.20.5 2 1208 4 283 363 141.8 334.8 5.6719
 sprite w1.windmill.still.20.6 2 610 4 297 369 148.8 340.8 5.7656
 sprite w1.windmill.still.20.7 2 4 4 300 371 149.8 342.8 5.7969
+sprite w10.balloons.still.45.0 3 952 1505 119 184 63.2 179.7 2.8750
+sprite w10.balloons.still.20.0 3 1848 1172 119 225 63.2 222.5 3.5156
+sprite w10.banner.still.45.0 3 1075 1505 72 174 16.2 162.7 2.7188
+sprite w10.banner.still.20.0 3 1971 1172 72 220 16.2 213.5 3.4375
+sprite w10.boss_addon.march.38.0 3 986 1854 242 104 121.2 363.3 1.4444
+sprite w10.boss_addon.march.38.1 3 4 1854 242 112 136.2 369.3 1.5556
+sprite w10.boss_addon.march.38.2 3 986 1728 241 116 142.2 366.3 1.6111
+sprite w10.boss_addon.march.38.3 3 250 1854 242 112 136.2 369.3 1.5556
+sprite w10.boss_addon.march.38.4 3 1232 1854 242 104 121.2 363.3 1.4444
+sprite w10.boss_addon.march.38.5 3 496 1854 241 112 105.2 369.3 1.5556
+sprite w10.boss_addon.march.38.6 3 1231 1728 241 116 99.2 366.3 1.6111
+sprite w10.boss_addon.march.38.7 3 741 1854 241 112 105.2 369.3 1.5556
+sprite w10.boss_addon.march.20.0 3 1476 1728 242 113 121.2 442.9 1.5694
+sprite w10.boss_addon.march.20.1 3 4 1728 242 122 136.2 446.9 1.6944
+sprite w10.boss_addon.march.20.2 3 1487 1505 241 125 142.2 440.9 1.7361
+sprite w10.boss_addon.march.20.3 3 250 1728 242 122 136.2 446.9 1.6944
+sprite w10.boss_addon.march.20.4 3 1722 1728 242 113 121.2 442.9 1.5694
+sprite w10.boss_addon.march.20.5 3 496 1728 241 122 105.2 446.9 1.6944
+sprite w10.boss_addon.march.20.6 3 1732 1505 241 125 99.2 440.9 1.7361
+sprite w10.boss_addon.march.20.7 3 741 1728 241 122 105.2 446.9 1.6944
+sprite w10.bush.still.45.0 3 1525 1854 119 86 53.2 63.4 1.3438
+sprite w10.bush.still.20.0 3 1648 1854 119 83 53.2 69.8 1.2969
+sprite w10.confetti.play.0.0 3 210 1970 24 20 12.0 10.0 0.2500
+sprite w10.confetti.play.0.1 3 140 1970 22 22 11.0 11.0 0.2750
+sprite w10.confetti.play.0.2 3 238 1970 12 20 6.0 10.0 0.2500
+sprite w10.confetti.play.0.3 3 166 1970 14 22 7.0 11.0 0.2750
+sprite w10.confetti.play.0.4 3 116 1970 20 24 10.0 12.0 0.3000
+sprite w10.confetti.play.0.5 3 184 1970 22 22 11.0 11.0 0.2750
+sprite w10.confetti.play.0.6 3 280 1970 20 12 10.0 6.0 0.1500
+sprite w10.confetti.play.0.7 3 254 1970 22 14 11.0 7.0 0.1750
+sprite w10.ferris.still.45.0 3 4 839 420 329 210.0 301.9 5.1406
+sprite w10.ferris.still.45.1 3 428 839 418 329 209.0 301.9 5.1406
+sprite w10.ferris.still.45.2 3 850 839 412 329 206.0 301.9 5.1406
+sprite w10.ferris.still.45.3 3 1266 839 404 329 202.0 301.9 5.1406
+sprite w10.ferris.still.45.4 3 4 1172 390 329 195.0 301.9 5.1406
+sprite w10.ferris.still.45.5 3 398 1172 404 329 202.0 301.9 5.1406
+sprite w10.ferris.still.45.6 3 806 1172 412 329 206.0 301.9 5.1406
+sprite w10.ferris.still.45.7 3 1222 1172 418 329 209.0 301.9 5.1406
+sprite w10.ferris.still.20.0 3 4 4 420 414 210.0 399.5 6.4688
+sprite w10.ferris.still.20.1 3 4 422 418 413 209.0 398.5 6.4531
+sprite w10.ferris.still.20.2 3 428 4 412 414 206.0 399.5 6.4688
+sprite w10.ferris.still.20.3 3 426 422 404 413 202.0 398.5 6.4531
+sprite w10.ferris.still.20.4 3 844 4 390 414 195.0 399.5 6.4688
+sprite w10.ferris.still.20.5 3 834 422 404 413 202.0 398.5 6.4531
+sprite w10.ferris.still.20.6 3 1238 4 412 414 206.0 399.5 6.4688
+sprite w10.ferris.still.20.7 3 1242 422 418 413 209.0 398.5 6.4531
+sprite w10.lantern.play.0.0 3 1818 1854 36 36 18.0 18.0 0.4500
+sprite w10.lantern.play.0.1 3 1858 1854 36 36 18.0 18.0 0.4500
+sprite w10.lantern.play.0.2 3 1898 1854 36 36 18.0 18.0 0.4500
+sprite w10.lantern.play.0.3 3 1938 1854 36 36 18.0 18.0 0.4500
+sprite w10.lantern.play.0.4 3 1978 1854 36 36 18.0 18.0 0.4500
+sprite w10.lantern.play.0.5 3 4 1970 34 34 17.0 17.0 0.4250
+sprite w10.lantern.play.0.6 3 80 1970 32 32 16.0 16.0 0.4000
+sprite w10.lantern.play.0.7 3 42 1970 34 34 17.0 17.0 0.4250
+sprite w10.lantern_tree.still.45.0 3 4 1505 200 219 97.2 204.8 3.4219
+sprite w10.lantern_tree.still.20.0 3 1644 1172 200 260 97.2 251.5 4.0625
+sprite w10.post.still.60.0 3 1771 1854 43 82 21.8 66.0 0.9762
+sprite w10.post.still.38.0 3 1478 1854 43 100 21.8 88.5 1.1905
+sprite w10.post.still.20.0 3 1968 1728 43 113 21.8 106.1 1.3452
+sprite w10.stall.still.45.0 3 1319 1505 164 153 82.0 129.8 2.3906
+sprite w10.stall.still.20.0 3 1151 1505 164 163 82.0 151.2 2.5469
+sprite w10.tent_a.still.45.0 3 580 1505 182 202 91.0 143.4 3.1562
+sprite w10.tent_a.still.20.0 3 208 1505 182 217 91.0 188.2 3.3906
+sprite w10.tent_b.still.45.0 3 766 1505 182 202 91.0 143.4 3.1562
+sprite w10.tent_b.still.20.0 3 394 1505 182 217 91.0 188.2 3.3906
+sprite w2.arch.still.45.0 4 1099 4 234 195 117.2 174.7 3.0469
+sprite w2.arch.still.20.0 4 4 4 234 227 117.2 215.5 3.5469
+sprite w2.banner.still.45.0 4 1337 4 72 174 16.2 162.7 2.7188
+sprite w2.banner.still.20.0 4 242 4 72 220 16.2 213.5 3.4375
+sprite w2.boss_addon.march.38.0 4 708 235 137 100 73.2 349.3 1.3889
+sprite w2.boss_addon.march.38.1 4 990 235 135 98 85.2 349.3 1.3611
+sprite w2.boss_addon.march.38.2 4 1129 235 135 98 91.2 344.3 1.3611
+sprite w2.boss_addon.march.38.3 4 1268 235 135 98 85.2 349.3 1.3611
+sprite w2.boss_addon.march.38.4 4 849 235 137 100 73.2 349.3 1.3889
+sprite w2.boss_addon.march.38.5 4 1407 235 137 98 60.2 349.3 1.3611
+sprite w2.boss_addon.march.38.6 4 1548 235 137 98 54.2 344.3 1.3611
+sprite w2.boss_addon.march.38.7 4 1689 235 137 98 60.2 349.3 1.3611
+sprite w2.boss_addon.march.20.0 4 426 235 137 110 73.2 431.9 1.5278
+sprite w2.boss_addon.march.20.1 4 1764 4 136 111 85.2 431.9 1.5417
+sprite w2.boss_addon.march.20.2 4 1904 4 136 111 91.2 423.9 1.5417
+sprite w2.boss_addon.march.20.3 4 4 235 136 111 85.2 431.9 1.5417
+sprite w2.boss_addon.march.20.4 4 567 235 137 110 73.2 431.9 1.5278
+sprite w2.boss_addon.march.20.5 4 144 235 137 111 60.2 431.9 1.5417
+sprite w2.boss_addon.march.20.6 4 1623 4 137 112 54.2 424.9 1.5556
+sprite w2.boss_addon.march.20.7 4 285 235 137 111 60.2 431.9 1.5417
+sprite w2.cactus.still.45.0 4 1518 4 101 113 50.2 98.0 1.7656
+sprite w2.cactus.still.20.0 4 1413 4 101 134 50.2 125.9 2.0938
+sprite w2.palm.still.45.0 4 708 4 201 208 62.2 197.6 3.2500
+sprite w2.palm.still.20.0 4 318 4 200 220 62.2 213.3 3.4375
+sprite w2.post.still.60.0 4 333 350 37 64 18.8 48.0 0.7619
+sprite w2.post.still.38.0 4 1871 235 37 86 18.8 74.5 1.0238
+sprite w2.post.still.20.0 4 1830 235 37 95 18.8 88.1 1.1310
+sprite w2.pots.still.45.0 4 1912 235 106 84 58.2 58.4 1.3125
+sprite w2.pots.still.20.0 4 4 350 105 81 57.2 67.8 1.2656
+sprite w2.rock.still.45.0 4 223 350 106 66 43.2 43.4 1.0312
+sprite w2.rock.still.20.0 4 113 350 106 74 43.2 56.8 1.1562
+sprite w2.sand.play.0.0 4 374 350 96 33 48.0 16.0 0.4125
+sprite w2.sand.play.0.1 4 474 350 96 33 48.0 17.0 0.4125
+sprite w2.sand.play.0.2 4 574 350 96 33 48.0 16.0 0.4125
+sprite w2.sand.play.0.3 4 674 350 96 33 48.0 17.0 0.4125
+sprite w2.sand.play.0.4 4 774 350 96 33 48.0 17.0 0.4125
+sprite w2.sand.play.0.5 4 874 350 96 33 48.0 16.0 0.4125
+sprite w2.sand.play.0.6 4 974 350 96 33 48.0 17.0 0.4125
+sprite w2.sand.play.0.7 4 1074 350 96 33 48.0 16.0 0.4125
+sprite w2.tent.still.45.0 4 913 4 182 202 91.0 143.4 3.1562
+sprite w2.tent.still.20.0 4 522 4 182 217 91.0 188.2 3.3906
+sprite w3.banner.still.45.0 5 394 474 72 174 16.2 162.7 2.7188
+sprite w3.banner.still.20.0 5 338 4 72 220 16.2 213.5 3.4375
+sprite w3.boss_addon.march.38.0 5 392 267 386 199 194.2 351.3 2.7639
+sprite w3.boss_addon.march.38.1 5 1172 267 386 196 206.2 350.3 2.7222
+sprite w3.boss_addon.march.38.2 5 1562 267 385 196 211.2 345.3 2.7222
+sprite w3.boss_addon.march.38.3 5 4 474 386 196 206.2 350.3 2.7222
+sprite w3.boss_addon.march.38.4 5 782 267 386 199 194.2 351.3 2.7639
+sprite w3.boss_addon.march.38.5 5 1274 4 384 203 180.2 354.3 2.8194
+sprite w3.boss_addon.march.38.6 5 888 4 382 204 174.2 348.3 2.8333
+sprite w3.boss_addon.march.38.7 5 4 267 384 203 180.2 354.3 2.8194
+sprite w3.boss_addon.march.20.0 5 4 674 386 164 194.2 379.9 2.2778
+sprite w3.boss_addon.march.20.1 5 914 674 386 163 206.2 379.9 2.2639
+sprite w3.boss_addon.march.20.2 5 1632 474 385 165 211.2 374.9 2.2917
+sprite w3.boss_addon.march.20.3 5 1304 674 386 163 206.2 379.9 2.2639
+sprite w3.boss_addon.march.20.4 5 394 674 386 164 194.2 379.9 2.2778
+sprite w3.boss_addon.march.20.5 5 856 474 384 167 180.2 379.9 2.3194
+sprite w3.boss_addon.march.20.6 5 470 474 382 173 174.2 376.9 2.4028
+sprite w3.boss_addon.march.20.7 5 1244 474 384 167 180.2 379.9 2.3194
+sprite w3.bush.still.45.0 5 146 842 119 86 53.2 63.4 1.3438
+sprite w3.bush.still.20.0 5 269 842 119 83 53.2 69.8 1.2969
+sprite w3.cabin.still.45.0 5 651 4 233 207 116.8 146.1 3.2344
+sprite w3.cabin.still.20.0 5 414 4 233 207 116.8 176.4 3.2344
+sprite w3.crystal.still.45.0 5 4 842 91 108 56.2 84.2 1.6875
+sprite w3.crystal.still.20.0 5 1824 674 91 115 56.2 100.6 1.7969
+sprite w3.fir.still.45.0 5 171 4 163 222 81.2 191.4 3.4688
+sprite w3.fir.still.20.0 5 4 4 163 259 81.2 253.1 4.0469
+sprite w3.post.still.60.0 5 392 842 43 82 21.8 66.0 0.9762
+sprite w3.post.still.38.0 5 99 842 43 100 21.8 88.5 1.1905
+sprite w3.post.still.20.0 5 1919 674 43 113 21.8 106.1 1.3452
+sprite w3.rock.still.45.0 5 549 842 106 72 43.2 49.4 1.1250
+sprite w3.rock.still.20.0 5 439 842 106 74 43.2 56.8 1.1562
+sprite w3.snow.play.0.0 5 711 842 11 11 5.8 5.8 0.1375
+sprite w3.snow.play.0.1 5 677 842 13 13 6.8 6.8 0.1625
+sprite w3.snow.play.0.2 5 659 842 14 14 6.8 6.8 0.1750
+sprite w3.snow.play.0.3 5 694 842 13 13 6.8 6.8 0.1625
+sprite w3.snow.play.0.4 5 726 842 11 11 5.8 5.8 0.1375
+sprite w3.snow.play.0.5 5 741 842 10 10 4.8 4.8 0.1250
+sprite w3.snow.play.0.6 5 769 842 9 9 4.8 4.8 0.1125
+sprite w3.snow.play.0.7 5 755 842 10 10 4.8 4.8 0.1250
+sprite w3.snowman.still.45.0 5 1694 674 126 140 63.5 125.3 2.1875
+sprite w3.snowman.still.20.0 5 784 674 126 164 62.5 156.7 2.5625
+sprite w4.banner.still.45.0 6 1338 4 72 174 16.2 162.7 2.7188
+sprite w4.banner.still.20.0 6 396 4 72 220 16.2 213.5 3.4375
+sprite w4.barn.still.45.0 6 1101 4 233 207 116.8 146.1 3.2344
+sprite w4.barn.still.20.0 6 864 4 233 207 116.8 176.4 3.2344
+sprite w4.boss_addon.march.38.0 6 235 260 111 145 55.2 371.3 2.0139
+sprite w4.boss_addon.march.38.1 6 1555 4 111 146 70.2 373.3 2.0278
+sprite w4.boss_addon.march.38.2 6 1670 4 112 146 77.2 368.3 2.0278
+sprite w4.boss_addon.march.38.3 6 1786 4 111 146 70.2 373.3 2.0278
+sprite w4.boss_addon.march.38.4 6 350 260 111 145 55.2 371.3 2.0139
+sprite w4.boss_addon.march.38.5 6 1901 4 112 146 41.2 373.3 2.0278
+sprite w4.boss_addon.march.38.6 6 4 260 111 146 34.2 368.3 2.0278
+sprite w4.boss_addon.march.38.7 6 119 260 112 146 41.2 373.3 2.0278
+sprite w4.boss_addon.march.20.0 6 1299 260 112 134 56.2 428.9 1.8611
+sprite w4.boss_addon.march.20.1 6 837 260 111 135 70.2 428.9 1.8750
+sprite w4.boss_addon.march.20.2 6 465 260 112 136 77.2 421.9 1.8889
+sprite w4.boss_addon.march.20.3 6 952 260 111 135 70.2 428.9 1.8750
+sprite w4.boss_addon.march.20.4 6 1415 260 112 134 56.2 428.9 1.8611
+sprite w4.boss_addon.march.20.5 6 1067 260 112 135 41.2 428.9 1.8750
+sprite w4.boss_addon.march.20.6 6 581 260 111 136 34.2 421.9 1.8889
+sprite w4.boss_addon.march.20.7 6 1183 260 112 135 41.2 428.9 1.8750
+sprite w4.bush.still.45.0 6 1822 260 119 86 53.2 63.4 1.3438
+sprite w4.bush.still.20.0 6 4 410 119 83 53.2 69.8 1.2969
+sprite w4.haystack.still.45.0 6 1531 260 121 115 60.8 75.7 1.7969
+sprite w4.haystack.still.20.0 6 1656 260 121 110 60.8 90.6 1.7188
+sprite w4.leaf.play.0.0 6 446 410 22 18 11.0 9.0 0.2250
+sprite w4.leaf.play.0.1 6 402 410 18 22 9.0 11.0 0.2750
+sprite w4.leaf.play.0.2 6 384 410 14 24 7.0 12.0 0.3000
+sprite w4.leaf.play.0.3 6 424 410 18 22 9.0 11.0 0.2750
+sprite w4.leaf.play.0.4 6 472 410 22 18 11.0 9.0 0.2250
+sprite w4.leaf.play.0.5 6 498 410 26 12 13.0 6.0 0.1500
+sprite w4.leaf.play.0.6 6 558 410 26 6 13.0 3.0 0.0750
+sprite w4.leaf.play.0.7 6 528 410 26 12 13.0 6.0 0.1500
+sprite w4.maple_a.still.45.0 6 472 4 192 219 89.2 204.8 3.4219
+sprite w4.maple_a.still.20.0 6 4 4 192 252 89.2 243.5 3.9375
+sprite w4.maple_b.still.45.0 6 668 4 192 219 89.2 204.8 3.4219
+sprite w4.maple_b.still.20.0 6 200 4 192 252 89.2 243.5 3.9375
+sprite w4.post.still.60.0 6 235 410 37 64 18.8 48.0 0.7619
+sprite w4.post.still.38.0 6 1945 260 37 86 18.8 74.5 1.0238
+sprite w4.post.still.20.0 6 1781 260 37 95 18.8 88.1 1.1310
+sprite w4.pumpkins.still.45.0 6 127 410 104 67 53.2 42.4 1.0469
+sprite w4.pumpkins.still.20.0 6 276 410 104 63 53.2 50.8 0.9844
+sprite w4.scarecrow.still.45.0 6 696 260 137 136 68.5 132.4 2.1250
+sprite w4.scarecrow.still.20.0 6 1414 4 137 171 68.5 168.2 2.6719
+sprite w5.banner.still.45.0 7 1350 4 72 174 16.2 162.7 2.7188
+sprite w5.banner.still.20.0 7 274 4 72 220 16.2 213.5 3.4375
+sprite w5.boat.still.45.0 7 883 4 121 206 57.8 149.9 3.2188
+sprite w5.boat.still.20.0 7 554 4 120 212 57.8 187.2 3.3125
+sprite w5.boss_addon.march.38.0 7 463 632 380 97 188.2 354.3 1.3472
+sprite w5.boss_addon.march.38.1 7 766 513 381 112 205.2 359.3 1.5556
+sprite w5.boss_addon.march.38.2 7 384 385 381 121 212.2 358.3 1.6806
+sprite w5.boss_addon.march.38.3 7 1151 513 381 112 205.2 359.3 1.5556
+sprite w5.boss_addon.march.38.4 7 847 632 380 97 188.2 354.3 1.3472
+sprite w5.boss_addon.march.38.5 7 769 385 378 121 170.2 366.3 1.6806
+sprite w5.boss_addon.march.38.6 7 1426 4 376 131 162.2 365.3 1.8194
+sprite w5.boss_addon.march.38.7 7 1151 385 378 121 170.2 366.3 1.6806
+sprite w5.boss_addon.march.20.0 7 1231 632 380 96 188.2 405.9 1.3333
+sprite w5.boss_addon.march.20.1 7 1536 513 381 111 205.2 410.9 1.5417
+sprite w5.boss_addon.march.20.2 7 1533 385 380 118 212.2 406.9 1.6389
+sprite w5.boss_addon.march.20.3 7 4 632 381 111 205.2 410.9 1.5417
+sprite w5.boss_addon.march.20.4 7 1615 632 380 96 188.2 405.9 1.3333
+sprite w5.boss_addon.march.20.5 7 4 513 377 115 170.2 412.9 1.5972
+sprite w5.boss_addon.march.20.6 7 4 385 376 124 162.2 408.9 1.7222
+sprite w5.boss_addon.march.20.7 7 385 513 377 115 170.2 412.9 1.5972
+sprite w5.feather.play.0.0 7 364 747 20 18 10.0 9.0 0.2250
+sprite w5.feather.play.0.1 7 308 747 16 20 8.0 10.0 0.2500
+sprite w5.feather.play.0.2 7 328 747 12 20 6.0 10.0 0.2500
+sprite w5.feather.play.0.3 7 344 747 16 20 8.0 10.0 0.2500
+sprite w5.feather.play.0.4 7 388 747 20 18 10.0 9.0 0.2250
+sprite w5.feather.play.0.5 7 464 747 22 12 11.0 6.0 0.1500
+sprite w5.feather.play.0.6 7 587 747 22 6 11.0 3.0 0.0750
+sprite w5.feather.play.0.7 7 490 747 22 12 11.0 6.0 0.1500
+sprite w5.grass.still.45.0 7 389 632 70 104 35.5 94.7 1.6250
+sprite w5.grass.still.20.0 7 1806 4 70 125 35.5 119.1 1.9531
+sprite w5.lighthouse.still.45.0 7 139 4 131 315 65.8 266.5 4.9219
+sprite w5.lighthouse.still.20.0 7 4 4 131 377 65.8 353.2 5.8906
+sprite w5.palm.still.45.0 7 678 4 201 208 62.2 197.6 3.2500
+sprite w5.palm.still.20.0 7 350 4 200 220 62.2 213.3 3.4375
+sprite w5.post.still.60.0 7 46 747 38 74 18.8 58.0 0.8810
+sprite w5.post.still.38.0 7 4 747 38 90 18.8 78.5 1.0714
+sprite w5.post.still.20.0 7 1999 632 38 96 18.8 89.1 1.1429
+sprite w5.rock.still.45.0 7 198 747 106 66 43.2 43.4 1.0312
+sprite w5.rock.still.20.0 7 88 747 106 74 43.2 56.8 1.1562
+sprite w5.spray.play.0.0 7 516 747 11 11 5.8 5.8 0.1375
+sprite w5.spray.play.0.1 7 430 747 13 13 6.8 6.8 0.1625
+sprite w5.spray.play.0.2 7 412 747 14 14 6.8 6.8 0.1750
+sprite w5.spray.play.0.3 7 447 747 13 13 6.8 6.8 0.1625
+sprite w5.spray.play.0.4 7 531 747 11 11 5.8 5.8 0.1375
+sprite w5.spray.play.0.5 7 546 747 10 10 4.8 4.8 0.1250
+sprite w5.spray.play.0.6 7 574 747 9 9 4.8 4.8 0.1125
+sprite w5.spray.play.0.7 7 560 747 10 10 4.8 4.8 0.1250
+sprite w5.umbrella.still.45.0 7 1008 4 167 206 67.2 162.8 3.2188
+sprite w5.umbrella.still.20.0 7 1179 4 167 190 67.2 168.2 2.9688
+sprite w6.banner.still.45.0 8 873 4 72 174 16.2 162.7 2.7188
+sprite w6.banner.still.20.0 8 400 4 72 220 16.2 213.5 3.4375
+sprite w6.beehive.still.45.0 8 835 260 67 82 33.5 78.2 1.2812
+sprite w6.beehive.still.20.0 8 1275 4 67 102 33.5 99.6 1.5938
+sprite w6.boss_addon.march.38.0 8 1404 4 143 92 72.2 334.3 1.2778
+sprite w6.boss_addon.march.38.1 8 4 260 142 89 85.2 334.3 1.2361
+sprite w6.boss_addon.march.38.2 8 150 260 143 89 91.2 328.3 1.2361
+sprite w6.boss_addon.march.38.3 8 297 260 142 89 85.2 334.3 1.2361
+sprite w6.boss_addon.march.38.4 8 1551 4 143 92 72.2 334.3 1.2778
+sprite w6.boss_addon.march.38.5 8 1698 4 143 90 59.2 334.3 1.2500
+sprite w6.boss_addon.march.38.6 8 443 260 142 89 53.2 328.3 1.2361
+sprite w6.boss_addon.march.38.7 8 1845 4 143 90 59.2 334.3 1.2500
+sprite w6.boss_addon.march.20.0 8 964 260 142 59 72.2 376.9 0.8194
+sprite w6.boss_addon.march.20.1 8 1256 260 143 57 85.2 374.9 0.7917
+sprite w6.boss_addon.march.20.2 8 1403 260 143 57 91.2 366.9 0.7917
+sprite w6.boss_addon.march.20.3 8 1550 260 143 57 85.2 374.9 0.7917
+sprite w6.boss_addon.march.20.4 8 1110 260 142 59 72.2 376.9 0.8194
+sprite w6.boss_addon.march.20.5 8 1697 260 143 57 59.2 373.9 0.7917
+sprite w6.boss_addon.march.20.6 8 1844 260 142 57 53.2 366.9 0.7917
+sprite w6.boss_addon.march.20.7 8 4 353 143 57 59.2 373.9 0.7917
+sprite w6.bush.still.45.0 8 589 260 119 86 53.2 63.4 1.3438
+sprite w6.bush.still.20.0 8 712 260 119 83 53.2 69.8 1.2969
+sprite w6.cherry.still.45.0 8 672 4 197 207 94.2 196.8 3.2344
+sprite w6.cherry.still.20.0 8 200 4 196 238 94.2 231.5 3.7188
+sprite w6.flowers.still.45.0 8 151 353 66 49 33.2 31.4 0.7656
+sprite w6.flowers.still.20.0 8 221 353 65 41 32.2 30.8 0.6406
+sprite w6.petal.play.0.0 8 402 353 20 18 10.0 9.0 0.2250
+sprite w6.petal.play.0.1 8 290 353 16 20 8.0 10.0 0.2500
+sprite w6.petal.play.0.2 8 310 353 12 20 6.0 10.0 0.2500
+sprite w6.petal.play.0.3 8 326 353 16 20 8.0 10.0 0.2500
+sprite w6.petal.play.0.4 8 426 353 20 18 10.0 9.0 0.2250
+sprite w6.petal.play.0.5 8 498 353 22 12 11.0 6.0 0.1500
+sprite w6.petal.play.0.6 8 602 353 22 6 11.0 3.0 0.0750
+sprite w6.petal.play.0.7 8 524 353 22 12 11.0 6.0 0.1500
+sprite w6.petal_w.play.0.0 8 450 353 20 18 10.0 9.0 0.2250
+sprite w6.petal_w.play.0.1 8 346 353 16 20 8.0 10.0 0.2500
+sprite w6.petal_w.play.0.2 8 366 353 12 20 6.0 10.0 0.2500
+sprite w6.petal_w.play.0.3 8 382 353 16 20 8.0 10.0 0.2500
+sprite w6.petal_w.play.0.4 8 474 353 20 18 10.0 9.0 0.2250
+sprite w6.petal_w.play.0.5 8 550 353 22 12 11.0 6.0 0.1500
+sprite w6.petal_w.play.0.6 8 628 353 22 6 11.0 3.0 0.0750
+sprite w6.petal_w.play.0.7 8 576 353 22 12 11.0 6.0 0.1500
+sprite w6.post.still.60.0 8 906 260 54 71 26.8 55.0 0.8452
+sprite w6.post.still.38.0 8 1346 4 54 93 26.8 81.5 1.1071
+sprite w6.post.still.20.0 8 1217 4 54 103 26.8 96.1 1.2262
+sprite w6.tulip_a.still.45.0 8 1083 4 63 123 31.5 118.6 1.9219
+sprite w6.tulip_a.still.20.0 8 949 4 63 151 31.5 148.4 2.3594
+sprite w6.tulip_b.still.45.0 8 1150 4 63 123 31.5 118.6 1.9219
+sprite w6.tulip_b.still.20.0 8 1016 4 63 151 31.5 148.4 2.3594
+sprite w6.wisteria.still.45.0 8 476 4 192 219 89.2 204.8 3.4219
+sprite w6.wisteria.still.20.0 8 4 4 192 252 89.2 243.5 3.9375
+sprite w7.banner.still.45.0 9 1034 4 72 174 16.2 162.7 2.7188
+sprite w7.banner.still.20.0 9 958 4 72 220 16.2 213.5 3.4375
+sprite w7.boss_addon.march.38.0 9 813 501 379 84 189.2 335.3 1.1667
+sprite w7.boss_addon.march.38.1 9 898 278 374 107 200.2 346.3 1.4861
+sprite w7.boss_addon.march.38.2 9 1536 4 371 117 204.2 344.3 1.6250
+sprite w7.boss_addon.march.38.3 9 1276 278 374 107 200.2 346.3 1.4861
+sprite w7.boss_addon.march.38.4 9 1196 501 379 84 189.2 335.3 1.1667
+sprite w7.boss_addon.march.38.5 9 4 395 380 102 176.2 346.3 1.4167
+sprite w7.boss_addon.march.38.6 9 139 278 380 109 170.2 344.3 1.5139
+sprite w7.boss_addon.march.38.7 9 388 395 380 102 176.2 346.3 1.4167
+sprite w7.boss_addon.march.20.0 9 1579 501 379 79 189.2 385.9 1.0972
+sprite w7.boss_addon.march.20.1 9 1156 395 374 98 200.2 392.9 1.3611
+sprite w7.boss_addon.march.20.2 9 523 278 371 107 204.2 388.9 1.4861
+sprite w7.boss_addon.march.20.3 9 1534 395 374 98 200.2 392.9 1.3611
+sprite w7.boss_addon.march.20.4 9 4 599 379 79 189.2 385.9 1.0972
+sprite w7.boss_addon.march.20.5 9 4 501 380 94 176.2 392.9 1.3056
+sprite w7.boss_addon.march.20.6 9 772 395 380 100 170.2 388.9 1.3889
+sprite w7.boss_addon.march.20.7 9 388 501 380 94 176.2 392.9 1.3056
+sprite w7.firefly.play.0.0 9 607 599 36 36 18.0 18.0 0.4500
+sprite w7.firefly.play.0.1 9 647 599 36 36 18.0 18.0 0.4500
+sprite w7.firefly.play.0.2 9 687 599 36 36 18.0 18.0 0.4500
+sprite w7.firefly.play.0.3 9 727 599 36 36 18.0 18.0 0.4500
+sprite w7.firefly.play.0.4 9 767 599 36 36 18.0 18.0 0.4500
+sprite w7.firefly.play.0.5 9 807 599 34 34 17.0 17.0 0.4250
+sprite w7.firefly.play.0.6 9 883 599 32 32 16.0 16.0 0.4000
+sprite w7.firefly.play.0.7 9 845 599 34 34 17.0 17.0 0.4250
+sprite w7.hut.still.45.0 9 241 4 233 251 116.8 195.7 3.9219
+sprite w7.hut.still.20.0 9 4 4 233 270 116.8 242.5 4.2188
+sprite w7.mangrove.still.45.0 9 718 4 236 246 111.5 210.8 3.8438
+sprite w7.mangrove.still.20.0 9 478 4 236 247 111.5 228.5 3.8594
+sprite w7.mushroom_a.still.45.0 9 1245 4 131 144 65.5 128.8 2.2500
+sprite w7.mushroom_a.still.20.0 9 1110 4 131 155 65.5 146.7 2.4219
+sprite w7.mushroom_b.still.45.0 9 4 278 131 113 65.5 97.7 1.7656
+sprite w7.mushroom_b.still.20.0 9 1911 4 131 113 65.5 105.1 1.7656
+sprite w7.post.still.60.0 9 772 501 37 90 18.8 74.0 1.0714
+sprite w7.post.still.38.0 9 1495 4 37 119 18.8 107.5 1.4167
+sprite w7.post.still.20.0 9 1380 4 37 131 18.8 124.1 1.5595
+sprite w7.reeds.still.45.0 9 1654 278 70 104 35.5 94.7 1.6250
+sprite w7.reeds.still.20.0 9 1421 4 70 125 35.5 119.1 1.9531
+sprite w7.rock.still.45.0 9 497 599 106 72 43.2 49.4 1.1250
+sprite w7.rock.still.20.0 9 387 599 106 74 43.2 56.8 1.1562
+sprite w7.spore.play.0.0 9 971 599 11 11 5.8 5.8 0.1375
+sprite w7.spore.play.0.1 9 937 599 13 13 6.8 6.8 0.1625
+sprite w7.spore.play.0.2 9 919 599 14 14 6.8 6.8 0.1750
+sprite w7.spore.play.0.3 9 954 599 13 13 6.8 6.8 0.1625
+sprite w7.spore.play.0.4 9 986 599 11 11 5.8 5.8 0.1375
+sprite w7.spore.play.0.5 9 1001 599 10 10 4.8 4.8 0.1250
+sprite w7.spore.play.0.6 9 1029 599 9 9 4.8 4.8 0.1125
+sprite w7.spore.play.0.7 9 1015 599 10 10 4.8 4.8 0.1250
+sprite w8.airship.still.45.0 10 1111 4 240 139 135.2 250.8 2.1719
+sprite w8.airship.still.20.0 10 867 4 240 149 135.2 310.4 2.3281
+sprite w8.banner.still.45.0 10 591 4 72 174 16.2 162.7 2.7188
+sprite w8.banner.still.20.0 10 159 4 72 220 16.2 213.5 3.4375
+sprite w8.boss_addon.march.38.0 10 1585 4 115 111 59.2 368.3 1.5417
+sprite w8.boss_addon.march.38.1 10 1823 4 117 110 74.2 369.3 1.5278
+sprite w8.boss_addon.march.38.2 10 4 258 118 110 81.2 364.3 1.5278
+sprite w8.boss_addon.march.38.3 10 126 258 117 110 74.2 369.3 1.5278
+sprite w8.boss_addon.march.38.4 10 1704 4 115 111 59.2 368.3 1.5417
+sprite w8.boss_addon.march.38.5 10 247 258 115 109 44.2 368.3 1.5139
+sprite w8.boss_addon.march.38.6 10 485 258 115 108 38.2 362.3 1.5000
+sprite w8.boss_addon.march.38.7 10 366 258 115 109 44.2 368.3 1.5139
+sprite w8.boss_addon.march.20.0 10 645 258 115 91 59.2 419.9 1.2639
+sprite w8.boss_addon.march.20.1 10 883 258 116 90 74.2 418.9 1.2500
+sprite w8.boss_addon.march.20.2 10 1003 258 116 90 81.2 410.9 1.2500
+sprite w8.boss_addon.march.20.3 10 1123 258 116 90 74.2 418.9 1.2500
+sprite w8.boss_addon.march.20.4 10 764 258 115 91 59.2 419.9 1.2639
+sprite w8.boss_addon.march.20.5 10 1243 258 115 89 44.2 417.9 1.2361
+sprite w8.boss_addon.march.20.6 10 1362 258 115 89 38.2 409.9 1.2361
+sprite w8.boss_addon.march.20.7 10 1481 258 115 89 44.2 417.9 1.2361
+sprite w8.cloud_tree.still.45.0 10 667 4 196 173 96.5 161.5 2.7031
+sprite w8.cloud_tree.still.20.0 10 307 4 196 216 96.5 209.3 3.3750
+sprite w8.column.still.45.0 10 235 4 68 218 33.8 194.3 3.4062
+sprite w8.column.still.20.0 10 4 4 67 250 33.8 238.0 3.9062
+sprite w8.feather.play.0.0 10 760 372 20 18 10.0 9.0 0.2250
+sprite w8.feather.play.0.1 10 704 372 16 20 8.0 10.0 0.2500
+sprite w8.feather.play.0.2 10 724 372 12 20 6.0 10.0 0.2500
+sprite w8.feather.play.0.3 10 740 372 16 20 8.0 10.0 0.2500
+sprite w8.feather.play.0.4 10 784 372 20 18 10.0 9.0 0.2250
+sprite w8.feather.play.0.5 10 808 372 22 12 11.0 6.0 0.1500
+sprite w8.feather.play.0.6 10 860 372 22 6 11.0 3.0 0.0750
+sprite w8.feather.play.0.7 10 834 372 22 12 11.0 6.0 0.1500
+sprite w8.post.still.60.0 10 1887 258 37 68 18.8 52.0 0.8095
+sprite w8.post.still.38.0 10 1723 258 37 85 18.8 73.5 1.0119
+sprite w8.post.still.20.0 10 604 258 37 92 18.8 85.1 1.0952
+sprite w8.puff.still.45.0 10 1600 258 119 86 53.2 63.4 1.3438
+sprite w8.puff.still.20.0 10 1764 258 119 83 53.2 69.8 1.2969
+sprite w8.ruin.still.45.0 10 1470 4 111 129 34.0 100.0 2.0156
+sprite w8.ruin.still.20.0 10 1355 4 111 137 34.0 121.9 2.1406
+sprite w8.statue.still.45.0 10 507 4 80 190 40.2 163.4 2.9688
+sprite w8.statue.still.20.0 10 75 4 80 227 40.2 213.7 3.5469
+sprite w8.wisp.play.0.0 10 1928 258 96 33 48.0 16.0 0.4125
+sprite w8.wisp.play.0.1 10 4 372 96 33 48.0 17.0 0.4125
+sprite w8.wisp.play.0.2 10 104 372 96 33 48.0 16.0 0.4125
+sprite w8.wisp.play.0.3 10 204 372 96 33 48.0 17.0 0.4125
+sprite w8.wisp.play.0.4 10 304 372 96 33 48.0 17.0 0.4125
+sprite w8.wisp.play.0.5 10 404 372 96 33 48.0 16.0 0.4125
+sprite w8.wisp.play.0.6 10 504 372 96 33 48.0 17.0 0.4125
+sprite w8.wisp.play.0.7 10 604 372 96 33 48.0 16.0 0.4125
+sprite w9.ash.play.0.0 11 1535 426 11 11 5.8 5.8 0.1375
+sprite w9.ash.play.0.1 11 1501 426 13 13 6.8 6.8 0.1625
+sprite w9.ash.play.0.2 11 1483 426 14 14 6.8 6.8 0.1750
+sprite w9.ash.play.0.3 11 1518 426 13 13 6.8 6.8 0.1625
+sprite w9.ash.play.0.4 11 1550 426 11 11 5.8 5.8 0.1375
+sprite w9.ash.play.0.5 11 1565 426 10 10 4.8 4.8 0.1250
+sprite w9.ash.play.0.6 11 1593 426 9 9 4.8 4.8 0.1125
+sprite w9.ash.play.0.7 11 1579 426 10 10 4.8 4.8 0.1250
+sprite w9.banner.still.45.0 11 1754 228 72 174 16.2 162.7 2.7188
+sprite w9.banner.still.20.0 11 4 4 72 220 16.2 213.5 3.4375
+sprite w9.boss_addon.march.38.0 11 1316 228 215 187 109.2 413.3 2.5972
+sprite w9.boss_addon.march.38.1 11 442 228 214 194 129.2 420.3 2.6944
+sprite w9.boss_addon.march.38.2 11 1520 4 213 195 138.2 416.3 2.7083
+sprite w9.boss_addon.march.38.3 11 660 228 214 194 129.2 420.3 2.6944
+sprite w9.boss_addon.march.38.4 11 1535 228 215 187 109.2 413.3 2.5972
+sprite w9.boss_addon.march.38.5 11 878 228 215 193 88.2 420.3 2.6806
+sprite w9.boss_addon.march.38.6 11 1737 4 215 195 79.2 416.3 2.7083
+sprite w9.boss_addon.march.38.7 11 1097 228 215 193 88.2 420.3 2.6806
+sprite w9.boss_addon.march.20.0 11 4 228 215 194 109.2 488.9 2.6944
+sprite w9.boss_addon.march.20.1 11 646 4 214 196 129.2 488.9 2.7222
+sprite w9.boss_addon.march.20.2 11 210 4 213 204 138.2 488.9 2.8333
+sprite w9.boss_addon.march.20.3 11 864 4 214 196 129.2 488.9 2.7222
+sprite w9.boss_addon.march.20.4 11 223 228 215 194 109.2 488.9 2.6944
+sprite w9.boss_addon.march.20.5 11 1082 4 215 196 88.2 488.9 2.7222
+sprite w9.boss_addon.march.20.6 11 427 4 215 204 79.2 488.9 2.8333
+sprite w9.boss_addon.march.20.7 11 1301 4 215 196 88.2 488.9 2.7222
+sprite w9.brazier.still.45.0 11 178 426 67 141 34.0 121.1 2.2031
+sprite w9.brazier.still.20.0 11 1960 228 68 160 34.0 149.9 2.5000
+sprite w9.charred.still.45.0 11 1830 228 126 173 65.8 161.5 2.7031
+sprite w9.charred.still.20.0 11 80 4 126 217 65.8 210.3 3.3906
+sprite w9.ember.play.0.0 11 1171 426 36 36 18.0 18.0 0.4500
+sprite w9.ember.play.0.1 11 1211 426 36 36 18.0 18.0 0.4500
+sprite w9.ember.play.0.2 11 1251 426 36 36 18.0 18.0 0.4500
+sprite w9.ember.play.0.3 11 1291 426 36 36 18.0 18.0 0.4500
+sprite w9.ember.play.0.4 11 1331 426 36 36 18.0 18.0 0.4500
+sprite w9.ember.play.0.5 11 1371 426 34 34 17.0 17.0 0.4250
+sprite w9.ember.play.0.6 11 1447 426 32 32 16.0 16.0 0.4000
+sprite w9.ember.play.0.7 11 1409 426 34 34 17.0 17.0 0.4250
+sprite w9.lava_crystal.still.45.0 11 853 426 100 66 55.2 42.7 1.0312
+sprite w9.lava_crystal.still.20.0 11 1067 426 100 60 55.2 46.6 0.9375
+sprite w9.obsidian.still.45.0 11 521 426 95 135 46.2 116.0 2.1094
+sprite w9.obsidian.still.20.0 11 249 426 95 140 46.2 129.4 2.1875
+sprite w9.post.still.60.0 11 812 426 37 72 18.8 56.0 0.8571
+sprite w9.post.still.38.0 11 661 426 37 90 18.8 78.5 1.0714
+sprite w9.post.still.20.0 11 620 426 37 97 18.8 90.1 1.1548
+sprite w9.rock.still.45.0 11 957 426 106 66 43.2 43.4 1.0312
+sprite w9.rock.still.20.0 11 702 426 106 74 43.2 56.8 1.1562
+sprite w9.vent.still.45.0 11 4 426 170 143 85.2 82.2 2.2344
+sprite w9.vent.still.20.0 11 348 426 169 136 84.2 105.6 2.1250
 point soldier.march.60 muzzle 51.7 17.1
 point soldier.march.38 muzzle 51.7 25.9
 point soldier.march.20 muzzle 51.7 48.3
+point squad.banner.march.60 text 118.1 64.6
+point squad.banner.march.38 text 118.1 87.1
+point squad.banner.march.20 text 118.1 98.2
+point ui.hand.still.0 tip 21.3 3.4

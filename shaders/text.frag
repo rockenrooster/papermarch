@@ -4,10 +4,23 @@ in vec4 vStroke;
 in vec4 vP0;
 in vec4 vP1;
 uniform sampler2D uAtlas;
+uniform mediump sampler2DArray uSprites;  // the art's atlases (premultiplied): mode 4
 uniform float uSpread;    // atlas px
 uniform float uOpacity;
 layout(location = 0) out vec4 oColor;
 void main() {
+    if (vP0.x > 3.5) {  // a sprite: tinted by fill (its alpha the opacity), its hue turned by vP1.y
+        vec4 t = texture(uSprites, vec3(vUV, vP1.x));
+        vec3 c = t.rgb;
+        if (vP1.y > 0.002) {
+            float ang = vP1.y * 6.2831853;
+            vec3 axis = vec3(0.57735027);
+            float ca = cos(ang), sa = sin(ang);
+            c = max(c * ca + cross(axis, c) * sa + axis * dot(axis, c) * (1.0 - ca), vec3(0.0));
+        }
+        oColor = vec4(c * vFill.rgb, t.a) * vFill.a * uOpacity;
+        return;
+    }
     float d;  // pixels, positive inside
     if (vP0.x < 0.5) {
         float s = texture(uAtlas, vUV).r;

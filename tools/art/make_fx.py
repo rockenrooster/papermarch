@@ -260,3 +260,48 @@ for n, w in sorted(WORLDS.items()):
     for name, style, cols, per_second in w['ambient']:
         draw, add, size = ambient(style, cols)
         book('w%d.%s' % (n, name), 8, size, size * (0.5 if style == 'wisp' else 1.0), 80, add, draw)
+
+# ---- HUD pieces drawn flat (sizes in dp, 3 px per dp; ART_DIRECTION.md section 15) --------------------------------------
+from PIL import ImageDraw
+def ui_piece(kind, w_dp, h_dp, paint, px_per_dp=3, pivot=(0.5, 0.5)):
+    s = px_per_dp * SS
+    im = Image.new('RGBA', (int(w_dp * s), int(h_dp * s)), (0, 0, 0, 0))
+    paint(ImageDraw.Draw(im), s, im)
+    im.save(os.path.join(OUT, '%s.still.0.0.png' % kind))
+    with open(os.path.join(OUT, '%s.still.json' % kind), 'w') as fh:
+        json.dump({'ppu': s, 'ss': SS, 'frames': 1, 'elevs': {'0': {'pivot': [im.width * pivot[0], im.height * pivot[1]], 'points': {}}}}, fh)
+    print('drew', kind)
+
+INK = (22, 34, 79)
+def ribbon(name, RIB, RIB_D, RIB_L, FOLD):
+    def band(d, s, x0, x1, y0=4, y1=44):
+        d.rectangle((x0 * s, y0 * s, x1 * s, y1 * s), fill=INK)
+        d.rectangle((x0 * s, (y0 + 2) * s, x1 * s, (y1 - 2) * s), fill=RIB)
+        d.rectangle((x0 * s, (y0 + 2) * s, x1 * s, (y0 + 12) * s), fill=RIB_L)
+        for y in (y0 + 5, y1 - 7):
+            d.rectangle((x0 * s, y * s, x1 * s, (y + 2) * s), fill=(255, 200, 58))
+    def cap(left):
+        def paint(d, s, im):
+            # the folded tail behind (lower, darker, swallow-tailed), then the fold, then the front band's end
+            pts = [(0, 14), (30, 14), (30, 56), (0, 56), (10, 35)]
+            d.polygon([(x * s, y * s) for x, y in pts], fill=INK)
+            d.polygon([((x + (2.6 if x < 12 else 0.0)) * s, (y + (2 if y < 20 else -2)) * s) for x, y in pts], fill=RIB_D)
+            d.polygon([(22 * s, 44 * s), (30 * s, 44 * s), (30 * s, 56 * s)], fill=FOLD)
+            band(d, s, 22, 44)
+            d.rectangle((22 * s, 4 * s, 24 * s, 44 * s), fill=INK)
+            if not left:
+                im.paste(im.transpose(Image.FLIP_LEFT_RIGHT))
+        return paint
+    ui_piece(name + '_l', 44, 60, cap(True), pivot=(1.0, 0.4))
+    ui_piece(name + '_m', 16, 60, lambda d, s, im: band(d, s, 0, 16), pivot=(0.5, 0.4))
+    ui_piece(name + '_r', 44, 60, cap(False), pivot=(0.0, 0.4))
+ribbon('ui.ribbon', (31, 88, 242), (20, 64, 196), (74, 128, 255), (12, 40, 130))
+ribbon('ui.ribbon_red', (227, 38, 46), (168, 20, 31), (255, 96, 104), (110, 10, 22))
+ribbon('ui.ribbon_gold', (240, 160, 20), (200, 120, 10), (255, 200, 80), (140, 80, 0))
+
+def rays(cv, t, f):
+    dx, dy = cv.X - cv.w / 2, cv.Y - cv.h / 2
+    r = np.hypot(dx, dy) / (cv.w / 2)
+    beam = np.clip(np.cos(np.arctan2(dy, dx) * 12) * 3 + 0.5, 0, 1)
+    cv.paint(beam * np.clip(1 - r, 0, 1) ** 1.3 * np.clip(r * 6, 0, 1) * 0.6, (255, 255, 255))
+book('ui.rays', 1, 260, 260, 1, False, rays)

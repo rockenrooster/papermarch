@@ -1,32 +1,30 @@
-# PAPERMARCH worlds: how each world looks (docs/ART_DIRECTION.md sections 7, 8, 12). Stage 1: world 1 only.
+# PAPERMARCH worlds: how each world looks (docs/ART_DIRECTION.md). Written by tools/art/make_ground.py from tools/art/worlds.py.
 # world <n> <name>
-# road <file> <width> <tile>      texture; the width in units it spans across the road and both curbs; one repeat's length
-#                                 u = (x + width/2) / width, v = z / tile; the image's first row is v = 0
+# road <file> <width> <tile>      u = (x + width/2) / width, v = z / tile; the image's first row is v = 0
 # land <file> <tile>              u = x / tile, v = z / tile
 # haze <0xRRGGBB> <start> <end>   distance fog, units ahead of the camera's foot (smoothstep)
 # sky <top> <horizon>
 # backdrop <file> <height>        bottom edge on the horizon, as wide as the screen; height = share of the screen's width
 # light <0xRRGGBB> <strength>     grade: colour *= mix(1, light, strength)
-# grade <contrast> <saturation>
-# bloom <threshold> <strength>
-# vignette <strength>
-# shadow <dx> <dz> <alpha>        cast shadows: ground offset per unit of height; opacity (colour 0x1B2A55)
+# grade <contrast> <saturation> | bloom <threshold> <strength> | vignette <strength>
+# shadow <dx> <dz> <alpha>        cast shadows: ground offset per unit of height; opacity
+# boss <hueDegrees> <0xRRGGBB>    the shared ogre: rotate hue, then multiply by the tint
+# bossaddon <kind>                a sprite drawn over the boss at the same ground point, scale and frame
 # prop <kind> <weight> <scaleMin> <scaleMax> <xMin> <xMax> <spacing>
-#                                 per side: one candidate every <spacing> units of road (z jittered by +-spacing/2),
-#                                 kept with probability <weight>; |x| uniform in xMin..xMax; scale uniform
 # edge <kind> <spacing> <x>       both sides at |x|, every <spacing> units
 # ambient <kind> <perSecond>
 world 1 GREENMEADOW
 road ground_w1_road.png 12 12
 land ground_w1_land.png 16
-haze 0xBFE0F2 60 150
-sky 0x4FA8F0 0xBFE0F2
+haze 0x9CCBEC 60 150
+sky 0x3F98EA 0x9CCBEC
 backdrop backdrop_w1.png 0.25
 light 0xFFF5DB 0.06
 grade 1.06 1.12
-bloom 0.82 0.55
+bloom 0.86 0.5
 vignette 0.16
 shadow 0.64 0.79 0.35
+boss 0 0xFFFFFF
 prop w1.tree_a 0.8 0.85 1.25 8 16 5
 prop w1.tree_b 0.6 0.8 1.2 9 20 7
 prop w1.tree_c 0.5 0.8 1.1 7.5 14 11
@@ -34,9 +32,216 @@ prop w1.bush 0.7 0.8 1.3 6.8 12 4
 prop w1.rock 0.4 0.7 1.2 6.8 15 9
 prop w1.flowers 0.8 0.8 1.4 6.5 11 2.5
 prop w1.haystack 0.35 0.9 1.1 9 15 17
-prop w1.cottage 0.5 1.0 1.15 13 20 37
-prop w1.windmill 0.5 1.0 1.1 15 22 61
-edge w1.bollard 3 5.5
+prop w1.cottage 0.5 1 1.15 13 20 37
+prop w1.windmill 0.5 1 1.1 15 22 61
+edge w1.post 3 5.5
 edge w1.banner 12 6.6
 ambient w1.leaf 4
 ambient w1.petal 2
+world 2 SUNBAKED
+road ground_w2_road.png 12 12
+land ground_w2_land.png 16
+haze 0xF2D8AC 55 150
+sky 0x3E9CE8 0xF2D8AC
+backdrop backdrop_w2.png 0.25
+light 0xFFE8B8 0.12
+grade 1.08 1.1
+bloom 0.86 0.5
+vignette 0.16
+shadow 0.64 0.79 0.4
+boss -52 0xFFE9C4
+bossaddon w2.boss_addon
+prop w2.palm 0.8 0.9 1.3 8 18 5
+prop w2.cactus 0.6 0.8 1.3 7 14 6
+prop w2.tent 0.5 1 1.15 11 18 23
+prop w2.arch 0.5 1 1.2 12 20 41
+prop w2.pots 0.5 0.8 1.2 6.8 10 9
+prop w2.rock 0.5 0.7 1.3 6.8 16 6
+edge w2.post 3 5.5
+edge w2.banner 12 6.6
+ambient w2.sand 5
+world 3 FROSTVALE
+road ground_w3_road.png 12 12
+land ground_w3_land.png 16
+haze 0xC4DCF0 50 140
+sky 0x58B4E8 0xC4DCF0
+backdrop backdrop_w3.png 0.25
+light 0xE4F2FF 0.1
+grade 1.05 1.08
+bloom 0.9 0.45
+vignette 0.14
+shadow 0.64 0.79 0.3
+boss 100 0xE6F2FF
+bossaddon w3.boss_addon
+prop w3.fir 0.9 0.8 1.3 8 20 4
+prop w3.snowman 0.4 0.9 1.1 7 11 19
+prop w3.crystal 0.5 0.8 1.3 7 14 9
+prop w3.cabin 0.5 1 1.15 12 20 37
+prop w3.rock 0.5 0.7 1.2 6.8 15 7
+prop w3.bush 0.7 0.8 1.3 6.8 12 4
+edge w3.post 3 5.5
+edge w3.banner 12 6.6
+ambient w3.snow 12
+world 4 EMBERFALL
+road ground_w4_road.png 12 12
+land ground_w4_land.png 16
+haze 0xF2D2B0 55 150
+sky 0x5AA4E0 0xF2D2B0
+backdrop backdrop_w4.png 0.25
+light 0xFFDCA8 0.05
+grade 1.06 1.08
+bloom 0.88 0.45
+vignette 0.18
+shadow 0.64 0.79 0.38
+boss -88 0xD8B8A8
+bossaddon w4.boss_addon
+prop w4.maple_a 0.8 0.85 1.25 8 16 6
+prop w4.maple_b 0.8 0.85 1.25 8.5 18 6
+prop w4.pumpkins 0.6 0.8 1.2 6.8 11 8
+prop w4.scarecrow 0.4 1 1.1 9 14 29
+prop w4.haystack 0.4 0.9 1.1 9 15 17
+prop w4.barn 0.5 1 1.15 13 20 43
+prop w4.bush 0.7 0.8 1.3 6.8 12 4
+edge w4.post 3 5.5
+edge w4.banner 12 6.6
+ambient w4.leaf 7
+world 5 TIDEREACH
+road ground_w5_road.png 12 12
+land ground_w5_land.png 16
+haze 0xB8E4EE 55 150
+sky 0x38A8EC 0xB8E4EE
+backdrop backdrop_w5.png 0.25
+light 0xF0FFFA 0.08
+grade 1.06 1.14
+bloom 0.88 0.5
+vignette 0.14
+shadow 0.64 0.79 0.36
+boss -125 0xC8D8D0
+bossaddon w5.boss_addon
+prop w5.palm 0.7 0.9 1.3 8 18 6
+prop w5.umbrella 0.6 0.9 1.1 7.5 13 9
+prop w5.lighthouse 0.5 1 1.1 15 22 67
+prop w5.boat 0.4 0.9 1.1 10 18 27
+prop w5.rock 0.5 0.7 1.2 6.8 15 7
+prop w5.grass 0.8 0.8 1.3 6.6 12 3
+edge w5.post 3 5.5
+edge w5.banner 12 6.6
+ambient w5.feather 3
+ambient w5.spray 5
+world 6 BLOOMGROVE
+road ground_w6_road.png 12 12
+land ground_w6_land.png 16
+haze 0xE0B8D0 55 150
+sky 0x62AEEC 0xE0B8D0
+backdrop backdrop_w6.png 0.25
+light 0xFFE8F0 0.1
+grade 1.05 1.14
+bloom 0.88 0.5
+vignette 0.14
+shadow 0.64 0.79 0.33
+boss 45 0x88B8A8
+bossaddon w6.boss_addon
+prop w6.cherry 0.8 0.85 1.2 7.5 16 5
+prop w6.wisteria 0.7 0.85 1.2 9 18 7
+prop w6.tulip_a 0.6 0.7 1.1 6.8 11 5
+prop w6.tulip_b 0.6 0.7 1.1 7 12 6
+prop w6.beehive 0.4 0.9 1.1 8 13 23
+prop w6.bush 0.7 0.8 1.3 6.8 12 4
+prop w6.flowers 0.8 0.8 1.4 6.5 11 2.5
+edge w6.post 3 5.5
+edge w6.banner 12 6.6
+ambient w6.petal 9
+ambient w6.petal_w 4
+world 7 MIREFEN
+road ground_w7_road.png 12 12
+land ground_w7_land.png 16
+haze 0xA8CCBC 30 110
+sky 0x6CA8B4 0xA8CCBC
+backdrop backdrop_w7.png 0.25
+light 0xDCFFE8 0.14
+grade 1.06 1.06
+bloom 0.84 0.6
+vignette 0.22
+shadow 0.64 0.79 0.36
+boss -34 0xB8A878
+bossaddon w7.boss_addon
+prop w7.mangrove 0.85 0.85 1.3 8 18 5
+prop w7.mushroom_a 0.6 0.7 1.4 7.5 14 7
+prop w7.mushroom_b 0.7 0.6 1.2 6.8 12 5
+prop w7.reeds 0.8 0.8 1.3 6.5 12 3
+prop w7.hut 0.5 1 1.1 12 19 39
+prop w7.rock 0.5 0.7 1.2 6.8 15 8
+edge w7.post 3 5.5
+edge w7.banner 12 6.6
+ambient w7.firefly 6
+ambient w7.spore 4
+world 8 SKYHOLD
+road ground_w8_road.png 12 12
+land ground_w8_land.png 16
+haze 0xC0DCF6 60 150
+sky 0x2A6CD8 0xC0DCF6
+backdrop backdrop_w8.png 0.25
+light 0xF4F8FF 0.06
+grade 1.06 1.1
+bloom 0.9 0.45
+vignette 0.14
+shadow 0.64 0.79 0.3
+boss 150 0xF4F0FF
+bossaddon w8.boss_addon
+prop w8.column 0.7 0.9 1.2 7.5 14 7
+prop w8.ruin 0.5 0.8 1.2 7 13 11
+prop w8.statue 0.4 1 1.1 9 14 29
+prop w8.cloud_tree 0.8 0.85 1.3 8.5 18 5
+prop w8.airship 0.5 0.9 1.1 13 22 47
+prop w8.puff 0.8 0.8 1.6 6.8 14 3
+edge w8.post 3 5.5
+edge w8.banner 12 6.6
+ambient w8.feather 4
+ambient w8.wisp 3
+world 9 CINDERPEAK
+road ground_w9_road.png 12 12
+land ground_w9_land.png 16
+haze 0xB87860 50 140
+sky 0x5A3A52 0xE89858
+backdrop backdrop_w9.png 0.25
+light 0xFFC8A0 0.16
+grade 1.1 1.1
+bloom 0.72 0.8
+vignette 0.24
+shadow 0.64 0.79 0.4
+boss -100 0x6A5A60
+bossaddon w9.boss_addon
+prop w9.charred 0.8 0.85 1.3 8 18 5
+prop w9.vent 0.5 0.8 1.3 8 15 13
+prop w9.obsidian 0.7 0.8 1.4 7 15 5
+prop w9.lava_crystal 0.6 0.7 1.2 6.8 12 7
+prop w9.brazier 0.5 1 1.1 7 9 19
+prop w9.rock 0.6 0.7 1.3 6.8 16 5
+edge w9.post 3 5.5
+edge w9.banner 12 6.6
+ambient w9.ember 10
+ambient w9.ash 6
+world 10 LANTERNFAIR
+road ground_w10_road.png 12 12
+land ground_w10_land.png 16
+haze 0xE8BCA8 55 150
+sky 0x6C8CE0 0xE8BCA8
+backdrop backdrop_w10.png 0.25
+light 0xFFE0C0 0.14
+grade 1.07 1.14
+bloom 0.82 0.6
+vignette 0.18
+shadow 0.64 0.79 0.36
+boss 215 0xDCB4DC
+bossaddon w10.boss_addon
+prop w10.lantern_tree 0.8 0.85 1.25 8 17 5
+prop w10.stall 0.5 1 1.1 8.5 13 17
+prop w10.tent_a 0.5 0.9 1.1 11 18 23
+prop w10.tent_b 0.5 0.9 1.1 12 20 29
+prop w10.balloons 0.6 0.9 1.1 7 11 9
+prop w10.ferris 0.5 1 1.05 16 22 71
+prop w10.bush 0.7 0.8 1.3 6.8 12 4
+edge w10.post 3 5.5
+edge w10.banner 12 6.6
+ambient w10.confetti 8
+ambient w10.lantern 2

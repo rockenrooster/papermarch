@@ -24,14 +24,19 @@ struct Rect {
     float cy() const { return y + h * 0.5f; }
 };
 
-// The UI's paper colours (GAME_DESIGN 11).
+// The UI's colours (ART_DIRECTION 15.2: cream toy-box cards, an ink outline, cobalt, gold, red).
 namespace ui {
-constexpr u32 kCard = 0xFFF4D6, kCardEdge = 0xE2CDA4;
-constexpr u32 kText = col::kText;
-constexpr u32 kMuted = 0x8A6A52;
-constexpr u32 kPrimary = col::kGold, kPrimaryPressed = 0x8A4E0C;
-constexpr u32 kSecondary = col::kIvory, kSecondaryPressed = 0x3A2A22;
-constexpr u32 kOn = 0x2E9E58, kOff = 0xC2B49C;
+constexpr u32 kInk = 0x16224F;
+constexpr u32 kCard = 0xFFF6E0, kCardShade = 0xE9DCC2, kCardEdge = kInk;
+constexpr u32 kText = kInk;
+constexpr u32 kMuted = 0x5C6386;
+constexpr u32 kCobalt = 0x2F6BFF, kCobaltLight = 0x8AB4FF, kCobaltDark = 0x1440C4;
+constexpr u32 kGold = 0xFFC83A, kGoldLight = 0xFFE07A, kGoldDark = 0xD98A00;
+constexpr u32 kRed = 0xE3262E, kRedLight = 0xFF7A86, kRedDark = 0xA8141F;
+constexpr u32 kPrimary = kGold, kPrimaryPressed = 0xE8A81E;
+constexpr u32 kSecondary = kCard, kSecondaryLip = 0xC9B893, kSecondaryPressed = kCobalt;
+constexpr u32 kOn = kCobalt, kOff = 0xB8B0A0;
+constexpr u32 kDisabled = 0xD8CFBC, kDisabledText = 0x9A927F;
 }  // namespace ui
 
 // The HUD's bands (GAME_DESIGN 11): the top row and the bottom row, in dp, inside the safe area.

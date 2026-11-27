@@ -15,6 +15,7 @@ import re
 def atlas_of(kind):
     """A world's own kinds (wN.*, boss_wN) go in that world's two atlases; the engine loads those per world."""
     if kind == 'boss': return 'boss'
+    if kind.startswith('ui.'): return 'ui'
     m = re.match(r'w(\d+)\.', kind)
     if m: return 'props_w' + m.group(1)
     return 'fx' if kind.startswith('fx.') else 'units'
@@ -22,8 +23,11 @@ def world_of(gid):
     m = re.search(r'_w(\d+)$', gid)   # props_wN: world N only
     return ' ' + m.group(1) if m else ''
 
+# HUD sprites built in 3D: dp per model unit (the manifest's height is in dp for ui.* kinds)
+UI_DP = {'ui.star_full': 44, 'ui.star_empty': 44, 'ui.shako': 32, 'ui.boss_head': 14, 'ui.skull': 32, 'ui.hand': 50, 'ui.trophy': 60, 'ui.logo': 44}
+
 def rimmed(kind):
-    return kind in ('soldier', 'foot', 'rider', 'brute', 'barrel') or kind.startswith('gate.') or kind == 'boss'
+    return kind in ('soldier', 'foot', 'rider', 'brute', 'barrel', 'squad.banner') or kind.startswith('gate.') or kind == 'boss' or kind in UI_DP
 
 # kind prefix -> fps, loop, blend (everything else: 12 fps, loop, alpha)
 ANIMS = [('fx.muzzle', 30, 'once', 'add'), ('fx.tracer', 1, 'loop', 'add'), ('fx.hit', 30, 'once', 'add'), ('fx.poof', 20, 'once', 'alpha'),
@@ -68,8 +72,9 @@ anims = {}
 for meta_path in sorted(glob.glob(os.path.join(SRC, '*.json'))):
     base = os.path.basename(meta_path)[:-5]
     kind, anim = base.rsplit('.', 1)
+    if kind.startswith('icon.'): continue        # tools/art/make_icon.py's input, not a sprite
     meta = json.load(open(meta_path))
-    ss, ppu = meta['ss'], meta['ppu'] / meta['ss']
+    ss, ppu = meta['ss'], meta['ppu'] / meta['ss'] / UI_DP.get(kind, 1)
     anim_name[kind] = anim
     anims[(kind, anim)] = anim_of(kind)
     for elev, em in meta['elevs'].items():
@@ -81,11 +86,14 @@ for meta_path in sorted(glob.glob(os.path.join(SRC, '*.json'))):
                 ys, xs = np.array([0]), np.array([0])
             x0, x1, y0, y1 = max(xs.min() - 1, 0), min(xs.max() + 2, img.shape[1]), max(ys.min() - 1, 0), min(ys.max() + 2, img.shape[0])
             px, py = em['pivot'][0] / ss + off - x0, em['pivot'][1] / ss + off - y0
-            fr = dict(kind=kind, anim=anim, elev=int(elev), frame=f, img=img[y0:y1, x0:x1], pivot=(px, py), ppu=ppu)
+            if kind.startswith('ui.') and not kind.startswith('ui.ribbon'):
+                px, py = (x1 - x0) / 2, (y1 - y0) / 2          # HUD sprites are placed by their centre (the ribbon parts by their joint)
+            fr = dict(kind=kind, anim=anim, elev=0 if kind.startswith('ui.') else int(elev), frame=f, img=img[y0:y1, x0:x1], pivot=(px, py), ppu=ppu)
             frames.append(fr)
             if f == 0:
                 for name, p in em['points'].items():
-                    points.append((kind, anim, int(elev), name, p[0] / ss + off - x0, p[1] / ss + off - y0))
+                    if kind.startswith('ui.') and name == 'muzzle': continue
+                    points.append((kind, anim, 0 if kind.startswith('ui.') else int(elev), name, p[0] / ss + off - x0, p[1] / ss + off - y0))
 
 # ---- shelf packing, one atlas per group --------------------------------------------------------------------------------
 groups = {}

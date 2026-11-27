@@ -238,7 +238,7 @@ def props(zlo, zhi):
     for side in (-1, 1):
         z = math.ceil(zlo / 3) * 3
         while z < zhi:
-            items.append((z, lambda x=side * 5.5, z=z: draw('w1.bollard.still', x, z)))
+            items.append((z, lambda x=side * 5.5, z=z: draw('w1.post.still', x, z)))
             casters.append((side * 5.5, z, 1.0, 0.2))
             if z % 12 == 0:
                 items.append((z + 0.01, lambda x=side * 6.6, z=z: draw('w1.banner.still', x, z)))
@@ -266,7 +266,7 @@ if SCENE == 'target':
     horde('foot.march', 520, -4.7, 4.7, 21.0, 37.0, 1.1, 0.25, 0.62)
     for i in range(12):
         unit('brute.march', rnd.uniform(-4.2, 4.2), rnd.uniform(23, 36), 1.8, 0.7)
-    unit('boss_w1.march', 0.4, 52.0, 4.6, 1.7, scale=1.0)
+    unit('boss.march', 0.4, 52.0, 5.8, 2.0, scale=1.0)
     horde('foot.march', 160, -4.6, 4.6, 56.0, 64.0, 1.1, 0.25, 0.62)
     # the fight: tracers, muzzle flashes, hits, a barrel going up
     for i in range(46):

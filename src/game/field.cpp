@@ -117,6 +117,8 @@ void Field::setArt(Art* art) {
     }
     if (ids_.boss < 0) ids_.boss = ids_.bossOf[0];
     ids_.barrel = kind("barrel");
+    ids_.banner = kind("squad.banner.march");
+    ids_.cheer = kind("soldier.cheer");
     ids_.muzzle = kind("fx.muzzle");
     ids_.tracer = kind("fx.tracer");
     ids_.hit = kind("fx.hit");
@@ -626,7 +628,7 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         const bool good = delta >= 0;
         if (g.kind == sim::kGateMul) std::snprintf(t, sizeof t, "\xC3\x97%d", b.gates[ev.gate].value);
         else std::snprintf(t, sizeof t, "%+d", b.gates[ev.gate].value);
-        floater(0, 1.0f, 4.4f, t, good ? kWhiteC : 0xFFD6D6, good ? kBlueDeep : kRedDeep, good ? 1.1f : 1.0f, true);
+        floater(0, 1.0f, 4.4f, t, good ? kWhiteC : 0xFF7A86, 0x16224F, good ? 1.1f : 1.0f, true);
         const u32 c = g.kind == sim::kGateMul ? kVioletC : (b.gates[ev.gate].value > 0 ? kBlue : kRed);
         gateUsedAt_[ev.gate] = time;
         const int side = g.kind == sim::kGateMul ? 1 : (ev.gateBefore >= 0 && b.gates[ev.gate].value >= 0 ? 0 : 2);
@@ -651,7 +653,7 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     if (ev.barrel >= 0) {
         const sim::BarrelDef& bd = def_->barrels[ev.barrel];
         std::snprintf(t, sizeof t, "+%d", ev.barrelReward);
-        floater(bd.x, bd.z, 1.8f, t, kGoldLight, kGoldDeep, 1.0f);
+        floater(bd.x, bd.z, 1.8f, t, kWhiteC, 0x16224F, 1.0f);
         if (ids_.explosion >= 0) {  // the art: a blast with its glow, a ring on the road, planks flying
             flipbook(ids_.explosionGlow, bd.x, bd.z - 0.12f, 0.0f, 1.0f);
             flipbook(ids_.explosion, bd.x, bd.z - 0.1f, 0.0f, 1.0f);
@@ -696,7 +698,7 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         }
         if (ev.gate < 0) {
             std::snprintf(t, sizeof t, "-%d", ev.lost);
-            if (ev.crashed >= 0) floater(0, 1.0f, 4.4f, t, 0xFFD6D6, kRedDeep, 1.0f, true);
+            if (ev.crashed >= 0) floater(0, 1.0f, 4.4f, t, 0xFF7A86, 0x16224F, 1.0f, true);
         }
         cue(kCueLoss, ev.lost, b.x);
     }
@@ -757,7 +759,11 @@ void Field::update(float dt, const sim::Battle& b) {
     const float target = float(b.squad);
     shownSquad_ += (target - shownSquad_) * minv(1.0f, dt * 9.0f);
     if (std::fabs(target - shownSquad_) < 0.5f) shownSquad_ = target;
-    badgePop_ = maxv(0.0f, badgePop_ - dt * 3.5f);
+    badgePop_ = maxv(0.0f, badgePop_ - dt * (ids_.banner >= 0 ? 8.0f : 3.5f));
+    if (ids_.banner >= 0 && int(shownSquad_ + 0.5f) != lastShown_) {
+        lastShown_ = int(shownSquad_ + 0.5f);
+        badgePop_ = 1;
+    }
     shake_ = maxv(0.0f, shake_ - dt * 2.2f);
     zoom_ = maxv(0.0f, zoom_ - dt * 0.6f);
     edge_ = maxv(0.0f, edge_ - dt / 0.3f);
@@ -1236,7 +1242,9 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
             const float age = time - bornAt_[i];
             const float pop = age >= 0.2f ? 1.0f : (age < 0.13f ? 1.15f * age / 0.13f : 1.15f - 0.15f * (age - 0.13f) / 0.07f);
             const float var = 0.94f + 0.12f * h01(u32(i) * 31u + 7u);
-            const Placed pl = sprite(ids_.soldier, x, z, 0, marching ? time + float(i) * 0.137f : 0.0f, var * pop, 1.0f);
+            const bool cheering = b.won && ids_.cheer >= 0;  // hats in the air
+            const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0,
+                                     marching || cheering ? time + float(i) * 0.137f : 0.0f, var * pop, 1.0f);
             if (!pl.st) continue;
             castShadow(x, z, 1.2f * var, 0.25f);
             ++figures_;
@@ -1268,6 +1276,22 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
         ++figures_;
     }
     shownBefore_ = m;
+    // The squad's banner, carried in its middle with the count on its cloth (ART_DIRECTION 15.3).
+    if (ids_.banner >= 0) {
+        const Placed pl = sprite(ids_.banner, xs, zs + 0.2f, 0, time, 1.0f, 1.0f);
+        float tx, ty;
+        if (pl.st && art_->point(ids_.banner, pl.elev, "text", tx, ty)) {
+            const SpriteFrame& f0 = art_->frameAt(ids_.banner, pl.elev, 0);
+            char t[24];
+            formatHost(i64(shownSquad_ + 0.5f), t, sizeof t);
+            float size = 0.62f / UiBatch::capHeight() * pl.s * (1.0f + 0.25f * badgePop_);
+            const float w = UiBatch::textWidth(t, size);
+            if (w > 1.7f * pl.s) size *= 1.7f * pl.s / w;
+            labels.text(t, pl.sx + (tx - f0.px) * pl.k, pl.sy + (ty - f0.py) * pl.k, size, rgba(kWhiteC), rgba(0x16224F), maxv(1.5f, 0.05f * pl.s),
+                        Align::Center, true, 0);
+        }
+        return;
+    }
     // The badge: how many, over the squad.
     float bx, by, bs;
     if (cam_.project(xs, zs + R * 0.4f, 1.6f + R * 0.25f, bx, by, bs)) {

@@ -76,6 +76,20 @@ private:
     void drawEnd();
     void drawTitle();
     void drawUpdatePill(float y);
+    // The UI's art (ART_DIRECTION 15.1, atlas_ui): a sprite centred on (x, y), `hDp` tall (0: its own height), false if
+    // the art has none; a title ribbon (0 cobalt, 1 red, 2 gold) with its text.
+    enum UiArt {
+        kUiStarFull, kUiStarEmpty, kUiShako, kUiBossHead, kUiSkull, kUiHand, kUiTrophy, kUiLogo, kUiRays,
+        kUiRibbonL, kUiRibbonM, kUiRibbonR, kUiRedL, kUiRedM, kUiRedR, kUiGoldL, kUiGoldM, kUiGoldR, kUiArtCount
+    };
+    void findUiArt();
+    bool uiArt(int which, float x, float y, float hDp, Rgba tint = {255, 255, 255, 255}, float angle = 0, float hue = 0);
+    void ribbon(const char* text, float cx, float cy, int color, float textDp = 24);
+    float bossHue() const;  // the world's boss recolour, as a turn (0..1)
+    u32 bossTint() const;
+    int uiArt_[kUiArtCount] = {};
+    float uiDt_ = 0;     // this frame's step, for the UI's own motion
+    float bossLag_ = 1;  // the boss bar's trailing gold strip
     void flowStep();
     bool press(const char* label);  // the flow test: a tap on a control by its label
     // Pictures (pictures.cpp).

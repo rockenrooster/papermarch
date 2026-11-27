@@ -110,6 +110,7 @@ bool Game::initGraphics() {
     if (!paper_.init(env_.frameW, env_.frameH)) return false;
     art_.load(args_.art);
     field_.setArt(&art_);
+    findUiArt();
     graphicsReady_ = true;
     checkGl("Game::initGraphics");
     return true;

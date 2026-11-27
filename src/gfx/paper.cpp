@@ -97,7 +97,7 @@ bool Paper::makeR8(Target& t, int w, int h) {
 
 bool Paper::init(int w, int h) {
     static const char* texSampler[] = {"uTex"};
-    static const char* atlasSampler[] = {"uAtlas"};
+    static const char* atlasSampler[] = {"uAtlas", "uSprites"};
     static const char* spriteSampler[] = {"uSprites"};
     static const char* groundSamplers[] = {"uRoadTex", "uLandTex", "uBackdrop"};
     static const char* postSamplers[] = {"uTex", "uBloom"};
@@ -106,7 +106,7 @@ bool Paper::init(int w, int h) {
     pTable_ = buildProgram("fullscreen.vert", "table.frag");
     pShadow_ = buildProgram("fullscreen.vert", "shadow.frag", texSampler, 1);
     pCurl_ = buildProgram("curl.vert", "curl.frag", texSampler, 1);
-    pText_ = buildProgram("text.vert", "text.frag", atlasSampler, 1);
+    pText_ = buildProgram("text.vert", "text.frag", atlasSampler, 2);
     pGround_ = buildProgram("fullscreen.vert", "ground.frag", groundSamplers, 3);
     pBright_ = buildProgram("fullscreen.vert", "bright.frag", texSampler, 1);
     pBlur_ = buildProgram("fullscreen.vert", "blur.frag", texSampler, 1);
@@ -297,6 +297,8 @@ void Paper::drawBatch(const UiBatch& b, float opacity) {
     glUseProgram(pText_);
     glUniform1f(uTextSpread_, fontSpread());
     glUniform1f(uTextOpacity_, opacity);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D_ARRAY, sprites_ ? sprites_ : noSprites_);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, atlas_);
     glBindVertexArray(vaoText_);

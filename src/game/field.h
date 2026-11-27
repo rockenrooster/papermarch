@@ -69,7 +69,7 @@ private:
     };
     // The art's sprites this view uses, found by name (-1: missing, the paper sticker instead).
     struct Ids {
-        int soldier = -1, foot = -1, rider = -1, brute = -1, boss = -1, barrel = -1;
+        int soldier = -1, foot = -1, rider = -1, brute = -1, boss = -1, barrel = -1, banner = -1, cheer = -1;
         int bossOf[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};  // each world's own boss (boss_wN), else boss
         int muzzle = -1, tracer = -1, hit = -1, poofRed = -1, poofBlue = -1, debris = -1, explosion = -1, explosionGlow = -1;
         int bigboom = -1, bigboomGlow = -1, ring = -1, dust = -1, sparkle = -1;
@@ -144,6 +144,7 @@ private:
     float viewZ_ = 0, viewX_ = 0;  // the squad as drawn (between steps)
     float lastZ_ = 0, lastX_ = 0, dz_ = 0, dx_ = 0;
     float shownSquad_ = 0, badgePop_ = 0;
+    int lastShown_ = -1;  // the count last shown (the banner pops on every change)
     float shake_ = 0;
     float bossSeen_ = 0;
     float confettiT_ = -1;

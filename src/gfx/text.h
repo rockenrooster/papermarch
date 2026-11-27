@@ -39,6 +39,10 @@ public:
     void rectRotated(float cx, float cy, float w, float h, float radius, float angle, Rgba fill);  // angle in radians
     void star(float cx, float cy, float r, Rgba fill, Rgba stroke = {0, 0, 0, 0}, float strokeW = 0);
     void star5(float cx, float cy, float r, Rgba fill, Rgba stroke = {0, 0, 0, 0}, float strokeW = 0);  // five points, up
+    // A frame of the art's atlases (gfx/art.h): its rect in the atlas array (u0, v0, u1, v1, layer), drawn w x h pixels
+    // centred on (cx, cy), turned by `angle` (radians), tinted (premultiplied by tint.a), its hue turned by `hue` (0..1 of
+    // a full turn). Drawn in the batch's order: over the cards before it, under the text after it.
+    void sprite(const float uv[5], float cx, float cy, float w, float h, Rgba tint, float angle = 0, float hue = 0);
     // `size` is the em size in pixels; y is the baseline unless `centerY` (then the cap height is centred on y).
     // Returns the width drawn.
     float text(const char* s, float x, float y, float size, Rgba fill, Rgba stroke, float strokeW, Align align = Align::Left,

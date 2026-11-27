@@ -161,7 +161,7 @@ def reset():
     r = scene.render
     r.engine = 'CYCLES'
     scene.cycles.device = 'CPU'
-    r.threads_mode = 'FIXED'; r.threads = 2   # the owner's limit: 4 cores for everything, the engineer's bakes take 2
+    r.threads_mode = 'FIXED'; r.threads = 4   # launch from a shell that dot-sourced scripts/env.ps1 (pins everything to the same 4 cores)
     scene.cycles.samples = 40
     scene.cycles.use_denoising = False
     scene.cycles.max_bounces = 3
@@ -227,8 +227,8 @@ def leg(parent, x, trouser, boot, r=0.08, length=0.3):
     ell((r * 1.05, r * 1.5, r * 0.9), boot, parent=p, loc=(0, r * 0.45, -length * 0.82))
     return p
 
-def soldier():
-    root = E(scale=0.9)
+def soldier(cheer=False, turn=0.0):
+    root = E(scale=0.9, rot=(0, 0, turn))
     body = E(root, (0, 0, 0.36))
     legs = [leg(body, -0.09, M(NAVY), M(BLACK)), leg(body, 0.09, M(NAVY), M(BLACK))]
     ell((0.21, 0.17, 0.22), M(BLUE), parent=body, loc=(0, 0, 0.2))
@@ -253,13 +253,19 @@ def soldier():
     head = E(body, (0, 0, 0.42))
     ell(0.165, M(SKIN, 0.5, 0, 0.2), parent=head, loc=(0, 0, 0.1))
     ell((0.17, 0.17, 0.1), M(0x5A3A22, 0.6), parent=head, loc=(0, -0.02, 0.13))                 # hair under the hat
-    lathe([(0, 0.17), (0.17, 0.17), (0.195, 0.42), (0, 0.42)], M(BLUE_D), parent=head)       # shako
-    lathe([(0.172, 0.17), (0.178, 0.235)], M(GOLD, 0.25, 0.3), parent=head)
-    lathe([(0.2, 0.405), (0.2, 0.43), (0, 0.43)], M(GOLD, 0.25, 0.3), parent=head)
-    lathe([(0, 0.432), (0.16, 0.432)], M(BLUE), parent=head)
-    ell((0.13, 0.1, 0.02), M(BLACK), parent=head, loc=(0, 0.15, 0.18))                        # visor
-    plume = E(head, (0, 0.12, 0.42))
+    hat = E(head)
+    lathe([(0, 0.17), (0.17, 0.17), (0.195, 0.42), (0, 0.42)], M(BLUE_D), parent=hat)        # shako
+    lathe([(0.172, 0.17), (0.178, 0.235)], M(GOLD, 0.25, 0.3), parent=hat)
+    lathe([(0.2, 0.405), (0.2, 0.43), (0, 0.43)], M(GOLD, 0.25, 0.3), parent=hat)
+    lathe([(0, 0.432), (0.16, 0.432)], M(BLUE), parent=hat)
+    ell((0.13, 0.1, 0.02), M(BLACK), parent=hat, loc=(0, 0.15, 0.18))                         # visor
+    star(0.055, 0.025, 0.02, M(GOLD, 0.2, 0.5), parent=hat, loc=(0, 0.185, 0.3), rot=(0, 0, math.pi))
+    plume = E(hat, (0, 0.12, 0.42))
     ell((0.065, 0.065, 0.13), M(WHITE, 0.6, 0, 0), parent=plume, loc=(0, 0, 0.1))
+    for x in (-0.065, 0.065):                                                                 # the face: the icon, the HUD marker
+        ell(0.028, M(BLACK, 0.2), parent=head, loc=(x, 0.148, 0.1))
+        ell((0.04, 0.02, 0.03), M(0xF29A8C, 0.6, 0, 0), parent=head, loc=(x * 1.75, 0.13, 0.035))
+    ell((0.06, 0.025, 0.02), M(0x5A3A22, 0.6), parent=head, loc=(0, 0.158, 0.03))             # moustache
     def pose(t):
         a = math.sin(TAU * t)
         legs[0].rotation_euler.x, legs[1].rotation_euler.x = 0.7 * a, -0.7 * a
@@ -268,6 +274,18 @@ def soldier():
         armL.rotation_euler.x = -0.6 * a
         plume.rotation_euler.x = -0.2 + 0.15 * math.sin(2 * TAU * t)
         gun.rotation_euler.x = math.radians(8) + 0.04 * math.cos(2 * TAU * t)
+    def cheer_pose(t):      # a jump, both arms up, the hat thrown and caught
+        j = max(0.0, math.sin(TAU * t))
+        body.location.z = 0.36 + 0.2 * j
+        legs[0].rotation_euler.x, legs[1].rotation_euler.x = 0.35 * j, -0.25 * j
+        armL.rotation_euler = (math.radians(160), 0, -0.25 - 0.15 * j)
+        armR.rotation_euler = (math.radians(160), 0, 0.25)
+        gun.location, gun.rotation_euler = (0.3, 0.02, 0.62), (math.radians(82), 0, 0)
+        k = math.sin(math.pi * t) ** 0.8
+        hat.location.z = 0.75 * k
+        hat.rotation_euler.x = -TAU * t
+    if cheer:
+        return root, cheer_pose, {}
     return root, pose, {'muzzle': muzzle}
 
 def raider(parent, scale=1.0, mounted=False):
@@ -488,6 +506,7 @@ def ogre(addon=None, skin=0x6FAE3C, belly=0x9CCB5A, cloth=RED):
         arms[0][0].rotation_euler.x = -0.35 * s
         arms[1][0].rotation_euler.x = 0.25 * s
         club.rotation_euler.x = math.radians(-55) + 0.15 * c
+    ogre.head = head
     if addon:   # the ogre hides what is behind it but is not drawn: the add-on is a sprite over the shared boss
         for o in list(bpy.data.objects):
             if o.type == 'MESH' and o.visible_camera:
@@ -541,7 +560,7 @@ def gate_spikes():
 
 # ---- props: shared builders, coloured per world ------------------------------------------------------------------------
 MT = lambda h: M(h, 0.85, 0, 0)          # matt paint
-GL = lambda h, e: M(h, 0.3, 0, 0.3, e)   # glowing
+GL = lambda h, e: M(h, 0.3, 0, 0.3, e * 0.3)   # glowing (stronger clips to flat yellow-white)
 STONE = 0xCFC5B4
 
 def tree_round(leaf, trunk=WOOD, fruit=None, fruit_r=0.09, fruit_emit=0.0, hang=None):
@@ -819,7 +838,7 @@ def reeds(g=0x5A9A4E, tip=0x6B4630):
         if i % 2 == 0: ell((0.06, 0.06, 0.18), MT(tip), loc=(x, y, h))
 
 def column(broken=False):
-    m = M(0xD6DAE2, 0.5)
+    m = M(0xBCC4D0, 0.5)
     box((1.0, 1.0, 0.25), m, bevel=0.03, loc=(0, 0, 0.12))
     h = 1.6 if broken else 3.2
     lathe([(0.38, 0.25), (0.33, 0.25 + h)] + ([(0, 0.4 + h)] if broken else []), m, seg=12, flat=True)
@@ -830,7 +849,7 @@ def column(broken=False):
         box((0.6, 0.5, 0.4), m, bevel=0.05, loc=(0.8, -0.3, 0.2), rot=(0.2, 0.1, 0.6))
 
 def statue():
-    box((1.2, 1.2, 0.8), M(0xD6DAE2, 0.5), bevel=0.05, loc=(0, 0, 0.4))
+    box((1.2, 1.2, 0.8), M(0xBCC4D0, 0.5), bevel=0.05, loc=(0, 0, 0.4))
     g = M(GOLD, 0.2, 0.7)
     lathe([(0.3, 0.8), (0.12, 2.4), (0, 2.5)], g, seg=4, flat=True)
     star(0.55, 0.25, 0.14, g, loc=(0, 0, 2.95))
@@ -838,7 +857,7 @@ def statue():
 def cloud_tree():
     lathe([(0.22, 0), (0.14, 1.5)], M(GOLD, 0.25, 0.5), seg=10)
     for i, (x, y, z, r) in enumerate(((0, 0, 2.3, 1.0), (-0.8, 0, 2.0, 0.7), (0.8, 0.1, 2.05, 0.75), (0.2, -0.3, 2.8, 0.7), (-0.4, -0.3, 2.7, 0.5))):
-        blob(r, MT([0xE8ECF4, 0xD4DEF0, 0xDEE6F2, 0xE8ECF4, 0xC8D6EE][i]), seed=70 + i, rough=0.1, loc=(x, y, z))
+        blob(r, MT([0xCCD4E0, 0xB8C6DC, 0xC2CEE0, 0xCCD4E0, 0xAEBEDA][i]), seed=70 + i, rough=0.1, loc=(x, y, z))
 
 def airship():
     r = E(loc=(0, 0, 4.2), rot=(0, 0, math.radians(20)))
@@ -957,6 +976,90 @@ def a_lanterns(head, torso):
         ell((0.13, 0.13, 0.16), GL(c, 5.0), parent=head, loc=(0.56 * x, 0.2, 0.48))
         for z in (0.32, 0.64): lathe([(0.06, z - 0.015), (0.06, z + 0.015)], M(BLACK), seg=8, parent=head, loc=(0.56 * x, 0.2, 0))
 
+# ---- the squad's banner, HUD sprites, the icon's soldier ----------------------------------------------------------------
+def squad_banner():
+    pole = E()
+    rod((0, 0, 0), (0, 0, 2.75), 0.045, 0.035, M(WOOD, 0.5), parent=pole)
+    ell(0.1, M(GOLD, 0.2, 0.5), parent=pole, loc=(0, 0, 2.82))
+    cloth = E(pole, (0, -0.06, 1.95), rot=(math.radians(-30), 0, 0))     # leaning back, to face the high camera
+    box((2.0, 0.03, 1.1), M(GOLD, 0.3, 0.3), bevel=0.01, parent=cloth, loc=(0, 0.015, 0))
+    box((1.86, 0.03, 0.96), M(BLUE, 0.6, 0, 0), bevel=0.01, parent=cloth, loc=(0, -0.005, 0))
+    rod((-1.06, 0, 0.56), (1.06, 0, 0.56), 0.035, 0.035, M(WOOD, 0.5), parent=cloth, seg=8)
+    for x in (-1.06, 1.06):
+        ell(0.07, M(GOLD, 0.2, 0.5), parent=cloth, loc=(x, 0, 0.56))
+        rod((x * 0.9, 0, -0.52), (x * 0.9, 0, -0.78), 0.05, 0.01, M(GOLD, 0.3, 0.3), parent=cloth, seg=6)
+    text = E(cloth, (0, -0.03, 0))
+    def pose(t):
+        pole.rotation_euler.y = 0.05 * math.sin(TAU * t)
+        cloth.rotation_euler = (math.radians(-30) + 0.05 * math.cos(TAU * t), 0, 0.03 * math.sin(TAU * t + 1))
+    return pole, pose, {'text': text}
+
+def ui_star(full):
+    c = M(GOLD, 0.2, 0.4) if full else MT(0x5E5248)
+    star(0.5, 0.23, 0.16, c, loc=(0, 0, 0.5))
+    star(0.34, 0.16, 0.06, M(0xFFE07A, 0.2, 0.3) if full else MT(0x4A4038), loc=(0, -0.09, 0.5))
+
+def ui_boss_head():
+    ogre()
+    def under_head(o):
+        while o is not None:
+            if o == ogre.head: return True
+            o = o.parent
+        return False
+    for o in bpy.data.objects:
+        if o.type == 'MESH' and o.visible_camera and not under_head(o):
+            o.hide_render = True
+
+def ui_skull():
+    iv = M(IVORY, 0.4)
+    for sgn in (-1, 1):
+        rod((-0.5 * sgn, 0.1, 0.1), (0.5 * sgn, 0.1, 0.95), 0.07, 0.07, iv, seg=8)
+        for q in ((-0.5 * sgn, 0.1, 0.1), (0.5 * sgn, 0.1, 0.95)): ell(0.11, iv, loc=q)
+    ell((0.4, 0.36, 0.36), iv, loc=(0, 0, 0.62))
+    box((0.42, 0.3, 0.26), iv, bevel=0.06, loc=(0, -0.05, 0.3))
+    for x in (-0.15, 0.15): ell((0.1, 0.06, 0.11), M(BLACK), loc=(x, -0.31, 0.6))
+    ell((0.04, 0.04, 0.06), M(BLACK), loc=(0, -0.36, 0.44))
+    for x in (-0.12, 0, 0.12): box((0.02, 0.05, 0.14), M(BLACK), bevel=0, loc=(x, -0.2, 0.26))
+
+def ui_hand():
+    r = E(rot=(0, math.radians(-18), 0))
+    w = M(WHITE, 0.5, 0, 0.2)
+    lathe([(0.2, 0), (0.2, 0.2)], M(BLUE, 0.4), parent=r, scale=(1, 0.6, 1))
+    lathe([(0.21, 0.16), (0.21, 0.22)], M(GOLD, 0.3, 0.3), parent=r, scale=(1, 0.6, 1))
+    ell((0.26, 0.13, 0.3), w, parent=r, loc=(0, 0, 0.48))
+    rod((-0.14, -0.02, 0.68), (-0.16, -0.02, 1.2), 0.08, 0.07, w, parent=r, seg=10, cap=0.07)
+    for i, x in enumerate((0.0, 0.13, 0.24)):
+        ell((0.075, 0.1, 0.11), w, parent=r, loc=(x, -0.06, 0.74 - 0.04 * i))
+    rod((-0.2, -0.02, 0.45), (-0.42, -0.04, 0.66), 0.085, 0.07, w, parent=r, seg=10, cap=0.06)
+    tip = E(r, (-0.16, -0.02, 1.27))
+    return r, None, {'tip': tip}
+
+def ui_trophy():
+    g = M(GOLD, 0.18, 0.7)
+    box((1.0, 0.7, 0.3), MT(0x5A3A22), bevel=0.04, loc=(0, 0, 0.15))
+    box((0.6, 0.05, 0.16), M(0xFFE07A, 0.2, 0.4), bevel=0.01, loc=(0, -0.36, 0.15))
+    lathe([(0.3, 0.3), (0.1, 0.42), (0.08, 0.75), (0.2, 0.85), (0.52, 1.25), (0.6, 1.8), (0.55, 1.8), (0.48, 1.3), (0, 1.0)], g, seg=24, smooth=True)
+    lathe([(0.6, 1.76), (0.63, 1.8), (0.6, 1.84)], g, seg=24)
+    for sx in (-1, 1):
+        pts = [(0.55 * sx, 0, 1.7), (0.85 * sx, 0, 1.6), (0.9 * sx, 0, 1.3), (0.5 * sx, 0, 1.12)]
+        for a_, b_ in zip(pts, pts[1:]):
+            rod(a_, b_, 0.05, 0.05, g, seg=8); ell(0.05, g, loc=b_)
+    star(0.24, 0.11, 0.06, M(WHITE, 0.3), loc=(0, -0.57, 1.5))
+
+def ui_logo():
+    font = bpy.data.fonts.load(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'assets', 'font', 'Roboto-Black.ttf'))
+    def layer(offset, depth, y, mat):
+        c = bpy.data.curves.new('t', 'FONT')
+        c.body, c.font, c.align_x, c.size = 'PAPERMARCH', font, 'CENTER', 1.0
+        c.extrude, c.offset, c.bevel_depth, c.bevel_resolution = depth, offset, 0.015, 2
+        c.materials.append(mat)
+        return link(bpy.data.objects.new('t', c), loc=(0, y, 0.12), rot=(math.radians(90), 0, 0))
+    layer(0.0, 0.05, -0.2, M(BLUE, 0.3, 0, 0.6))
+    layer(0.022, 0.1, -0.05, M(WHITE, 0.4))
+    layer(0.0, 0.3, 0.2, M(NAVY, 0.5))          # the letters' depth (an outline by offset breaks at the M's inner corners)
+    for x in (-3.55, 3.55):
+        star(0.3, 0.14, 0.12, M(GOLD, 0.2, 0.5), loc=(x, -0.1, 0.5))
+
 # ---- the list ----------------------------------------------------------------------------------------------------------
 UE, PE = [60, 38, 20], [45, 20]
 S, Mv, T, L, XL = (2.6, 2.4, 0.5), (4.6, 5.6, 2.0), (3.4, 6.4, 2.6), (5.6, 8.4, 3.2), (8.0, 10.0, 3.6)    # view w, h, centre z
@@ -980,6 +1083,20 @@ def EDGE(w, post_args, banner_args):
 def ADDON(w, fn):
     JOBS.append(('w%d.boss_addon' % w, lambda: ogre(addon=fn), 'march', 8, [38, 20], 72, (7.2, 8.4, 2.9), -0.4, 1))
 
+JOBS += [
+    ('soldier', lambda: soldier(cheer=True), 'cheer', 8, UE, 100, (1.5, 2.9, 0.95), 0.15, 1),
+    ('squad.banner', squad_banner, 'march', 8, UE, 100, (2.8, 4.2, 1.5), 0.2, 1),
+    # HUD sprites: seen from the front; pack_atlas.py turns units into dp (UI_DP there)
+    ('ui.star_full', lambda: ui_star(True), 'still', 1, [10], 132, (1.2, 1.2, 0.5), 0.0, 1),
+    ('ui.star_empty', lambda: ui_star(False), 'still', 1, [10], 132, (1.2, 1.2, 0.5), 0.0, 1),
+    ('ui.shako', lambda: soldier(turn=math.pi - 0.45), 'still', 1, [14], 96, (1.2, 1.6, 0.62), 0.0, 1),
+    ('ui.boss_head', ui_boss_head, 'still', 1, [10], 42, (3.6, 3.4, 4.75), -0.3, 1),
+    ('ui.skull', ui_skull, 'still', 1, [10], 96, (1.4, 1.3, 0.52), 0.0, 1),
+    ('ui.hand', ui_hand, 'still', 1, [10], 150, (1.4, 1.6, 0.65), 0.0, 1),
+    ('ui.trophy', ui_trophy, 'still', 1, [12], 180, (2.2, 2.2, 0.95), 0.0, 1),
+    ('ui.logo', ui_logo, 'still', 1, [14], 132, (8.2, 1.9, 0.5), 0.0, 1),
+    ('icon.bust', lambda: soldier(turn=math.pi - 0.5), 'still', 1, [8], 420, (1.3, 1.3, 0.78), 0.0, 1),
+]
 # 1 GREENMEADOW
 P('w1.tree_a', lambda: tree_round((0x4FB04A, 0x3C9440, 0x7FD060), fruit=(RED,))); P('w1.tree_b', poplar, T); P('w1.tree_c', blossom)
 P('w1.bush', bush, S); P('w1.rock', rock, S); P('w1.flowers', flowers, S); P('w1.haystack', haystack, (2.4, 2.8, 0.8))
@@ -995,9 +1112,9 @@ P('w3.cabin', lambda: cottage(0x9A6A44, 0x6E4630, 0xD63A26, snow=True), (4.4, 4.
 P('w3.bush', lambda: bush((0xD4DEEA, 0xBCCCDE, 0xDCE6F0), None), S)
 EDGE(3, (0x5FA8D8, WHITE, 'lantern'), (0x5FC8EA, WHITE)); ADDON(3, a_fur)
 # 4 EMBERFALL
-P('w4.maple_a', lambda: tree_round((0xE0482A, 0xC03020, 0xFF8A3A))); P('w4.maple_b', lambda: tree_round((0xF2A62A, 0xE07A1E, 0xFFD45A)))
+P('w4.maple_a', lambda: tree_round((0xD0402A, 0xB02A1E, 0xEE7A34))); P('w4.maple_b', lambda: tree_round((0xE0962A, 0xCC7420, 0xF0B84A)))
 P('w4.pumpkins', pumpkins, S); P('w4.scarecrow', scarecrow, (2.8, 4.0, 1.4)); P('w4.haystack', haystack, (2.4, 2.8, 0.8))
-P('w4.barn', lambda: cottage(0xB8402E, 0x4A3A3A, 0xF2E9D0), (4.4, 4.6, 1.3)); P('w4.bush', lambda: bush((0xE07A1E, 0xC8501E, 0xF2A62A), (0xFFE04A,)), S)
+P('w4.barn', lambda: cottage(0xB8402E, 0x4A3A3A, 0xF2E9D0), (4.4, 4.6, 1.3)); P('w4.bush', lambda: bush((0xCC7420, 0xB84A1E, 0xE0962A), (0xFFE04A,)), S)
 EDGE(4, (WOOD, WOOD_D, 'point', 0xB8A090), (0xFF7A2A, 0xFFF0D0)); ADDON(4, a_embers)
 # 5 TIDEREACH
 P('w5.palm', lambda: palm((0x3CB86A, 0x58CC78)), (4.6, 6.0, 2.2)); P('w5.umbrella', umbrella, (3.6, 4.0, 1.3)); P('w5.lighthouse', lighthouse, (3.4, 8.4, 3.0))
@@ -1014,8 +1131,8 @@ P('w7.reeds', reeds, (2.2, 3.0, 0.9)); P('w7.hut', lambda: cottage(0x7E7458, 0x4
 EDGE(7, (0x5E5240, 0x4E4A38, 'flame', 0x6A7066), (0x3F8A5A, 0xD8E8B0)); ADDON(7, a_mushrooms)
 # 8 SKYHOLD
 P('w8.column', column, (2.4, 5.4, 2.0)); P('w8.ruin', lambda: column(True), (3.0, 3.4, 1.0)); P('w8.statue', statue, (2.6, 4.8, 1.7)); P('w8.cloud_tree', cloud_tree, (3.8, 5.0, 1.8))
-P('w8.airship', airship, (5.6, 8.0, 3.0)); P('w8.puff', lambda: bush((0xE8ECF4, 0xD4DEF0, 0xF0F4FA), None), S)
-EDGE(8, (0xE2E6EE, GOLD, 'ball', 0xD6DAE2), (0xE8ECF4, GOLD)); ADDON(8, a_crown)
+P('w8.airship', airship, (5.6, 8.0, 3.0)); P('w8.puff', lambda: bush((0xCCD4E0, 0xB8C6DC, 0xD4DCE8), None), S)
+EDGE(8, (0xC8D0DC, GOLD, 'ball', 0xBCC4D0), (0xD0D8E4, GOLD)); ADDON(8, a_crown)
 # 9 CINDERPEAK
 P('w9.charred', charred, (3.4, 5.0, 1.8)); P('w9.vent', vent, (3.6, 3.2, 0.9)); P('w9.obsidian', lambda: crystal((0x2A2238, 0x3A2E4E, 0x1E1828), 0, 6, 3, 2.2), (2.6, 3.6, 1.1))
 P('w9.lava_crystal', lambda: crystal((0xFF7A1A, 0xFFB03A, 0xFF4A10), 5.0, 5, 8, 1.3), (2.6, 2.8, 0.8)); P('w9.brazier', brazier, (2.0, 3.4, 1.2)); P('w9.rock', lambda: rock(0x4A434E, 0x3A343E, None), S)
