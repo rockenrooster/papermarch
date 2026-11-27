@@ -1167,7 +1167,9 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z < 2.0f + r * 0.5f) halted = true;
     const float mud = strip && strip->kind == kStripMud ? 0.5f : 1.0f;  // mud halves the march
     if (!bossNear && !halted && !(def->bossHp == 0 && z >= def->length)) z += def->speed * (powered(kQuick) ? 1.6f : 1.0f) * mud * kDt;
-    while (nextWave < def->waveCount && def->waves[nextWave].z - z < kWake) spawnWave(nextWave++, ev);
+    // A last stand: once the squad holds at the road's end, every wave still to come wakes and comes at it.
+    const float wake = def->mode == kModeStand && z >= def->length - 0.01f ? 1e9f : kWake;
+    while (nextWave < def->waveCount && def->waves[nextWave].z - z < wake) spawnWave(nextWave++, ev);
     if (def->bossHp > 0 && boss_ < 0 && !won && def->length - z < kWake && enemyCount < kMaxEnemies) {
         bool any = false;
         for (int i = 0; i < enemyCount; ++i) any = any || (enemies[i].kind == kBoss);
@@ -1299,7 +1301,7 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     // Won at the finish line, or once every wave has come and no enemy is left (the owner, 2026-11-27: "level should be
     // finished when finish line is crossed or all enemies are gone"); a boss level when the boss falls (kill).
     const bool cleared = clearWins && def->waveCount > 0 && nextWave >= def->waveCount && alive_ == 0;
-    if (!won && def->bossHp == 0 && (z >= def->length || cleared)) {
+    if (!won && def->bossHp == 0 && ((z >= def->length && def->mode != kModeStand) || cleared)) {
         won = true;
         ev.won = true;
     }

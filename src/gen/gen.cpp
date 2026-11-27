@@ -163,6 +163,7 @@ u8 levelMode(int n) {
     if (slot == 10) return kModeBoss;
     if (isSpike(n)) return slot == 7 && n >= 37 ? kModeSiege : slot == 9 && n >= 49 ? kModeGiants : kModeMarch;  // hard: these three
     if (slot == 5 && n >= 15) return kModeGold;
+    if (slot == 7 && n >= 57 && (n / 10) % 2 == 1) return kModeStand;  // 57, 77, 97 (docs/CONTENT_PASS.md M7)
     if (n == 33 || (slot == 7 && n >= 37)) return kModeSiege;
     if (slot == 2 && n >= 22) return kModeArsenal;
     if (slot == 3 && n >= 34) return kModeRescue;  // rescue moves here once the gauntlet takes slot 4
@@ -331,6 +332,8 @@ void build(int n, u64 seed, Shape& out) {
     if (gauntlet) d.hint = 49;
     if (rush) d.hint = 50;
     if (giantsRoad) d.hint = 51;
+    const bool stand = d.mode == kModeStand;
+    if (stand) d.hint = 69;
     const bool rollers = n >= 27;  // boulders down marked lanes, from 27
     if (n == 27) d.hint = 47;
     // Step 7 (docs/CONTENT_PASS.md 4.2): ice from 31, flip gates from 39, mystery gates from 56, wind from 62; fog from 67
@@ -416,7 +419,7 @@ void build(int n, u64 seed, Shape& out) {
         if (rival == offer) rival = 0;
     }
     const bool pairs = n >= 2, barrels = n >= 4, mul = n >= 5, blocks = n >= 6, riders = n >= 7, brutes = n >= 12, triple = n >= 20;
-    const bool bossHere = !gold && (d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 40 ? 0.6f : 0.45f)));
+    const bool bossHere = !gold && !stand && (d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 40 ? 0.6f : 0.45f)));
     if (!bossHere) d.bossAttacks = 0;
     int catapultsLaid = 0, giantsLaid = 0;
     // E: the squad the bot really has where the next section starts, measured by playing the road built so far, so
@@ -430,7 +433,7 @@ void build(int n, u64 seed, Shape& out) {
     float end = d.length - 24.0f;
     // The road also ends once the bot's run of it reaches the level's time (its fights take what they take): what it has
     // run, and the march to the road's end from there.
-    const float timeGoal = levelSeconds(n) * (rush || theme == kThemeSprint ? 0.6f : 1.0f) * 0.92f;
+    const float timeGoal = levelSeconds(n) * (rush || theme == kThemeSprint ? 0.6f : stand ? 0.8f : 1.0f) * 0.92f;
     int sinceWave = 0;
     int section = 0, last = -1;
     // A long road offers another weapon about every two minutes, and holds a power-up for about every 45 s of it.
@@ -892,6 +895,11 @@ void build(int n, u64 seed, Shape& out) {
     out.lastZ = end - 2.0f;
     out.lastRiders = riders;
     out.lastBrutes = brutes;
+    // A last stand's two supply crates: power-ups the level knows that help hold (rapid fire, power shot, a shield, freeze,
+    // an airstrike).
+    static const u8 kHold[5] = {kRapid, kPowerShot, kShield, kFreeze, kAirstrike};
+    out.standPowers[0] = kHold[r.next() % 5u];
+    out.standPowers[1] = kHold[r.next() % 5u];
 }
 
 void finish(const Shape& s, float m, LevelDef& out) {
@@ -901,6 +909,23 @@ void finish(const Shape& s, float m, LevelDef& out) {
     d = s.d;
     if (d.mode == kModeGold) {
         // A bonus road ends at its finish line: nothing to size.
+    } else if (d.mode == kModeStand && d.waveCount + 15 <= kMaxWaves) {
+        // The last stand (docs/CONTENT_PASS.md M7): the squad holds 4 past the road's last section, two supply crates before
+        // it; five waves of foot, growing (1 to 5 parts of 15 of m times the squad), riders from the third and brutes in
+        // the last, 16 apart: all wake once it holds, the furthest about half a minute away, and the level is won when
+        // every one is beaten.
+        const float E = s.endSquad, count = minv(maxv(10.0f, E * m), float(s.hordeMax) * 5.0f), k = maxv(1.0f, count / 1500.0f);
+        const float hold = s.lastZ + 4.0f;
+        d.length = hold;
+        for (int i = 0; i < 2 && d.barrelCount < kMaxBarrels; ++i)
+            d.barrels[d.barrelCount++] = {i ? 2.6f : -2.6f, hold + 7.0f + 3.0f * float(i), maxv<i32>(4, i32(dps(E) * 0.6f)), 0, 0, s.standPowers[i]};
+        for (int w = 0; w < 5; ++w) {
+            const float z = hold + 20.0f + 16.0f * float(w);
+            const i32 foot = minv(maxv<i32>(2, i32(count * float(w + 1) / 15.0f)), s.hordeMax);
+            d.waves[d.waveCount++] = {z, -4.3f, 4.3f, foot, kFoot, tough(kFoot, k)};
+            if (w >= 2 && s.lastRiders) d.waves[d.waveCount++] = {z + 4.0f, -4.0f, 4.0f, minv(maxv<i32>(2, foot / 5), 300), kRider, tough(kRider, k)};
+            if (w == 4 && s.lastBrutes) d.waves[d.waveCount++] = {z + 7.0f, -3.5f, 3.5f, minv(maxv<i32>(1, foot / 12), 320), kBrute, tough(kBrute, k)};
+        }
     } else if (s.boss) {  // as many hit points as the squad at the end deals in m seconds (it crushes a ninth of whatever
                           // squad meets it every second: Battle::moveEnemies)
         d.bossHp = maxv<i32>(20, i32(dps(s.endSquad) * m));

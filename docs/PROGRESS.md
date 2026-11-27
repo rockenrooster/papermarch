@@ -195,11 +195,20 @@ about 1% (0.3-1.5%); levels run 0:23 at 1 to 14:03 at 100; the endless bot falls
 Hints are counted past 64 (`hints2` in the save). Checks: unit tests 31/31, the table 100/100, the flow test 27/27 on
 the PC and in the browser, the layout lint, level 1 won by touch in the browser. The last stand is left out.
 
+## 2026-11-27: 0.16.0, the last stand
+
+The content pass's last mode (CONTENT_PASS M7) on levels 57, 77 and 97 (slot 7, by turns with the siege): the road
+runs 0.8 of the level's time, then the squad holds at its end ("HOLD THE LINE", the mode's own chip from Fable's UI art,
+no finish line) with two supply crates before it, and five growing waves come at it at once; level 57's stand lasts
+about 30 s (won at 3:21). Re-baked (57, 77, 97, and 68 through the theme sequence); unit tests 31/31, the table 100/100,
+the flow test 27/27 on the PC and in the browser, the layout lint, level 1 won by touch in the browser. The content
+pass (docs/CONTENT_PASS.md) is now built in full.
+
 ## Status
 
 | Part | Status |
 |---|---|
-| The battle (rules, bot, generator, 100 baked levels, endless) | Done; the bot wins every level with the squad the bake recorded; the content pass is built but for the last stand |
+| The battle (rules, bot, generator, 100 baked levels, endless) | Done; the bot wins every level with the squad the bake recorded; the content pass is built in full |
 | The view (road, squad, gates, barrels, hordes, boss, hazards, effects) | Done on the PC and in the browser; not yet seen on a phone |
 | Screens, flow, LEVELS, ENDLESS, save, updater pill | Done; flow test 27/27; layout lint clean on every screen at 4 sizes |
 | Audio | Battle sounds and cues; offline renders measured (below); the owner's ears pending |

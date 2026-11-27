@@ -15,6 +15,7 @@ struct Shape {
     float endSquad = 0;          // the bot's squad at the end of the road (0: it never got there)
     float lastZ = 0;
     bool lastRiders = false, lastBrutes = false;
+    u8 standPowers[2] = {};      // a last stand: the supply crates before the squad
     i32 hordeMax = 900;          // foot in a horde at most (20 on the first three levels: whoever steers anywhere wins)
 };
 void build(int n, u64 seed, Shape& out);

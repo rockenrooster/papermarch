@@ -30,8 +30,11 @@ enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kArcher, kCatapult, kGiant, 
 enum BossAttack : u8 { kAttackSlam = 1, kAttackToss = 2, kAttackCry = 4, kAttackStomp = 8 };
 // What winning a level means (docs/CONTENT_PASS.md 3.3): gold rush has no enemies and cannot be lost (a barricade never
 // takes the last 3); rescue starts with 3 and frees prisoners from cages; arsenal starts with a weapon; siege breaks fort
-// walls; the gauntlet runs rollers and mines; rush is a fast, short road; giants' road puts a giant in every horde.
-enum LevelMode : u8 { kModeMarch, kModeBoss, kModeGold, kModeRescue, kModeArsenal, kModeSiege, kModeGauntlet, kModeRush, kModeGiants, kModeCount };
+// walls; the gauntlet runs rollers and mines; rush is a fast, short road; giants' road puts a giant in every horde; the
+// last stand holds at the road's end (`length`) against waves that all come once it stands, won when they are beaten.
+enum LevelMode : u8 {
+    kModeMarch, kModeBoss, kModeGold, kModeRescue, kModeArsenal, kModeSiege, kModeGauntlet, kModeRush, kModeGiants, kModeStand, kModeCount
+};
 // docs/CONTENT_PASS.md 1. The flamethrower burns a cone, the cannon rolls a ball through everything on its line, the
 // storm coil's lightning jumps, the mortar lobs shells over everything 18 ahead, the frost blaster slows what it hits.
 enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kFlame, kCannon, kCoil, kMortar, kFrost, kWeaponCount };

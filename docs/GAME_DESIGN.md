@@ -170,14 +170,16 @@ road) and fires at 0.6 times its rate; the horde funnels in. **The tide** (51, "
 floods 3 s in every 6 after a second's red shimmer (lava on Cinderpeak), taking a fifth a second of whoever stands in
 it and sweeping away the enemies in it. **Mud** (69, "MUD SLOWS THE MARCH"): 16-22 units where the march is half as
 fast, a pair of gates in it. The bot keeps to the tide's dry half and the pit's far side, and stands where the hammer
-will not be when it passes under it. Left out of CONTENT_PASS: the last stand (endless covers holding on).
+will not be when it passes under it.
 
 **Modes** (docs/CONTENT_PASS.md 3.3), by their place in each block of ten, each from the level that brings it in (a
 march before): 1 and 6 a march; 2 an **arsenal** from 22 (the squad starts with a weapon); 3 a **rescue** from 34 (the
 squad starts with 3, every horde guards a cage; on slot 4 from 24 to 33); 4 a **gauntlet** from 34 (rollers and
 minefields, gates as bait, no horde but the end's); 5 a **gold rush** from 15 (no enemies, a road of gates, moving gates,
 barrels and medallions; a barricade never takes the last 3 soldiers, so it cannot be lost); 7 a **siege** from 37 (every
-horde behind a fort wall with archers); 8 a **rush** from 38 (half again as fast, a short road of gates and hazards, no
+horde behind a fort wall with archers), or on 57, 77 and 97 a **last stand** ("HOLD THE LINE": a road of 0.8 the time,
+then the squad holds at its end with two supply crates before it while five growing waves, riders from the third and
+brutes in the last, all come at it, about half a minute of them; no finish line, won when they are beaten); 8 a **rush** from 38 (half again as fast, a short road of gates and hazards, no
 horde but the end's); 9 a **giants' road** from 49 (three giants with every horde); 10 the boss's. A hard level is always
 a march or the boss's. The mode's icon sits in the level chip, and its hint shows on each of its levels.
 

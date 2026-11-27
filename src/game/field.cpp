@@ -2421,7 +2421,7 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     g.cam1[0] = cam_.sn;
     g.cam1[1] = cam_.cs;
     g.cam1[2] = cam_.z;
-    g.cam1[3] = def_->bossHp == 0 ? def_->length : -1.0f;
+    g.cam1[3] = def_->bossHp == 0 && def_->mode != sim::kModeStand ? def_->length : -1.0f;  // a last stand has no finish line
     const RoadLook& look = kLooks[(maxv<int>(def_->world, 1) - 1) % kWorldCount];
     g.stoneA = look.stoneA;
     g.stoneB = look.stoneB;

@@ -170,7 +170,7 @@ void Game::loadLevel(int n) {
     // A mode's line (gold rush, rescue, arsenal, siege, gauntlet, rush, giants' road) and a special level's banner show
     // every time; an introduction's once.
     const int h = def_->hint;
-    const bool always = h == 22 || h == 25 || h == 26 || (h >= 48 && h <= 51) || (h >= 58 && h <= 62);
+    const bool always = h == 22 || h == 25 || h == 26 || (h >= 48 && h <= 51) || (h >= 58 && h <= 62) || h == 69;
     u64& seen = h < 64 ? save_.hints : save_.hints2;
     if (h > 0 && h < sim::kHintCount && (always || !(seen & (u64(1) << (h & 63))))) {
         hintShownFor_ = h;

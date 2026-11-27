@@ -87,6 +87,7 @@ const char* const kHints[kHintCount] = {
     "THE BRIDGE IS NARROW",              // 66: the narrows (47)
     "MIND THE TIDE",                     // 67: the tide (51)
     "MUD SLOWS THE MARCH",               // 68: mud (69)
+    "HOLD THE LINE",                     // 69: every last stand (from 57)
 };
 
 // Until the first bake: one small level, so the app always has something to play.
