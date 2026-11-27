@@ -65,6 +65,7 @@ void Battle::init(const LevelDef& d) {
     weapon = d.gun < kWeaponCount ? d.gun : kMusket;
     x = z = vx = time = 0;
     started = won = lost = halted = false;
+    holdLeft = marchK = 0;
     enemyCount = bulletCount = 0;
     gatesInit_ = barrelsInit_ = rollersInit_ = wallsInit_ = 0;
     sync();
@@ -148,6 +149,8 @@ void Battle::carry(const Battle& from) {
         powerFull[p] = from.powerFull[p];
     }
     shieldPool = from.shieldPool;
+    holdLeft = from.holdLeft;
+    marchK = from.marchK;
     started = true;
 }
 
@@ -1156,17 +1159,26 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     // or a catapult) within 2.5 of its front; before the boss (8 away); where a giant stands on it.
     const float zPrev = z;
     const bool bossNear = boss_ >= 0 && enemies[boss_].z - z < 8.0f;
-    halted = false;
-    for (int i = 0; i < enemyCount && !halted; ++i) {
+    // Once stopped it stands until no enemy has come within kHoldSlack more for kHoldBack seconds, so a horde dying in
+    // front of it does not start and stop it every step.
+    bool close = false;
+    const float slack = holdLeft > 0.0f ? kHoldSlack : 0.0f;
+    for (int i = 0; i < enemyCount && !close; ++i) {
         const Enemy& e = enemies[i];
         if (!e.alive || e.kind == kBoss || e.kind == kArcher || e.kind == kCatapult) continue;
         const float d = e.z - z;
-        halted = d > 0.0f && d < r * 0.6f + enemyStats(e.kind).radius + (e.kind == kGiant ? 0.2f : 2.5f);
+        close = d > 0.0f && d < r * 0.6f + enemyStats(e.kind).radius + (e.kind == kGiant ? 0.2f : 2.5f) + slack;
     }
+    holdLeft = close ? kHoldBack : maxv(0.0f, holdLeft - kDt);
+    halted = holdLeft > 0.0f;
     // A fort wall stops it until it falls.
     if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z < 2.0f + r * 0.5f) halted = true;
     const float mud = strip && strip->kind == kStripMud ? 0.5f : 1.0f;  // mud halves the march
-    if (!bossNear && !halted && !(def->bossHp == 0 && z >= def->length)) z += def->speed * (powered(kQuick) ? 1.6f : 1.0f) * mud * kDt;
+    // The march eases in (kEaseIn s to full speed) and out (kEaseOut s to a stand).
+    const bool marching = !bossNear && !halted && !(def->bossHp == 0 && z >= def->length);
+    marchK = marching ? minv(1.0f, marchK + kDt / kEaseIn) : maxv(0.0f, marchK - kDt / kEaseOut);
+    z += def->speed * (powered(kQuick) ? 1.6f : 1.0f) * mud * marchK * kDt;
+    if (def->bossHp == 0 && def->mode == kModeStand) z = minv(z, def->length);  // a last stand holds at its end
     // A last stand: once the squad holds at the road's end, every wave still to come wakes and comes at it.
     const float wake = def->mode == kModeStand && z >= def->length - 0.01f ? 1e9f : kWake;
     while (nextWave < def->waveCount && def->waves[nextWave].z - z < wake) spawnWave(nextWave++, ev);

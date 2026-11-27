@@ -324,6 +324,10 @@ public:
     float time = 0;
     bool started = false, won = false, lost = false;
     bool halted = false;  // stopped (before the boss, a giant or a wall): the view stops the soldiers' march
+    // The pause holds instead of stuttering (the owner, 2026-11-27: "need to have a backoff window when the squad pauses"):
+    // seconds it keeps standing after the last enemy close to it, and its march eased in and out (0 standing, 1 full).
+    static constexpr float kHoldBack = 0.6f, kHoldSlack = 1.5f, kEaseIn = 0.35f, kEaseOut = 0.12f;
+    float holdLeft = 0, marchK = 0;
     // Won once every enemy is beaten, not only at the finish line (init leaves it as it is: the generator turns it off for
     // its run of a road it is still laying, and the bake for its run to just before the end fight).
     bool clearWins = true;

@@ -204,15 +204,31 @@ about 30 s (won at 3:21). Re-baked (57, 77, 97, and 68 through the theme sequenc
 the flow test 27/27 on the PC and in the browser, the layout lint, level 1 won by touch in the browser. The content
 pass (docs/CONTENT_PASS.md) is now built in full.
 
+## 2026-11-27: 0.16.1, a pause that holds; the release APK on an emulator
+
+The owner: "need to have a backoff window when the squad pauses, so it doesn't look jittery when enemies die and the squad
+moves and then pauses again because enemies are still close". The stop was decided afresh every step and the march went
+from full speed to none at once. Now a stop holds 0.6 s after the last close enemy (with 1.5 more reach meanwhile) and the
+march eases in (0.35 s) and out (0.12 s); a unit check plays level 20 and asserts no stand is shorter than 0.6 s (it
+stands twice, the shortest 1.8 s). Re-baked: hard levels keep 0.5-1.4%, level 100 runs 13:57; the endless bot falls on
+stage 3-12. Checks: unit tests 32/32, the table 100/100, the flow test 27/27 on the PC and in the browser, the layout
+lint, level 1 won by touch in the browser.
+
+The 0.16.0 release APK (build 31, signed) on an Android 15 emulator (x86_64 with ARM translation, software GPU, no sound;
+no phone was attached): installs; cold start 1.25 s to the window (the first frame 6.7 s after main under the emulator's
+software GPU); the title card; the updater sees build 31; level 1 won by touch (6 soldiers, one star); NEXT to level 2;
+home and back pauses and resumes; killed and relaunched it opens on level 2 (the save kept); 60 MB total PSS. Frame rate,
+heat and sound wait for a real phone.
+
 ## Status
 
 | Part | Status |
 |---|---|
 | The battle (rules, bot, generator, 100 baked levels, endless) | Done; the bot wins every level with the squad the bake recorded; the content pass is built in full |
-| The view (road, squad, gates, barrels, hordes, boss, hazards, effects) | Done on the PC and in the browser; not yet seen on a phone |
+| The view (road, squad, gates, barrels, hordes, boss, hazards, effects) | Done on the PC, in the browser and on an Android 15 emulator; not yet seen on a phone |
 | Screens, flow, LEVELS, ENDLESS, save, updater pill | Done; flow test 27/27; layout lint clean on every screen at 4 sizes |
 | Audio | Battle sounds and cues; offline renders measured (below); the owner's ears pending |
-| Android | Signed releases on GitHub from every push that changes the game (`build-N`); not yet installed on a phone here (none attached) |
+| Android | Signed releases on GitHub from every push that changes the game (`build-N`); the release APK installs and plays on an emulator; not yet on a phone (none attached) |
 | Browser | Builds (index.wasm 1.7 MB); headless Chrome: the flow test 27/27, level 1 won by touch, NEXT, the save; served on the LAN at port 8092 |
 | Netlify | Not deployed: the owner said "just local for now" (2026-11-27) |
 

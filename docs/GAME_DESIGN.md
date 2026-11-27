@@ -107,7 +107,9 @@ Waves wake when the squad is 62 units from their front row; they march down the 
 level's pace) and, within 14 units, close in on its x. **The squad marches through the hordes** and stops only when
 one is almost on it: an enemy that walks within 2.5 of its front (the owner, 2026-11-27: "it should only stop when the
 enemies are very close"), and before the boss, where a giant stands on it, and at a fort wall (in 0.8.0-0.11.0 it stood
-for every horde from 25 away; in 0.12 only for the big ones). An enemy that
+for every horde from 25 away; in 0.12 only for the big ones). Once it stops it stands until no enemy has come within
+1.5 more for 0.6 s, and its march eases in over 0.35 s and out over 0.12 s (the owner, 2026-11-27: "need to have a
+backoff window when the squad pauses", 0.16.1: it had started and stopped as enemies died). An enemy that
 touches the squad's footprint is gone and takes its strength in soldiers with it, times squad / 50 past 50 soldiers
 (`Battle::toll`: a horde takes the same share of any squad, as the squad's balls grow past 50); arrows and mines too.
 Enemies that slip 8 units past are gone. Soldiers lost are knocked flying from the squad's front, a few more flash red,

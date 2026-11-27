@@ -108,6 +108,23 @@ void testBattle() {
     g_b.init(bo);
     run(g_b, 0.0f, 120.0f);
     CHECK(g_b.lost);
+    // The pause holds: the bot's run of level 20 (hordes run at it) stands now and then, never for less than kHoldBack.
+    g_b.init(sim::level(20));
+    sim::BattleEvents ev2;
+    int stops = 0;
+    float standing = 0, shortest = 99;
+    for (int t = 0; t < 60 * 300 && !g_b.won && !g_b.lost; ++t) {
+        g_b.tick(sim::botSteer(g_b), true, ev2);
+        if (g_b.halted) {
+            stops += standing == 0.0f;
+            standing += sim::kDt;
+        } else if (standing > 0.0f) {
+            shortest = minv(shortest, standing);
+            standing = 0;
+        }
+    }
+    std::printf("level 20: %d stands, the shortest %.2f s\n", stops, double(shortest));
+    CHECK(stops > 0 && shortest >= sim::Battle::kHoldBack - 0.02f);
 }
 
 void testEncode() {
