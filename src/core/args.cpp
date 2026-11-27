@@ -148,6 +148,8 @@ bool parseArgs(int argc, char** argv, Args& a) {
             a.logSites = true;
         } else if (!std::strcmp(k, "--fresh")) {
             a.fresh = true;
+        } else if (!std::strcmp(k, "--endless")) {
+            a.endless = true;
         } else {
             PM_ERR("args: unknown argument %s", k);
             return false;

@@ -81,6 +81,7 @@ const char* const kHints[kHintCount] = {
     "SWARM INCOMING!",                   // 60
     "CAVALRY CHARGE!",                   // 61
     "BRUTE SQUAD!",                      // 62
+    "ENDLESS: HOW FAR CAN YOU GO?",      // 63: an endless run
 };
 
 // Until the first bake: one small level, so the app always has something to play.

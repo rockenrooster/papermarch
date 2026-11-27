@@ -13,6 +13,7 @@ namespace pm {
 bool Game::setupPicture(const char* name) {
     if (!std::strcmp(name, "level") || !std::strcmp(name, "concept")) {
         loadLevel(args_.level > 0 ? args_.level : 12);
+        if (args_.endless) startEndless();
         useBot_ = true;
         return true;
     }

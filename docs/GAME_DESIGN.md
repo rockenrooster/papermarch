@@ -119,7 +119,7 @@ it costs (a squad of 96 takes nothing from 400 foot and nearly everything from 8
 
 **The boss** stops on the squad and clubs it: a blow every 0.9 s, each taking what a ninth of the squad a second adds up
 to (at least 22 a second), the club coming down in time and the soldiers it hits sent flying. **A giant** that reaches the
-squad stops and clubs it every 1.2 s (8 for every 50 soldiers) until it falls; the squad halts while one stands on it.
+squad stops and clubs it every 1.2 s (4 for every 50 soldiers) until it falls; the squad halts while one stands on it.
 
 | Kind | Hit points | Speed | Radius | Strength | Drawn |
 |---|---|---|---|---|---|
@@ -256,6 +256,17 @@ twenty times. In the app it plays each level's plan (pictures, benchmarks, `--bo
 One star for a win, two at the table's two-star squad, three at its three-star squad. The best stars per level are
 saved, as is the next level to play. Every level is open in LEVELS. After level 100: "ALL 100 LEVELS CONQUERED!".
 
+**Endless** (ENDLESS under the LEVELS grid, its best stage beside it): one run, stage after stage, until the squad
+falls. The squad, its weapon and its running power-ups carry from stage to stage (`Battle::carry`). A stage is laid as it
+is played (`src/sim/endless.cpp`), a section at a time about 110 units ahead of the squad, sized against the squad it
+has then: the campaign's generator needs the bot and runs only in the tools, so endless is laid from formulas (a fight
+against a horde costs the same share of any squad past 50). Stage k: world `(k-1) % 10 + 1`, march 4.8 + 0.2(k-1) (at
+most 7.5), horde pace 1 + 0.04(k-1) (at most 1.45), 55 + 5(k-1) seconds of road (at most 110), hordes of 110 + 30(k-1)
+foot scaled to the squad, every enemy 4% tougher a stage, riders from 2, brutes and archers from 3, shieldmen 4, bombers
+5, drummers 6, fog or night now and then from 5. Every third stage ends with the boss, sized to 3-7 seconds of the
+squad's fire; the others with a last stand. The bot falls somewhere about stage 8 to 15 (`papermarch_headless
+--endless`). The run ends on a card: RUN OVER (NEW BEST!), the stage and the paces marched, the best, AGAIN, LEVELS.
+
 ## 8. Screens
 
 - **Play**: top left the `LEVEL N` chip (opens LEVELS) and the level's best stars; top right pause; under them the road
@@ -264,7 +275,8 @@ saved, as is the next level to play. Every level is open in LEVELS. After level 
   with a hand swinging under the squad.
 - **Victory**: VICTORY! (PERFECT! with three stars), three stars landing one by one, "SOLDIERS LEFT N", NEXT (FINISH on
   level 100), RETRY under three stars. Confetti.
-- **Defeated**: "YOU MARCHED N% OF THE ROAD", RETRY, LEVELS.
+- **Defeated**: "YOU MARCHED N% OF THE ROAD", RETRY, LEVELS. In endless the chip reads `ENDLESS N` and the run's end is
+  its own card (section 7).
 - **Pause**: RESUME, RESTART, LEVELS, SETTINGS (and the UPDATE pill on GitHub builds).
 - **Settings**: SOUND, MUSIC, HAPTICS, REDUCE EFFECTS; hold to reset progress; version and credits.
 - **Levels**: GLOWTIDE's selector: five a row, as many rows as fit, stars under each, -10/PREV/NEXT/+10 (a world), BACK.

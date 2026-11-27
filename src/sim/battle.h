@@ -310,6 +310,8 @@ public:
     // Won once every enemy is beaten, not only at the finish line (init leaves it as it is: the generator turns it off for
     // its run of a road it is still laying, and the bake for its run to just before the end fight).
     bool clearWins = true;
+    // Endless: this battle takes over the squad, its weapon and its running power-ups from the stage before, marching.
+    void carry(const Battle& from);
     Enemy enemies[kMaxEnemies];
     int enemyCount = 0;
     Bullet bullets[kMaxBullets];

@@ -178,7 +178,8 @@ void Game::drawHud() {
     const float W = float(L.w);
     char buf[64];
     // Top left: the level chip (it opens LEVELS): cream, or on a hard level red with a skull, pulsing for 3 s.
-    std::snprintf(buf, sizeof buf, "LEVEL %d", level_);
+    if (endless_) std::snprintf(buf, sizeof buf, "ENDLESS %d", stage_);
+    else std::snprintf(buf, sizeof buf, "LEVEL %d", level_);
     const float top = L.top() + L.px(10);
     // Its icon: the skull of a hard level, else the mode's chip (gold rush, rescue, arsenal...), if any.
     const int mode = def_->mode < sim::kModeCount ? def_->mode : 0;
@@ -197,7 +198,7 @@ void Game::drawHud() {
     }
     if (icon > 0) uiArt(chipArt, chipX + L.px(22) * pulse, chip.cy() + (chipDown ? L.px(4) : 0.0f), 26.0f * pulse);
     const int got = level_ - 1 < int(sizeof save_.stars) ? save_.stars[level_ - 1] : 0;
-    for (int k = 0; k < 3; ++k) {
+    for (int k = 0; k < 3 && !endless_; ++k) {
         const float sx = chipX + chip.w + L.px(22) + float(k) * L.px(28), sy = top + L.px(24);
         if (!uiArt(k < got ? kUiStarFull : kUiStarEmpty, sx, sy, 26))
             uiBatch_.star5(sx, sy, L.px(10.5f), rgba(k < got ? ui::kGold : 0x5A4A40, 230), rgba(ui::kInk, 160), L.px(1));
@@ -286,6 +287,12 @@ void Game::drawHud() {
                           rgba(col::kWhite, u8((red ? 160 : 64) * a)), L.px(1.5f));
             uiBatch_.text(s, W * 0.5f, y, L.px(15), rgba(col::kWhite, u8(255 * a)), {0, 0, 0, 0}, 0, Align::Center);
         }
+    }
+    // Endless: the new stage's banner over the road.
+    if (stageBanner_ > 0.0f) {
+        char sb[32];
+        std::snprintf(sb, sizeof sb, "STAGE %d", stage_);
+        ribbon(sb, W * 0.5f, L.top() + (L.bottom() - L.top()) * 0.36f, stage_ % 3 == 0 ? 1 : 0, 26);
     }
     // Before the march: a hand swinging under the squad, DRAG TO MARCH under it.
     if (playing && !battle_.started && turnT_ < 0.0f && titleFade_ < 0.5f) {
@@ -392,6 +399,29 @@ void Game::drawLose() {
     const Rect card = centered(L, L.bottom() - L.px(228), 330, 262);
     uiBatch_.rect(float(L.w) * 0.5f, float(L.h) * 0.5f, float(L.w), float(L.h), 0, rgba(ui::kInk, u8(70 * in)));
     ui_.panel(card, 22);
+    if (endless_) {  // the run's end: how far, the best, again
+        ribbon(newBest_ ? "NEW BEST!" : "RUN OVER", float(L.w) * 0.5f, card.y, newBest_ ? 2 : 1, 26);
+        char line[64], dist[24];
+        formatThousands(i64(distance_ + battle_.z), dist, sizeof dist);
+        std::snprintf(line, sizeof line, "STAGE %d  -  %s PACES", stage_, dist);
+        ui_.text(line, float(L.w) * 0.5f, card.y + L.px(54), 17, ui::kText);
+        formatThousands(i64(save_.endlessDistance), dist, sizeof dist);
+        std::snprintf(line, sizeof line, "BEST: STAGE %d  -  %s PACES", save_.endlessBest, dist);
+        ui_.text(line, float(L.w) * 0.5f, card.y + L.px(84), 14, ui::kMuted);
+        if (ui_.button("AGAIN", centered(L, card.y + L.px(146), 240, 60), Ui::kPrimary)) {
+            feedback_.uiTap();
+            startEndless();
+            ui_.opacity = 1;
+            return;
+        }
+        if (ui_.button("LEVELS", centered(L, card.y + L.px(216), 180, 50))) {
+            feedback_.uiTap();
+            levelsFirst_ = 0;
+            setScreen(Screen::Levels);
+        }
+        ui_.opacity = 1;
+        return;
+    }
     ribbon("DEFEATED", float(L.w) * 0.5f, card.y, 1, 26);
     const float p = battle_.progress();
     const int pct = int(p * 100.0f + 0.5f);
@@ -490,7 +520,7 @@ void Game::drawLevels() {
     const Rect card{L.safe.left + L.px(8), L.top() + L.px(30), float(L.w) - L.safe.left - L.safe.right - L.px(16), usable - L.px(38)};
     ui_.panel(card, 22);
     const int count = sim::levelCount();
-    const float gridTop = card.y + L.px(76), gridBottom = L.bottom() - L.px(150);
+    const float gridTop = card.y + L.px(76), gridBottom = L.bottom() - L.px(214);
     const int rows = clampv(int((gridBottom - gridTop) / L.px(76)), 3, 8), page = 5 * rows;
     if (levelsFirst_ <= 0) levelsFirst_ = (minv(level_, count) - 1) / page * page + 1;
     levelsFirst_ = clampv(levelsFirst_, 1, maxv(1, count - page + 1));
@@ -547,6 +577,16 @@ void Game::drawLevels() {
             feedback_.uiTap();
             levelsFirst_ = clampv(levelsFirst_ + step[k], 1, maxv(1, count - page + 1));
         }
+    // Endless: a run of stages until the squad falls, its best under it.
+    if (ui_.button("ENDLESS", centered(L, L.bottom() - L.px(192), 260, 54), Ui::kPrimary)) {
+        feedback_.uiTap();
+        startEndless();
+        return;
+    }
+    if (save_.endlessBest > 0) {
+        std::snprintf(buf, sizeof buf, "BEST STAGE %d", save_.endlessBest);
+        ui_.text(buf, float(L.w) * 0.5f, L.bottom() - L.px(158), 12, ui::kMuted);
+    }
     if (ui_.button("BACK", centered(L, L.bottom() - L.px(46), 220, 52))) {
         feedback_.uiTap();
         setScreen(battle_.won ? Screen::Win : (battle_.lost ? Screen::Lose : Screen::Play));
@@ -724,6 +764,23 @@ void Game::flowStep() {
         case 18:
             if (flowWait_ < 3) break;
             check(screen_ == Screen::Play, "RESUME plays on");
+            check(press("#PAUSE"), "the pause button again");
+            next();
+            break;
+        case 19:
+            if (flowWait_ < 3) break;
+            check(press("LEVELS"), "PAUSE has LEVELS");
+            next();
+            break;
+        case 20:
+            if (flowWait_ < 3) break;
+            check(press("ENDLESS"), "LEVELS has ENDLESS");
+            next();
+            break;
+        case 21:
+            if (flowWait_ < 3) break;
+            check(endless_ && stage_ == 1 && screen_ == Screen::Play && def_ == endlessDef_ && def_->gateCount > 0,
+                  "ENDLESS starts a run on stage 1, its road laid");
             next();
             break;
         default:

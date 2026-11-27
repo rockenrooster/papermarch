@@ -89,12 +89,14 @@ bool Game::init(const Args& args, const GameEnv& env) {
         coldStart_ = false;
         level_ = args.level > 0 ? args.level : (!std::strcmp(args.scenario, "bench_battle") ? 30 : 1);
         loadLevel(level_);
+        if (args.endless) startEndless();
         useBot_ = std::strcmp(args.scenario, "bench_idle") != 0;
         return true;
     }
     mode_ = Mode::Play;
     level_ = clampv(args.level > 0 ? args.level : save_.level, 1, count);
     loadLevel(level_);
+    if (args.endless) startEndless();
     if (args.bot[0]) {
         useBot_ = true;
         coldStart_ = false;
@@ -146,6 +148,7 @@ void Game::saveNow() {
 // ---- Levels --------------------------------------------------------------------------------------------------------------
 
 void Game::loadLevel(int n) {
+    endless_ = false;
     level_ = clampv(n, 1, sim::levelCount());
     def_ = &sim::level(level_);
     battle_.init(*def_);
@@ -164,10 +167,14 @@ void Game::loadLevel(int n) {
     // A level's hint line, once.
     hintLineTime_ = 0;
     hintShownFor_ = 0;
-    if (def_->hint > 0 && def_->hint < 32 && !(save_.hints & (1u << def_->hint))) {
-        hintShownFor_ = def_->hint;
+    // A mode's line (gold rush, rescue, arsenal, siege, gauntlet, rush, giants' road) and a special level's banner show
+    // every time; an introduction's once.
+    const int h = def_->hint;
+    const bool always = h == 22 || h == 25 || h == 26 || (h >= 48 && h <= 51) || (h >= 58 && h <= 62);
+    if (h > 0 && h < 64 && (always || !(save_.hints & (u64(1) << h)))) {
+        hintShownFor_ = h;
         hintLineTime_ = 5.0f;
-        save_.hints |= 1u << def_->hint;
+        save_.hints |= u64(1) << h;
     } else if (def_->spike) {  // a hard level says so, every time
         hintShownFor_ = sim::kHintHard;
         hintLineTime_ = 4.0f;
@@ -183,7 +190,60 @@ void Game::enterLevel(int n, bool turn) {
     pendingTurn_ = turn && graphicsReady_;
 }
 
+void Game::startEndless() {
+    if (!endlessDef_) endlessDef_ = new sim::LevelDef();  // large: made once
+    endless_ = true;
+    stage_ = 1;
+    distance_ = 0;
+    endlessSeed_ = hash64(u64(nowSeconds() * 1000.0) + 77ULL);
+    endlessGen_.begin(stage_, endlessSeed_, *endlessDef_);
+    def_ = endlessDef_;
+    battle_.init(*def_);
+    battle_.squad = battle_.peak = 5;
+    endlessGen_.extend(*endlessDef_, battle_);
+    go_ = false;
+    steerX_ = 0;
+    steerDown_ = false;
+    stars_ = starsLanded_ = 0;
+    newBest_ = false;
+    endTime_ = -1;
+    levelTime_ = 0;
+    stageBanner_ = 0;
+    field_.setLevel(*def_, 0);
+    mixer_.setWorld(def_->world, false);
+    setScreen(Screen::Play);
+    hintShownFor_ = 63;
+    hintLineTime_ = 4.0f;
+    PM_TAG("PMLIFE", "endless: a run begins");
+}
+
+void Game::nextStage() {
+    distance_ += battle_.z;
+    ++stage_;
+    static sim::Battle prev;  // large: one, made once
+    prev = battle_;
+    endlessGen_.begin(stage_, endlessSeed_ + u64(stage_) * 7919ULL, *endlessDef_);
+    battle_.init(*def_);
+    battle_.carry(prev);
+    endlessGen_.extend(*endlessDef_, battle_);
+    go_ = true;
+    endTime_ = -1;
+    levelTime_ = 0;
+    stageBanner_ = 2.2f;
+    field_.setLevel(*def_, 0);
+    mixer_.setWorld(def_->world, false);
+    if (stage_ > save_.endlessBest) {
+        save_.endlessBest = stage_;
+        saveNow();
+    }
+    PM_TAG("PMLIFE", "endless: stage %d (world %d) with %d", stage_, def_->world, battle_.squad);
+}
+
 void Game::restart() {
+    if (endless_) {  // a new run
+        startEndless();
+        return;
+    }
     battle_.init(*def_);
     if (args_.weapon >= 0 && args_.weapon < sim::kWeaponCount) battle_.weapon = u8(args_.weapon);
     go_ = false;
@@ -198,6 +258,20 @@ void Game::restart() {
 }
 
 void Game::finish(bool won) {
+    if (endless_) {  // a stage won: the next (after the page turns); the squad fallen: the run is over
+        if (won) {
+            pendingStage_ = true;
+            return;
+        }
+        endTime_ = 0;
+        const int dist = int(distance_ + battle_.z);
+        newBest_ = stage_ > save_.endlessBest || (stage_ == save_.endlessBest && dist > save_.endlessDistance);
+        save_.endlessBest = maxv(save_.endlessBest, stage_);
+        save_.endlessDistance = maxv(save_.endlessDistance, dist);
+        saveNow();
+        PM_TAG("PMLIFE", "endless: fell on stage %d after %d units", stage_, dist);
+        return;
+    }
     endTime_ = 0;
     if (won) {
         stars_ = sim::starsFor(*def_, battle_.squad);
@@ -235,6 +309,7 @@ void Game::stepBattle(float steer, bool go) {
     }
     sim::BattleEvents ev;
     battle_.tick(steer, go, ev);
+    if (endless_ && endlessDef_) endlessGen_.extend(*endlessDef_, battle_);  // lay what comes next
     field_.events(battle_, ev);
     if (ev.won || ev.lostAll) finish(ev.won);
 }
@@ -362,6 +437,16 @@ void Game::update(float dt, float alpha) {
         }
         loadLevel(n);
     }
+    if (pendingStage_) {  // endless: the next stage, the page turning over the last
+        pendingStage_ = false;
+        if (frame_.stickers && graphicsReady_) {
+            paper_.snapshot(frame_);
+            turnT_ = 0;
+            feedback_.pageTurn();
+        }
+        nextStage();
+    }
+    stageBanner_ = maxv(0.0f, stageBanner_ - dt);
     if (turnT_ >= 0.0f) {
         turnT_ += dt / maxv(0.05f, tune.turnSeconds * (save_.reduceEffects ? 0.5f : 1.0f));
         if (turnT_ >= 1.0f) turnT_ = -1;

@@ -10,6 +10,7 @@
 #include "game/ui.h"
 #include "gfx/paper.h"
 #include "sim/battle.h"
+#include "sim/endless.h"
 
 namespace pm {
 
@@ -64,6 +65,9 @@ private:
     void applySettings();
     int musicLayers() const;
     void stepBattle(float steer, bool go);
+    // Endless (src/sim/endless.*): a run of stages, each laid as it is played; the squad carries on from one to the next.
+    void startEndless();
+    void nextStage();
     // Screens (screens.cpp).
     void setScreen(Screen s);
     void drawUi(float dt);
@@ -119,6 +123,16 @@ private:
     bool newBest_ = false;
     float endTime_ = -1;    // seconds since the battle ended (-1: not yet)
     float levelTime_ = 0;
+    // Endless: on, its stage, the distance marched before this stage, its seed, the stage's level and generator, a stage
+    // change waiting for the next update, the stage's banner.
+    bool endless_ = false;
+    int stage_ = 0;
+    float distance_ = 0;
+    u64 endlessSeed_ = 0;
+    sim::LevelDef* endlessDef_ = nullptr;
+    sim::Endless endlessGen_;
+    bool pendingStage_ = false;
+    float stageBanner_ = 0;
     // A level change waits for the next update (the old page is captured first).
     int pendingLevel_ = 0;
     bool pendingTurn_ = false;

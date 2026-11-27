@@ -62,7 +62,7 @@ parallel jobs everywhere.
    (riders faster); one that touches the footprint (`d < 0.6·r + radius`, across within the footprint ± radius) costs
    `toll(strength)` (its strength times squad / 50 past 50) and is gone (and is counted against its wave, `waveLost`).
    The squad stops (`halted`) only where a giant stands on it or at a fort wall (and 8 before the boss); a giant on the
-   squad clubs it every 1.2 s (`toll(8)`); the boss stops on it and runs up a debt of a ninth of the squad a second (at
+   squad clubs it every 1.2 s (`toll(4)`); the boss stops on it and runs up a debt of a ninth of the squad a second (at
    least the level's `drain`, 22), paid in blows every `kBossBlow` (0.9 s: `bossSwing`, `bossContact`, the event's
    `blow`), so a boss fight lasts seconds, not a minute, whatever the squad. Dead enemies are compacted away now
    and then.

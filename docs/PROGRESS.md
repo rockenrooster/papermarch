@@ -175,6 +175,16 @@ at 6, 12, 22, 29, 39, 46, 51, 59, 64, 73, 79, 86, 96, each ending with 0.3-1.4% 
 special ones (GAME_DESIGN 6); roads stop at the level's time (level 100 runs 14:03). Checks: unit tests 31/31, the table
 100/100, the flow test 23/23 on the PC and in the browser, level 1 won by touch.
 
+## 2026-11-27: 0.14.0, endless
+
+The owner: "And we should also do an endless mode". ENDLESS under the LEVELS grid starts a run that goes stage after
+stage until the squad falls, the squad, weapon and power-ups carried over, each stage laid as it is played and a little
+longer, faster and fiercer; a boss every third stage; the best stage and distance saved (GAME_DESIGN 7). Campaign rules
+changed on the way (re-baked): a barricade the squad runs into costs at most an eighth of the squad, a giant clubs 4 for
+every 50 soldiers (was 8), the mortar lobs at the nearest enemy in reach. Checks: unit tests 31/31, the table 100/100,
+the flow test 27/27 on the PC and in the browser (ENDLESS starts a run), the layout lint, level 1 won by touch in the
+browser.
+
 ## Status
 
 | Part | Status |

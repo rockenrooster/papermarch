@@ -18,6 +18,7 @@
 #include "gen/gen.h"
 #include "sim/battle.h"
 #include "sim/bot.h"
+#include "sim/endless.h"
 #include "tools/audio_render.h"
 
 using namespace pm;
@@ -103,6 +104,52 @@ int cmdSweep(int n, int s) {
                     double(r.won ? float(r.left) / float(maxv<i32>(r.peak, 1)) : 0.0f), enemies, d.bossHp,
                     double(d.planLook > 0 ? d.planLook : 15.0f));
     }
+    return 0;
+}
+
+// Endless with the bot: stage after stage, the squad carried over, until it falls (or `maxStages`).
+int cmdEndless(u64 seed, int maxStages) {
+    static sim::LevelDef d[2];
+    static sim::Battle b[2];
+    int cur = 0;
+    i32 squad = 5;
+    float total = 0, distance = 0;
+    for (int k = 1; k <= maxStages; ++k) {
+        static sim::Endless gen;
+        gen.begin(k, seed * 1000003ULL + u64(k), d[cur]);
+        b[cur].init(d[cur]);
+        if (k > 1) b[cur].carry(b[1 - cur]);
+        else b[cur].squad = b[cur].peak = squad;
+        gen.extend(d[cur], b[cur]);
+        sim::BattleEvents ev;
+        int enemies = 0;
+        for (int w = 0; w < d[cur].waveCount; ++w) enemies += d[cur].waves[w].count;
+        const i32 in = b[cur].squad;
+        static const bool trace = std::getenv("PM_ENDLESS_TRACE") != nullptr;
+        int lastSecond = -1;
+        while (!b[cur].won && !b[cur].lost && b[cur].time < 600) {
+            b[cur].tick(sim::botSteer(b[cur]), true, ev);
+            gen.extend(d[cur], b[cur]);
+            if (trace && (int(b[cur].time) != lastSecond || ev.lost > 20)) {
+                lastSecond = int(b[cur].time);
+                std::printf("    %5.1f s z %5.1f squad %6d alive %4d lost %d gate %d crashed %d mine %d strike %d blow %d\n", double(b[cur].time),
+                            double(b[cur].z), int(b[cur].squad), b[cur].aliveEnemies(), int(ev.lost), ev.gate, ev.crashed, int(ev.mineStepped),
+                            ev.strikeLanded, int(ev.blow));
+            }
+        }
+        total += b[cur].time;
+        distance += b[cur].z;
+        std::printf("stage %2d (world %d, %s): %.0f long, %d enemies, boss %d; in %d, peak %d, out %d, %.0f s%s\n", k, d[cur].world,
+                    d[cur].bossHp > 0 ? "boss" : "stand", double(d[cur].length), enemies, d[cur].bossHp, int(in), int(b[cur].peak), int(b[cur].squad),
+                    double(b[cur].time), b[cur].won ? "" : "  FALLEN");
+        if (!b[cur].won) {
+            std::printf("endless: fell on stage %d after %.0f s, %.0f units\n", k, double(total), double(distance));
+            return 0;
+        }
+        squad = b[cur].squad;
+        cur = 1 - cur;
+    }
+    std::printf("endless: all %d stages in %.0f s\n", maxStages, double(total));
     return 0;
 }
 
@@ -194,6 +241,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (flag(argc, argv, "--bake-levels")) return cmdBake(argc, argv);
+    if (flag(argc, argv, "--endless")) return cmdEndless(u64(argi(argc, argv, "--seed", 1)), argi(argc, argv, "--stages", 40));
     if (const char* s = arg(argc, argv, "--sweep")) return cmdSweep(std::atoi(s), argi(argc, argv, "--seed", 0));
     if (const char* name = arg(argc, argv, "--render-audio")) {
         const char* outPath = arg(argc, argv, "--out", "out.wav");

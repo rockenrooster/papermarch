@@ -140,6 +140,17 @@ void Battle::sync() {
     }
 }
 
+void Battle::carry(const Battle& from) {
+    squad = peak = maxv<i32>(1, from.squad);
+    weapon = from.weapon;
+    for (int p = 0; p < kPowerCount; ++p) {
+        powerLeft[p] = from.powerLeft[p];
+        powerFull[p] = from.powerFull[p];
+    }
+    shieldPool = from.shieldPool;
+    started = true;
+}
+
 int Battle::wallAhead() const {
     int best = -1;
     for (int w = 0; w < def->wallCount; ++w)
@@ -736,10 +747,16 @@ void Battle::fire(BattleEvents& ev) {
             ++ev.shots;
             continue;
         }
-        if (weapon == kMortar) {  // a shell lobbed to land 18 ahead of where the squad will be, at its x
+        if (weapon == kMortar) {  // a shell lobbed to land on the nearest enemy within its reach (where it will be), else
+                                  // 28 ahead of where the squad will be, at its x
             if (shellCount < kMaxShells) {
                 const float u = float(rand() & 0xFFFF) / 65535.0f * 2.0f - 1.0f;
-                shells[shellCount++] = {cx + u * hw * 0.5f, z + r * 0.45f, x + u * 0.6f, z + w.range + def->speed * 1.1f, 1.1f, dmg};
+                float tx = x + u * 0.6f, tz = z + w.range + def->speed * 1.1f;
+                if (const int t = pickTarget(z + r * 0.45f, w.range, false); t >= 0) {
+                    tx = enemies[t].x + u * 0.8f;
+                    tz = maxv(z + 3.0f, enemies[t].z - enemySpeed(enemies[t]) * 1.1f);
+                }
+                shells[shellCount++] = {cx + u * hw * 0.5f, z + r * 0.45f, tx, tz, 1.1f, dmg};
                 ++ev.shots;
             }
             continue;
@@ -1013,12 +1030,12 @@ void Battle::moveEnemies(BattleEvents& ev) {
             }
             continue;
         }
-        // A giant that reaches the squad stops and clubs it every 1.2 s (8 for every 50 soldiers) until it falls; under
+        // A giant that reaches the squad stops and clubs it every 1.2 s (4 for every 50 soldiers) until it falls; under
         // GIANTS it is trampled like any other.
         if (e.kind == kGiant && !giants && d < r * 0.6f + st.radius && e.x > lo - st.radius && e.x < hi + st.radius) {
             if ((e.cool -= kDt * (powered(kHourglass) ? 0.4f : 1.0f)) <= 0.0f) {
                 e.cool += 1.2f;
-                const i32 n = minv(squad, toll(8));
+                const i32 n = minv(squad, toll(4));
                 lose(n, ev, e.wave);
                 ev.blow = true;
                 ev.blowX = e.x;
@@ -1161,7 +1178,9 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
                 take(bd.power, ev);
                 continue;
             }
-            if (!powered(kGiants)) lose(maxv<i32>(1, (bs.hp + kHp - 1) / kHp / 2), ev);  // giants smash through for free
+            // Half its hit points, at most an eighth of the squad (a big squad is as wide as the road: it cannot always step
+            // round one); giants smash through for free.
+            if (!powered(kGiants)) lose(minv(maxv<i32>(1, (bs.hp + kHp - 1) / kHp / 2), maxv<i32>(1, squad / 8)), ev);
             ev.crashed = k;
             if (bd.weapon > 0 && bd.weapon < kWeaponCount) {  // a crate run into still hands over its weapon
                 weapon = bd.weapon;
