@@ -134,6 +134,14 @@ fog and night are veils placed in the depth order beyond the squad (night also a
 is left out. Checks: unit tests 31/31, the table 100/100, the flow test 23/23 on the PC and in the browser, level 1 won
 by touch.
 
+## 2026-11-27: 0.11.0, content step 8
+
+Each world's favourites twice as likely (GAME_DESIGN 6), hard levels keeping a siege or giants' road, and long roads
+scaled up: another weapon about every two minutes (level 100 offers ten) and a power-up for about every 45 s (level 100
+holds twenty). The rotation of modes is the block of ten built in 0.9.0. Checks: unit tests 31/31, the table 100/100, the
+flow test 23/23 on the PC and in the browser, level 1 won by touch. The content pass (CONTENT_PASS 6, steps 1-8) is
+done; left out for want of art or a ground shader: hammers, pits, narrows, tide, mud, the last stand.
+
 ## Status
 
 | Part | Status |

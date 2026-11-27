@@ -181,6 +181,14 @@ levels 1-3 hold at most 20 foot a horde (three soldiers win them). Only the sold
 15% smaller than the last that cost nothing. A section the bot cannot get through is dropped. Everything is laid on the
 text form's grid (tenths) before the bot plays it, so what it measures is what the table holds.
 
+**Each world's favourites** (docs/CONTENT_PASS.md 4.3) come twice as often once the level knows them: 1 Greenmeadow
+moving gates, mines, cages; 2 Sunbaked archers, catapults, wind, fort walls (before some hordes on any road); 3 Frostvale
+ice, shield bearers, fog; 4 Emberfall bombers, rollers, drummers; 5 Tidereach rollers, flip and moving gates; 6
+Bloomgrove mystery and flip gates, cages; 7 Mirefen fog, bombers, giants; 8 Skyhold wind, archers, rollers; 9 Cinderpeak
+night, mines, giants, walls; 10 Lanternfair flip, mystery and moving gates, rollers. A hard level on a siege's or a
+giants' road's place keeps that mode. A long road offers another weapon about every two minutes (a weapon gate beside a
+second weapon or a modest sum) and holds up to 2 + 1 per 45 s of the level's power-ups.
+
 **The ceiling** (a 15-minute road would otherwise snowball): past 100 + 25·n soldiers the road offers no ×2 or ×3, its
 sums, barrels and cages give `E / ceiling` times less, and its hordes bite up to twice as hard (never more than 70%).
 

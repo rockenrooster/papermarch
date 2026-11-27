@@ -134,6 +134,25 @@ bool medalPower(u8 p) {
 }
 bool cratePower(u8 p) { return !medalPower(p) || p == kRapid || p == kPowerShot || p == kHourglass; }
 
+// What each world favours (docs/CONTENT_PASS.md 4.3): twice as likely there, once the level knows it.
+enum Fav : u32 {
+    kFavMoving = 1, kFavRollers = 2, kFavFlips = 4, kFavMystery = 8, kFavIce = 16, kFavWind = 32, kFavMines = 64, kFavArchers = 128,
+    kFavCatapults = 256, kFavShields = 512, kFavBombers = 1024, kFavDrums = 2048, kFavGiants = 4096, kFavCages = 8192, kFavWalls = 16384,
+    kFavFog = 32768, kFavNight = 65536
+};
+const u32 kWorldFav[10] = {
+    kFavMoving | kFavMines | kFavCages,                    // 1 Greenmeadow
+    kFavArchers | kFavCatapults | kFavWind | kFavWalls,    // 2 Sunbaked
+    kFavIce | kFavShields | kFavFog,                       // 3 Frostvale
+    kFavBombers | kFavRollers | kFavDrums,                 // 4 Emberfall
+    kFavRollers | kFavFlips | kFavMoving,                  // 5 Tidereach
+    kFavMystery | kFavFlips | kFavCages,                   // 6 Bloomgrove
+    kFavFog | kFavBombers | kFavGiants,                    // 7 Mirefen
+    kFavWind | kFavArchers | kFavRollers,                  // 8 Skyhold
+    kFavNight | kFavMines | kFavGiants | kFavWalls,        // 9 Cinderpeak
+    kFavFlips | kFavMystery | kFavMoving | kFavRollers,    // 10 Lanternfair
+};
+
 }  // namespace
 
 // Each block of ten (docs/CONTENT_PASS.md 4.1): 1 march, 2 arsenal, 3 rescue, 4 gauntlet, 5 gold rush, 6 march, 7 siege,
@@ -141,7 +160,7 @@ bool cratePower(u8 p) { return !medalPower(p) || p == kRapid || p == kPowerShot 
 u8 levelMode(int n) {
     const int slot = (n - 1) % 10 + 1;
     if (slot == 10) return kModeBoss;
-    if (isSpike(n)) return kModeMarch;
+    if (isSpike(n)) return slot == 7 && n >= 37 ? kModeSiege : slot == 9 && n >= 49 ? kModeGiants : kModeMarch;  // hard: these three
     if (slot == 5 && n >= 15) return kModeGold;
     if (n == 33 || (slot == 7 && n >= 37)) return kModeSiege;
     if (slot == 2 && n >= 22) return kModeArsenal;
@@ -267,10 +286,13 @@ void build(int n, u64 seed, Shape& out) {
     if (n == 39) d.hint = 53;
     if (n == 56) d.hint = 54;
     if (n == 62) d.hint = 55;
+    const u32 favs = kWorldFav[(d.world - 1) % 10];
+    auto fav = [&](u32 f) { return (favs & f) != 0; };
+    auto odds = [&](u32 f, float p) { return fav(f) ? minv(0.85f, p * 2.0f) : p; };  // a world's favourite: twice as likely
     {
         const u64 h = hash64(u64(n) * 2654435761ULL + 99ULL) % 5ULL;
-        if (n == 67 || (n > 67 && h == 0)) d.sky = kSkyFog;
-        if (n == 81 || (n > 81 && h == 1)) d.sky = kSkyNight;
+        if (n == 67 || (n > 67 && (h == 0 || (fav(kFavFog) && h == 2)))) d.sky = kSkyFog;
+        if (n == 81 || (n > 81 && (h == 1 || (fav(kFavNight) && h == 3)))) d.sky = kSkyNight;
         if (n == 67) d.hint = 56;
         if (n == 81) d.hint = 57;
     }
@@ -343,6 +365,11 @@ void build(int n, u64 seed, Shape& out) {
     const float end = d.length - 24.0f;
     int sinceWave = 0;
     int section = 0, last = -1;
+    // A long road offers another weapon about every two minutes, and holds a power-up for about every 45 s of it.
+    const float weaponGap = 120.0f * d.speed * 0.68f;
+    float nextWeaponZ = 14.0f + weaponGap;
+    int lastOffered = offer;
+    const int maxPickups = 2 + int(levelSeconds(n) / 45.0f);
     while (z < end) {
         const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount,
                   minesBefore = d.mineCount, cagesBefore = d.cageCount, rollersBefore = d.rollerCount, wallsBefore = d.wallCount,
@@ -363,13 +390,17 @@ void build(int n, u64 seed, Shape& out) {
         // A horde after every two or three other sections: never on a gold rush, a rush or a gauntlet (their roads are
         // hazards and gates; the end fight is their only horde).
         else if (!gold && !rush && !gauntlet && sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
+        else if (!gold && !arsenal && weaponsKnown(n) >= 1 && section > 2 && z >= nextWeaponZ) kind = 14;
         else {
             // Gold rush: gates, barrels, medallions; rescue: few gates; gauntlet: rollers and minefields, gates as bait.
             const float gk = rescue ? 0.4f : gauntlet ? 0.5f : 1.0f;
             float w[14] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
-                           triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f,
-                           rollers && !gold ? (gauntlet ? 3.0f : rush ? 1.5f : 0.6f) : 0.0f, gauntlet || (rush && mines) ? 1.4f : 0.0f,
-                           flips ? 0.8f * gk : 0.0f, mysteries ? 0.7f * gk : 0.0f, ice || wind ? 0.7f : 0.0f};
+                           triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) * (fav(kFavMoving) ? 2.0f : 1.0f) : 0.0f,
+                           gold && powersKnown > 0 ? 1.2f : 0.0f,
+                           rollers && !gold ? (gauntlet ? 3.0f : rush ? 1.5f : 0.6f) * (fav(kFavRollers) ? 2.0f : 1.0f) : 0.0f,
+                           gauntlet || (rush && mines) ? 1.4f : (mines && fav(kFavMines) && !gold ? 0.5f : 0.0f),
+                           flips ? 0.8f * gk * (fav(kFavFlips) ? 2.0f : 1.0f) : 0.0f, mysteries ? 0.7f * gk * (fav(kFavMystery) ? 2.0f : 1.0f) : 0.0f,
+                           (ice && fav(kFavIce)) || (wind && fav(kFavWind)) ? 1.4f : ice || wind ? 0.7f : 0.0f};
             if (last >= 0 && last < 14) w[last] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
@@ -474,6 +505,27 @@ void build(int n, u64 seed, Shape& out) {
                 ++sinceWave;
                 break;
             }
+            case 14: {  // another weapon on a long road: beside a second one or a modest sum
+                const int known = weaponsKnown(n);
+                int w = kWeaponOrder[r.next() % u32(known)];
+                if (w == lastOffered && known > 1) w = kWeaponOrder[(r.next() % u32(known))];
+                const bool left = r.f01() < 0.5f;
+                const float zx = z + 4.0f;
+                gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, zx, w, kGateWeapon, 0, 0);
+                int w2 = known > 1 && r.f01() < 0.4f ? kWeaponOrder[r.next() % u32(known)] : 0;
+                if (w2 == w) w2 = 0;
+                if (w2 > 0) {
+                    gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, zx, w2, kGateWeapon, 0, 0);
+                } else {
+                    const i32 a = friendly(maxv(2.0f, E * uni(r, 0.15f, 0.45f) / over));
+                    gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, zx, a, kGateAdd, 1, a + 2 + a / 2);
+                }
+                lastOffered = w;
+                nextWeaponZ += weaponGap;
+                z += 12.0f;
+                ++sinceWave;
+                break;
+            }
             case 7: {  // a gate on the move (and on a gold rush often a second behind it): worth catching
                 const int k = gold ? 2 : 1;
                 for (int i = 0; i < k; ++i) {
@@ -528,7 +580,9 @@ void build(int n, u64 seed, Shape& out) {
                 break;
             }
             case 13: {  // weather over the road (ice, or wind pushing one way) with a pair of gates in it
-                const bool windy = (n == 62 && d.stripCount == 0) || (wind && (!ice || r.f01() < 0.5f));  // 62 brings the wind in
+                // 62 brings the wind in; a world that favours one has it more often
+                const bool windy = (n == 62 && d.stripCount == 0) ||
+                                   (wind && (!ice || r.f01() < (fav(kFavWind) ? 0.8f : fav(kFavIce) ? 0.2f : 0.5f)));
                 if (d.stripCount < kMaxStrips)
                     d.strips[d.stripCount++] = {z, z + 22.0f, u8(windy ? kStripWind : kStripIce), windy ? (r.f01() < 0.5f ? -1.0f : 1.0f) * uni(r, 2.5f, 3.5f) : 0.0f};
                 const bool left = r.f01() < 0.5f;
@@ -552,18 +606,18 @@ void build(int n, u64 seed, Shape& out) {
             }
             default: {  // a horde, as big as it must be to cost the bot about `bite` of its squad (measured)
                 // Mines in front of it (the horde walks over them: shoot them then); on 13, the first horde's alone.
-                if (mines && (n == 13 ? minefields == 0 : r.f01() < 0.3f)) {
+                if (mines && (n == 13 ? minefields == 0 : r.f01() < odds(kFavMines, 0.3f))) {
                     const int k = 3 + int(r.next() % 4u);
                     for (int i = 0; i < k && d.mineCount < kMaxMines; ++i)
                         d.mines[d.mineCount++] = {uni(r, -4.2f, 4.2f), z + uni(r, 3.0f, 9.0f)};
                     ++minefields;
                 }
                 // Prisoners in a cage among it: every horde on a rescue, now and then elsewhere once cages are known.
-                if ((rescue || (cages && r.f01() < 0.2f)) && d.cageCount < kMaxCages)
+                if ((rescue || (cages && r.f01() < odds(kFavCages, 0.2f))) && d.cageCount < kMaxCages)
                     d.cages[d.cageCount++] = {uni(r, -3.0f, 3.0f), z + 12.0f,
                                               friendly(maxv(rescue ? 10.0f : 5.0f, E * (rescue ? uni(r, 0.8f, 1.6f) : uni(r, 0.3f, 0.6f)) / over))};
                 // A power-up on the way in: the level's new one on its first horde, else now and then one already known.
-                if (powersKnown > 0 && pickups < 2 && (introPower > 0 ? pickups == 0 : r.f01() < 0.45f)) {
+                if (powersKnown > 0 && pickups < maxPickups && (introPower > 0 ? pickups == 0 : r.f01() < 0.45f)) {
                     const u8 p = introPower > 0 ? u8(introPower) : kPowerOrder[r.next() % u32(powersKnown)];
                     const float px = uni(r, -3.0f, 3.0f), pz = z + 3.0f;
                     if (medalPower(p) && (!cratePower(p) || p == introPower || r.f01() < 0.65f)) {
@@ -577,29 +631,31 @@ void build(int n, u64 seed, Shape& out) {
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
                 const bool withRiders = riders && r.f01() < 0.4f, withBrutes = brutes && r.f01() < 0.35f;
-                const bool withArchers = archers && (siege || (n == 17 ? archerRanks == 0 : r.f01() < 0.3f));
+                const bool withArchers = archers && (siege || (n == 17 ? archerRanks == 0 : r.f01() < odds(kFavArchers, 0.3f)));
                 if (withArchers) ++archerRanks;
                 // A catapult at the road's side beyond it; a giant at its head (with three seconds of the squad's fire in
                 // it), each brought in on its own level.
-                const bool withCatapult = catapults && (n == 21 ? catapultsLaid == 0 : r.f01() < 0.25f);
-                const bool withGiant = !gold && giants && (giantsRoad || (n == 29 ? giantsLaid == 0 : r.f01() < 0.18f));
+                const bool withCatapult = catapults && (n == 21 ? catapultsLaid == 0 : r.f01() < odds(kFavCatapults, 0.25f));
+                const bool withGiant = !gold && giants && (giantsRoad || (n == 29 ? giantsLaid == 0 : r.f01() < odds(kFavGiants, 0.18f)));
                 if (withCatapult) ++catapultsLaid;
                 if (withGiant) ++giantsLaid;
                 const float catX = r.f01() < 0.5f ? -3.6f : 3.6f;
                 const i32 giantHp = maxv<i32>(30, i32(dps(E) * 3.0f));
                 // Shield bearers in its front rank, bombers among it, a drummer or two in it, each brought in on its own
                 // level.
-                const bool withShields = shieldmen && (n == 26 ? shieldLines == 0 : r.f01() < 0.25f);
-                const bool withBombers = bombers && (n == 37 ? bomberRuns == 0 : r.f01() < 0.25f);
-                const bool withDrums = drummers && (n == 42 ? drumBands == 0 : r.f01() < 0.2f);
+                const bool withShields = shieldmen && (n == 26 ? shieldLines == 0 : r.f01() < odds(kFavShields, 0.25f));
+                const bool withBombers = bombers && (n == 37 ? bomberRuns == 0 : r.f01() < odds(kFavBombers, 0.25f));
+                const bool withDrums = drummers && (n == 42 ? drumBands == 0 : r.f01() < odds(kFavDrums, 0.2f));
                 if (withShields) ++shieldLines;
                 if (withBombers) ++bomberRuns;
                 if (withDrums) ++drumBands;
                 const float zw = z;
                 // A siege: a fort wall before the horde (it waits behind it), archers on the ramparts; the wall holds about
                 // four to seven seconds of the squad's fire.
-                if (siege && d.wallCount < kMaxWalls) d.walls[d.wallCount++] = {zw + 4.0f, maxv<i32>(20, i32(dps(E) * uni(r, 4.0f, 7.0f)))};
-                const float archerZ = siege ? zw + 12.0f : zw + 21.0f;
+                // (A world that favours walls puts one before a horde now and then on other roads too.)
+                const bool walled = siege || (n >= 37 && fav(kFavWalls) && !gold && r.f01() < 0.25f);
+                if (walled && d.wallCount < kMaxWalls) d.walls[d.wallCount++] = {zw + 4.0f, maxv<i32>(20, i32(dps(E) * uni(r, 4.0f, 7.0f)))};
+                const float archerZ = walled ? zw + 12.0f : zw + 21.0f;
                 // This section's waves for a horde of `count` foot (and those that come with them).
                 auto lay = [&](float count) {
                     d.waveCount = wavesBefore;
