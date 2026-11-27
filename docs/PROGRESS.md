@@ -14,9 +14,10 @@ and design or asset creation work to a fable subagent", then "make sure that it 
 levels throwing in here and there with the later levels just barely theoretically beatable with 100% perfect runs".
 
 - **Art (Fable, `docs/ART_DIRECTION.md`):** painted toy soldiers in a sunlit diorama, rendered in Blender by
-  `tools/art/` and shipped as sprites in `assets/art/`. Stage 1 (all units, the ogre, gates, barrel, effects, world 1's
-  ground, props and backdrop) is in the game. Stage 2 (worlds 2-10, a shared boss recoloured per world) and stage 3
-  (HUD, screens, icon) are Fable's next work.
+  `tools/art/` and shipped as sprites in `assets/art/` (16.3 MB). Stage 1: all units, the ogre, gates, barrel,
+  effects. Stage 2: ten worlds (road, land, props, backdrop, sky, grade, ambient) and one ogre recoloured per world with
+  an add-on. Stage 3: the toy-box UI (section 15), the squad's banner and cheer, the app icon. Released as 0.3.0
+  (world 1) and 0.4.0 (everything).
 - **Engine (this session):** `src/gfx/art.*` loads the manifest, the atlases (one texture array; each world's own
   atlases loaded while it is played) and the world looks; sprites with elevation variants in the sticker pass; textured
   road and land with anisotropy, sky and backdrop; cast shadows along the sun; bloom, grade and vignette; the animated
@@ -25,7 +26,15 @@ levels throwing in here and there with the later levels just barely theoreticall
 - **Difficulty:** the planner (`planLevel`) is the "perfect run"; hordes are sized against the squad the bot really
   has; the end fight is dialled so the best run keeps a share of its peak that falls to under 3% by level 300, with a
   hard level about one in nine (a third of the margin, a boss, "HARD LEVEL! EVERY SOLDIER COUNTS"). The march speeds up
-  from 4.6 to 7.0 units a second and the horde from 1.0 to 1.35 times its pace over the 300 levels. GAME_DESIGN 6.
+  from 4.6 to 7.0 units a second and the horde from 1.0 to 1.35 times its pace over the 300 levels. Hordes are sized by
+  what their own enemies take (late roads carry 1,000-1,300 enemies) and the ogre crushes a ninth of the squad it meets
+  each second, so levels run 24-48 s. GAME_DESIGN 6.
+- **Checks (0.4.0):** unit tests 31/31, the table 300/300 replayed exactly, the flow test 23/23, the layout lint on every
+  screen; the browser: level 1 won by touch, NEXT, the save, 55.8 frames a second on level 30 at 1170 x 2532 in
+  headless Chrome. Not yet on a phone (none attached): its frame rate, memory (the atlas array is five 2048 x 2048
+  layers, about 107 MB with mipmaps; the art loads in about 0.2 s on the PC) and load time are unmeasured. If memory
+  is short on a phone: the UI atlas (2048 x 512) and small prop atlases could share a layer, or the array could use
+  half-size mipmaps.
 
 ## Status
 
