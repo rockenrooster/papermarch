@@ -4,6 +4,20 @@
 
 namespace pm::sim {
 
+namespace {
+// What passing a gate leaves the squad, as the bot sees it: a weapon is worth a share of the squad over the musket
+// (a rough guess; the planner tries every gate of a row and keeps what really works).
+i64 gateWorth(const Battle& b, const GateDef& gd, const GateState& gs) {
+    if (gd.kind == kGateMul) return i64(b.squad) * gs.value;
+    if (gd.kind == kGateWeapon) {
+        static const float kWorth[kWeaponCount] = {0.0f, 0.15f, 0.1f, 0.2f, 0.25f};
+        const float gain = kWorth[clampv<i32>(gs.value, 0, kWeaponCount - 1)] - kWorth[b.weapon < kWeaponCount ? b.weapon : 0];
+        return i64(float(b.squad) * (1.0f + gain));
+    }
+    return i64(b.squad) + gs.value;
+}
+}  // namespace
+
 float botSteer(const Battle& b) {
     const LevelDef& d = *b.def;
     const float r = b.radius();
@@ -43,7 +57,7 @@ float botSteer(const Battle& b) {
             const GateDef& gd = d.gates[g];
             const GateState& gs = b.gates[g];
             if (gs.used || gs.passed || std::fabs(gd.z - rowZ) > 0.5f) continue;
-            const i64 after = gd.kind == kGateMul ? i64(b.squad) * gs.value : i64(b.squad) + gs.value;
+            const i64 after = gateWorth(b, gd, gs);
             if (nc < 8) {
                 covered0[nc] = gd.x0;
                 covered1[nc] = gd.x1;

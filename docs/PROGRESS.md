@@ -53,6 +53,12 @@ background objects on the sides".
 - **The content pass** (`docs/CONTENT_PASS.md`, Fable's design: ten weapons, twelve power-ups, six enemies, boss
   attacks, fourteen hazards, ten modes, a rotation so neighbours differ) is built in its eight steps, each baked, tested
   and released; then the rebalance. Fable made the assets for steps 1 and 2.
+- **0.5.0, step 1 (weapons):** the squad carries one weapon: musket, twin rifles, scattergun, long lance, rockets
+  (GAME_DESIGN 2). Weapon gates (cream and orange, the icon and name) stand beside a `+N` gate or another weapon;
+  weapon crates are shot open. Most levels from 9 offer one, never the one the level before offered; 9, 14, 22 and 28
+  bring each in with a hint. Hit points are now counted in tenths, and a musket ball's damage grows with every soldier
+  past 50. Each weapon has its gun on the soldiers, its projectile, muzzle flash and sound; rockets smoke and burst;
+  the lance's bolts flash through what they pierce; the HUD shows the weapon carried.
 
 ## Status
 

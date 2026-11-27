@@ -34,6 +34,7 @@ vec4 gatePanel(vec2 p, float hw, float hh) {
     else if (kind == 1) pat = fract((q.x + q.y - t * 0.5) / 0.4);
     else pat = fract((q.y + abs(q.x - 0.5 * wU) * 0.6 + t * 0.4) / 0.4);
     float band = smoothstep(0.0, 0.08, pat) * (1.0 - smoothstep(0.3, 0.38, pat));
+    if (kind == 3) band = 0.0;  // a weapon's panel (cream in an orange frame): no chevrons, a slow sheen only
     col = mix(col, min(C * 1.25, vec3(1.0)), band * 0.85);
     a += band * 0.12;
     if (kind == 2) col = mix(C * 0.5, col, smoothstep(0.0, 0.25, uv.y));
@@ -50,7 +51,7 @@ vec4 gatePanel(vec2 p, float hw, float hh) {
             a += star * k * 0.3;
         }
     }
-    float x0 = fract(t / 2.4) * 1.6 - 0.3;
+    float x0 = fract(t / (kind == 3 ? 4.0 : 2.4)) * 1.6 - 0.3;
     float sheen = 1.0 - smoothstep(0.0, 0.09, abs(uv.x + (uv.y - 0.5) * 0.36 * hU / wU - x0));
     col += vec3(0.25 * sheen);
     float pxU = hU / (2.0 * hh);

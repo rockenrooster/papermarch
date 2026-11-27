@@ -20,7 +20,21 @@ constexpr i32 kSquadCap = 99999;
 
 enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kEnemyKindCount };
 enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kWeaponCount };  // docs/CONTENT_PASS.md 1
-enum GateKind : u8 { kGateAdd, kGateMul };  // an add gate below zero is a red barricade
+// An add gate below zero is a red barricade; a weapon gate's value is the WeaponKind it hands over.
+enum GateKind : u8 { kGateAdd, kGateMul, kGateWeapon };
+constexpr i32 kHp = 10;  // hit points are counted in tenths (a twin rifle's ball does 0.6 of a musket ball)
+
+// What a weapon does, times the musket's: its shots a second and damage a ball; how far and fast its balls fly; balls a
+// shot (two streams `spread` apart, or a fan of half angle `spread` radians); enemies a ball passes through; a blast
+// where it strikes (radius, damage).
+struct WeaponStats {
+    float rate, damage, range, speed;
+    u8 balls;
+    float spread;
+    u8 pierce;
+    float splash, splashDamage;
+};
+const WeaponStats& weaponStats(u8 kind);
 
 struct GateDef {
     float x0 = -4, x1 = 0, z = 20;
@@ -31,8 +45,9 @@ struct GateDef {
 };
 struct BarrelDef {
     float x = 0, z = 30;
-    i32 hp = 10;      // bullets it takes to break
+    i32 hp = 10;      // musket balls it takes to break
     i32 reward = 10;  // recruits it frees
+    u8 weapon = 0;    // > 0: a weapon crate, which hands over that weapon instead of recruits
 };
 struct WaveDef {
     float z = 40;     // its front row
@@ -52,6 +67,7 @@ struct LevelDef {
     i32 star2 = 0, star3 = 0;  // soldiers left at the end for two and three stars (the bake sets them from its plan)
     i32 botEnd = 0;            // what the bake's planned run ended with (the report; the tests replay it)
     u8 spike = 0;              // one of the hard levels thrown in among the others (GAME_DESIGN 6)
+    u8 gun = kMusket;          // the weapon the squad starts with
     // The bake's best run (the proof the level can be won, src/sim/bot.*): how far ahead the bot lines up with a row of
     // gates (0: its everyday 15 units) and, for each row of two or more gates, which one it takes (from the left; -1 its
     // own choice). rowZ lists those rows up the road (from the gates: indexRows).
@@ -76,7 +92,7 @@ const EnemyStats& enemyStats(u8 kind);
 
 struct Enemy {
     float x = 0, z = 0;
-    i32 hp = 1;
+    i32 hp = 1;         // tenths (kHp)
     i32 incoming = 0;   // damage of the bullets in flight aimed at it (the fire spreads over the nearest enemies)
     u8 kind = kFoot, alive = 0;
     u16 seed = 0;
@@ -86,8 +102,11 @@ struct Enemy {
 struct Bullet {
     float x = 0, z = 0, zEnd = 0;
     float vx = 0;     // sideways per unit forward: aimed at its target (straight up the road without one)
+    i32 dmg = kHp;    // the damage it carries, tenths (the squad's when it was fired)
     i16 target = -1;  // the enemy it was fired at
-    u16 dmg = 1;      // the damage it carries (the squad's when it was fired)
+    u8 kind = kMusket;
+    u8 pierce = 0;    // enemies it may still pass through
+    u8 grows = 1;     // it raises a gate it strikes (a scattergun's outer pellets do not)
     u8 alive = 0;
 };
 struct GateState {
@@ -110,11 +129,24 @@ struct BattleEvents {
     i32 barrelReward = 0;
     int crashed = -1;       // a barrel run into
     int wave = -1;          // a wave woken
+    int weapon = -1;        // a weapon taken (from a gate or a crate)
     bool bossHit = false, bossDown = false, won = false, lostAll = false;
     static constexpr int kMaxKills = 24;
     float killX[kMaxKills] = {}, killZ[kMaxKills] = {};
     u8 killKind[kMaxKills] = {};
     int killN = 0;
+    // Where a rocket burst (what 0) or a lance bolt went through an enemy (what 1).
+    static constexpr int kMaxSpots = 16;
+    float spotX[kMaxSpots] = {}, spotZ[kMaxSpots] = {};
+    u8 spotWhat[kMaxSpots] = {};
+    int spotN = 0;
+    void spot(float x, float z, u8 what) {
+        if (spotN < kMaxSpots) {
+            spotX[spotN] = x;
+            spotZ[spotN] = z;
+            spotWhat[spotN++] = what;
+        }
+    }
     void clear() { *this = BattleEvents(); }
 };
 
@@ -127,8 +159,8 @@ public:
     float radius() const;  // the squad's footprint, units
     // The footprint across the road: x ± radius, squeezed inside the road (a big squad bunches up at an edge).
     void footprint(float& lo, float& hi) const;
-    float fireRate() const;  // shots a second
-    i32 damage() const;      // per bullet
+    float fireRate() const;  // a musket's shots a second (the weapon multiplies it)
+    i32 damage() const;      // a musket ball's damage, tenths (the weapon multiplies it)
     int aliveEnemies() const { return alive_; }
     int bossIndex() const { return boss_; }
     float progress() const;  // 0 at the start, 1 at the boss
@@ -152,12 +184,15 @@ public:
 private:
     void spawnWave(int w, BattleEvents& ev);
     void bucket();                         // enemies into cells by distance ahead
-    int pickTarget(float bz, i32 dmg);     // the nearest enemy ahead still needing damage, -1 none
-    void release(const Bullet& b);         // a bullet ends: its damage no longer incoming
+    int pickTarget(float bz, float range);  // the nearest enemy ahead still needing damage, -1 none
+    void release(Bullet& b);               // a bullet strikes or ends: its damage no longer incoming
     void fire(BattleEvents& ev);
     void moveBullets(BattleEvents& ev);
     void moveEnemies(BattleEvents& ev);
     void kill(int i, BattleEvents& ev);
+    void hurt(int i, i32 dmg, BattleEvents& ev);              // an enemy takes damage (and dies at none left)
+    void blast(float bx, float bz, i32 dmg, int spare, BattleEvents& ev);  // a rocket's burst: all near but `spare`
+    void breakBarrel(int k, BattleEvents& ev);                // shot open: its recruits or its weapon
     u32 rand();
     float fireAcc_ = 0;
     u32 rng_ = 1;
@@ -176,7 +211,7 @@ const LevelDef& level(int n);
 bool decodeLevel(const char* text, LevelDef& out);
 int encodeLevel(const LevelDef& d, char* out, int cap);
 const char* hintText(int hint);
-constexpr int kHintCount = 16;
+constexpr int kHintCount = 32;
 constexpr int kHintHard = 11;  // shown on every hard level
 int starsFor(const LevelDef& d, i32 squadLeft);
 

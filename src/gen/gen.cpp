@@ -72,7 +72,30 @@ float hordeCost(const LevelDef& d, float zEnd, int firstWave) {
     return float(sum);
 }
 
+// How many weapons beyond the musket level n knows (docs/CONTENT_PASS.md 4.2: twin rifles on 9, the scattergun on 14,
+// the lance on 22, rockets on 28).
+int weaponsKnown(int n) { return n >= 28 ? 4 : n >= 22 ? 3 : n >= 14 ? 2 : n >= 9 ? 1 : 0; }
+
 }  // namespace
+
+int weaponOffer(int n) {
+    int prev = 0;
+    for (int k = 9; k <= n; ++k) {
+        int w = 0;
+        if (k == 9) w = kTwin;
+        else if (k == 14) w = kScatter;
+        else if (k == 22) w = kLance;
+        else if (k == 28) w = kRockets;
+        else if (hash64(u64(k) * 31337ULL + 5ULL) % 10ULL < 7ULL) {
+            const int m = weaponsKnown(k);
+            w = 1 + int(hash64(u64(k) * 7777ULL + 3ULL) % u64(m));
+            if (w == prev) w = m > 1 ? w % m + 1 : 0;
+        }
+        if (k == n) return w;
+        prev = w;
+    }
+    return 0;
+}
 
 bool isSpike(int n) {
     auto hard = [](int k) { return k >= 15 && hash64(u64(k) * 7919ULL + 17ULL) % 9ULL == 0; };
@@ -117,7 +140,20 @@ void build(int n, u64 seed, Shape& out) {
         case 8: d.hint = 8; break;
         case 12: d.hint = 9; break;
         case 16: d.hint = 10; break;
+        case 9: d.hint = 12; break;   // the first weapon gate
+        case 14: d.hint = 13; break;  // the first weapon crate
+        case 22: d.hint = 14; break;
+        case 28: d.hint = 15; break;
         default: break;
+    }
+    // A weapon on offer (the same for every seed of this level): a crate now and then once crates are known, else a gate
+    // beside a sum or, with two weapons known, beside another weapon.
+    const int offer = weaponOffer(n);
+    const bool crate = offer > 0 && (n == 14 || (n > 14 && n != 22 && n != 28 && r.f01() < 0.4f));
+    int rival = 0;
+    if (offer > 0 && !crate && weaponsKnown(n) >= 2 && n != 9 && n != 22 && n != 28 && r.f01() < 0.3f) {
+        rival = 1 + int(r.next() % u32(weaponsKnown(n)));
+        if (rival == offer) rival = rival % weaponsKnown(n) + 1;
     }
     const bool pairs = n >= 2, barrels = n >= 4, mul = n >= 5, blocks = n >= 6, riders = n >= 7, brutes = n >= 12, triple = n >= 20;
     const bool bossHere = d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 100 ? 0.6f : 0.45f));
@@ -134,6 +170,7 @@ void build(int n, u64 seed, Shape& out) {
         // the same twice running. The first section is always gates.
         int kind;
         if (section == 0) kind = n < 10 || r.f01() < 0.5f ? 0 : 1;
+        else if (section == 1 && offer > 0) kind = 6;
         else if (sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
         else {
             float w[6] = {n <= 3 ? 3.0f : 0.9f, pairs ? 2.2f : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f : 0.0f, 0.0f, triple ? 1.1f : 0.0f};
@@ -215,6 +252,29 @@ void build(int n, u64 seed, Shape& out) {
                     else gate(d, xs[k][0], xs[k][1], zx, -cost, kGateAdd, 1, 0);
                 }
                 z += 12.0f;
+                ++sinceWave;
+                break;
+            }
+            case 6: {  // the level's weapon on offer
+                const float zx = z + 4.0f;
+                if (crate) {
+                    const i32 hp = maxv<i32>(4, i32(dps(E) * uni(r, 0.6f, 1.2f)));
+                    if (d.barrelCount < kMaxBarrels) d.barrels[d.barrelCount++] = {uni(r, -2.6f, 2.6f), zx + 2.0f, hp, 0, u8(offer)};
+                    z += 14.0f;
+                } else if (n == 9 || n == 22 || n == 28) {  // its introduction: alone in the middle of the road
+                    gate(d, -2.2f, 2.2f, zx, offer, kGateWeapon, 0, 0);
+                    z += 12.0f;
+                } else {
+                    const bool left = r.f01() < 0.5f;
+                    gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, zx, offer, kGateWeapon, 0, 0);
+                    if (rival > 0) {
+                        gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, zx, rival, kGateWeapon, 0, 0);
+                    } else {  // a modest sum: the weapon should be worth giving it up
+                        const i32 a = friendly(maxv(2.0f, E * uni(r, 0.15f, 0.45f)));
+                        gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, zx, a, kGateAdd, 1, a + 2 + a / 2);
+                    }
+                    z += 12.0f;
+                }
                 ++sinceWave;
                 break;
             }

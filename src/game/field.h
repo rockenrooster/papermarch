@@ -12,10 +12,13 @@ namespace pm {
 
 enum Cue : u8 {
     kCueShot, kCueHit, kCueKill, kCueGate, kCueGateBad, kCueGrow, kCueBarrelHit, kCueBarrel, kCueCrash, kCueWave, kCueBoss,
-    kCueBossHit, kCueBossDown, kCueLoss, kCueWin, kCueLose, kCueStart
+    kCueBossHit, kCueBossDown, kCueLoss, kCueWin, kCueLose, kCueStart,
+    kCueWeapon,  // a weapon taken (step: its kind)
+    kCueBlast    // a rocket's burst
 };
 struct CueEvent {
     u8 cue = 0;
+    u8 weapon = 0;  // the squad's weapon (its shots sound like it)
     int step = 0;   // the count ladder's step, a kill's kind
     float pan = 0;  // -1 left .. 1 right
 };
@@ -76,6 +79,10 @@ private:
         int gatePass[3] = {-1, -1, -1}, gatePost[3] = {-1, -1, -1}, gateSpikes = -1;  // add, multiply, negative
         int confetti[6] = {-1, -1, -1, -1, -1, -1};
         int wpn[sim::kWeaponCount] = {-1, -1, -1, -1, -1};  // the gun over each soldier (it is rendered without one)
+        int wpnIcon[sim::kWeaponCount] = {-1, -1, -1, -1, -1};
+        int shotFx[sim::kWeaponCount] = {-1, -1, -1, -1, -1};  // what each weapon's balls look like in flight
+        int gatePostWpn = -1, crateWpn = -1, crateBreak = -1;
+        int muzzleWide = -1, muzzleRing = -1, puffSmall = -1, hitCyan = -1, pierce = -1, smoke = -1;
         int confettiCount = 0;
     };
     // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation. Between
@@ -115,6 +122,8 @@ private:
     // rotated about its pivot, tinted, its hue turned (degrees). Off screen or a full pool: st is null.
     Placed sprite(int anim, float x, float z, float y, float t, float scale, float alpha, float rot = 0, bool mirror = false,
                   float flash = 0, u32 tint = 0xFFFFFF, float hue = 0);
+    // An icon (a UI sprite) in the labels over the field, centred at (x, y), h pixels tall, its width times wScale.
+    void icon(UiBatch& b, int anim, float x, float y, float h, float alpha = 1.0f, float wScale = 1.0f);
     // A sprite at a screen spot (its pivot there), `size` road units tall per its height, for effects on a figure.
     Sticker* spriteAt(int anim, float key, float sx, float sy, float s, float t, float scale, float alpha, float rot = 0);
     void flipbook(int anim, float x, float z, float y, float scale, float rot = 0, float delay = 0);
@@ -179,6 +188,8 @@ private:
     CueEvent cues_[kCues];
     int cueN_ = 0;
     float cueClock_[20] = {};      // per cue: when it last sounded (rate limits)
+    u8 weaponNow_ = 0;             // the squad's weapon as of the last step (its shots and its look)
+    float smokeClock_ = 0;         // rockets drop a puff of smoke every 0.05 s
 };
 
 }  // namespace pm

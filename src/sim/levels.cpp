@@ -28,7 +28,10 @@ const char* const kHints[kHintCount] = {
     "BRUTES TAKE MANY HITS",             // 9
     "DON'T RUN INTO BARRELS",            // 10
     "HARD LEVEL! EVERY SOLDIER COUNTS",  // 11 (kHintHard)
-    "", "", "", "",
+    "GRAB A NEW WEAPON",                 // 12: the first weapon gate (docs/CONTENT_PASS.md 4.2)
+    "SHOOT CRATES OPEN",                 // 13: the first weapon crate
+    "THE LANCE GOES THROUGH",            // 14
+    "ROCKETS BLAST CROWDS",              // 15
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -79,7 +82,7 @@ bool nums(const char*& p, i64* out, int n) {
 
 }  // namespace
 
-const char* hintText(int hint) { return hint > 0 && hint < kHintCount ? kHints[hint] : ""; }
+const char* hintText(int hint) { return hint > 0 && hint < kHintCount && kHints[hint] ? kHints[hint] : ""; }
 
 void indexRows(LevelDef& d) {
     d.rowCount = 0;
@@ -134,6 +137,7 @@ bool decodeLevel(const char* text, LevelDef& out) {
             case 'Y': if (!num(p, v[0])) return false; out.pace = float(v[0]) / 100.0f; break;
             case 'D': if (!num(p, v[0])) return false; out.drain = float(v[0]) / 10.0f; break;
             case 'P': if (!num(p, v[0])) return false; out.planLook = float(v[0]) / 10.0f; break;
+            case 'G': if (!num(p, v[0]) || v[0] < 0 || v[0] >= kWeaponCount) return false; out.gun = u8(v[0]); break;
             case 'Q': {  // the plan's choices, one a row: Q-1,0,1
                 out.planCount = 0;
                 for (;;) {
@@ -153,6 +157,11 @@ bool decodeLevel(const char* text, LevelDef& out) {
             case 'b': {
                 if (out.barrelCount >= kMaxBarrels || !nums(p, v, 4)) return false;
                 out.barrels[out.barrelCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, i32(v[2]), i32(v[3])};
+                break;
+            }
+            case 'c': {  // a weapon crate: x, z, hit points, weapon
+                if (out.barrelCount >= kMaxBarrels || !nums(p, v, 4) || v[3] < 1 || v[3] >= kWeaponCount) return false;
+                out.barrels[out.barrelCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, i32(v[2]), 0, u8(v[3])};
                 break;
             }
             case 'w': {
@@ -184,6 +193,7 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     if (int(d.pace * 100.0f + 0.5f) != 100) put(" Y%d", int(d.pace * 100.0f + 0.5f));
     if (int(d.drain * 10.0f + 0.5f) != 220) put(" D%d", int(d.drain * 10.0f + 0.5f));
     if (d.planLook > 0) put(" P%d", t10(d.planLook));
+    if (d.gun != kMusket) put(" G%d", d.gun);
     if (d.planCount > 0) {
         put(" Q%d", d.plan[0]);
         for (int i = 1; i < d.planCount; ++i) put(",%d", d.plan[i]);
@@ -194,7 +204,8 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     }
     for (int i = 0; i < d.barrelCount; ++i) {
         const BarrelDef& b = d.barrels[i];
-        put(" b%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.reward);
+        if (b.weapon > 0) put(" c%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.weapon);
+        else put(" b%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.reward);
     }
     for (int i = 0; i < d.waveCount; ++i) {
         const WaveDef& w = d.waves[i];

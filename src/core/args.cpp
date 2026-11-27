@@ -57,6 +57,9 @@ bool parseArgs(int argc, char** argv, Args& a) {
         } else if (!std::strcmp(k, "--level")) {
             if (!need() || !toInt(v, iv) || iv < 1) return false;
             a.level = int(iv);
+        } else if (!std::strcmp(k, "--weapon")) {  // pictures and checks: the squad starts with this weapon
+            if (!need() || !toInt(v, iv) || iv < 0 || iv > 15) return false;
+            a.weapon = int(iv);
         } else if (!std::strcmp(k, "--seed")) {
             if (!need() || !toInt(v, iv)) return false;
             a.seed = iv;

@@ -18,11 +18,20 @@ Nothing moves until the player touches the road ("DRAG TO MARCH"). Then:
 | Size | a number, from the level's start (3 on levels 1-5, 3-6 after) to 99,999 |
 | Footprint | a disk of radius min(4.4, 0.55 + 0.30·√squad) |
 | Steering | the squad follows the finger: x moves toward the target at 12·(distance) units a second, at most 18; it stays on the road. A drag across the road's width on screen moves it 1.25 road widths (`steer`) |
-| Fire | 5 + 2.4·min(squad, 50) shots a second, from random points across the squad's front; each bullet flies 42 units a second for 30 units |
-| Damage | a bullet does max(1, squad / 50) |
+| Fire | the musket: 5 + 2.4·min(squad, 50) shots a second, from random points across the squad's front, each at the nearest enemy that still needs one; a ball flies 42 units a second for 48 units |
+| Damage | a musket ball does max(1, squad / 50) (counted in tenths: every soldier past 50 adds a little) |
+| Weapon | one at a time, from a weapon gate or crate (or the level's start), until the next or the level's end; it multiplies the musket's fire (below) |
 
-Drawn: up to 150 blue paper soldiers (helmet, gun, gold belt) in a sunflower pattern inside the footprint, bobbing as
-they march, muzzle flashes; a blue badge over them with the full number.
+| Weapon | Shots | Damage a ball | Range | Its trick |
+|---|---|---|---|---|
+| Musket | 1× | 1× | 48 | - |
+| Twin rifles (from level 9) | 1× pairs | 0.6× each | 48 | two streams 0.5 apart: 1.2× in all, the best gate grower |
+| Scattergun (14) | 0.8× | 5 pellets of 0.45× in a 28° fan | 14 | murderous up close, useless far; only the middle pellet grows a gate |
+| Long lance (22) | 0.5× | 1.2× | 60 | the bolt passes through six enemies (stops at the boss, gates, barrels) |
+| Rockets (28) | 0.25× | 3× | 45 | slow; bursts on impact: 1.5× to everything within 1.8 |
+
+Drawn: up to 150 painted toy soldiers in a sunflower pattern inside the footprint, bobbing as they march, each with its
+weapon's gun and muzzle flash; the squad's banner over them with the full number; the weapon's icon in the HUD.
 
 ## 3. Gates
 
@@ -31,6 +40,12 @@ A gate is a panel across part of the road at some z, with a value and a kind:
 - **add**, value > 0: blue, `+N`. Passing it adds N.
 - **add**, value ≤ 0: a red barricade, `-N`. Passing it takes N (it can take the whole squad).
 - **multiply**: violet, `×N`. Passing it multiplies.
+- **weapon**: a cream panel in an orange frame with the weapon's icon and name. Passing it equips that weapon; it never
+  grows. It stands beside a `+N` gate or another weapon: the player trades soldiers for firepower.
+
+A **weapon crate** (orange bands, the icon over it) stands on the road like a barrel: shot open (or run into, at a
+barrel's cost) it equips its weapon. One weapon is on offer on most levels from 9 on, never the same as the level
+before; levels 9, 14, 22 and 28 bring each new one in with a hint line.
 
 The squad passes the gate its centre is in when its centre crosses the gate's z; the other gates of that row are left
 behind (drawn faded). Gates that **grow** (most add gates and barricades) take one per bullet that hits them, up to

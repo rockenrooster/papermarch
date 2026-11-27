@@ -24,6 +24,11 @@ constexpr u32 kGun = 0x3A3344, kWoodC = 0x7A5030, kSkin = 0xF0BE92;
 constexpr u32 kVioletC = 0x8A5CFF, kVioletDark = 0x5A34C8, kVioletLight = 0xCDBBFF;
 constexpr u32 kOgre = 0x86BE5C, kOgreDark = 0x5E9A42, kIvoryC = 0xFFF6E0;
 constexpr u32 kWhiteC = 0xFFFFFF, kSmoke = 0xF2ECE2, kSpark = 0xFFF2A0;
+constexpr u32 kOrangeC = 0xFF8A1E;  // weapons' colour (ART_DIRECTION 16)
+
+// The weapons' names: on a gate, and when taken.
+const char* const kWeaponShort[sim::kWeaponCount] = {"MUSKET", "TWIN", "SCATTER", "LANCE", "ROCKETS"};
+const char* const kWeaponName[sim::kWeaponCount] = {"MUSKET", "TWIN RIFLES", "SCATTERGUN", "LONG LANCE", "ROCKETS"};
 
 struct RoadLook {
     u32 stoneA, stoneB, mortar, curb, grassA, grassB, haze;
@@ -142,10 +147,23 @@ void Field::setArt(Art* art) {
     }
     ids_.gateSpikes = kind("gate.spikes");
     const char* guns[sim::kWeaponCount] = {"musket", "twin", "scatter", "lance", "rocket"};
+    const char* shots[sim::kWeaponCount] = {"fx.tracer", "fx.tracer_twin", "fx.pellet", "fx.bolt", "fx.rocket"};
     for (int w = 0; w < sim::kWeaponCount; ++w) {
         std::snprintf(name, sizeof name, "wpn.%s", guns[w]);
         ids_.wpn[w] = kind(name);
+        std::snprintf(name, sizeof name, "ui.wpn_%s", guns[w]);
+        ids_.wpnIcon[w] = kind(name);
+        ids_.shotFx[w] = kind(shots[w]);
     }
+    ids_.gatePostWpn = kind("gate.post_wpn");
+    ids_.crateWpn = kind("crate.wpn");
+    ids_.crateBreak = kind("fx.crate_break");
+    ids_.muzzleWide = kind("fx.muzzle_wide");
+    ids_.muzzleRing = kind("fx.muzzle_ring");
+    ids_.puffSmall = kind("fx.puff_small");
+    ids_.hitCyan = kind("fx.hit_cyan");
+    ids_.pierce = kind("fx.pierce");
+    ids_.smoke = kind("fx.smoke_trail");
     for (int i = 0; i < 6; ++i) {
         std::snprintf(name, sizeof name, "fx.confetti_%c", 'a' + i);
         const int c = kind(name);
@@ -285,6 +303,13 @@ Field::Placed Field::sprite(int anim, float x, float z, float y, float t, float 
     out.st = st + main;
     out.st2 = n == 2 ? st + (1 - main) : nullptr;
     return out;
+}
+
+void Field::icon(UiBatch& b, int anim, float x, float y, float h, float alpha, float wScale) {
+    if (anim < 0 || !art_ || h < 2.0f) return;
+    const SpriteFrame& f = art_->frameAt(anim, 0, 0);
+    const float uv[5] = {f.u0, f.v0, f.u1, f.v1, f.layer};
+    b.sprite(uv, x, y, h * f.w / maxv(1.0f, f.h) * wScale, h, {255, 255, 255, u8(clampv(alpha, 0.0f, 1.0f) * 255.0f + 0.5f)});
 }
 
 Sticker* Field::spriteAt(int anim, float key, float sx, float sy, float s, float t, float scale, float alpha, float rot) {
@@ -487,12 +512,12 @@ void Field::setLevel(const sim::LevelDef& d, int number) {
 // ---- Events: what a step did becomes bursts, figures falling, numbers and cues ----------------------------------------
 
 void Field::cue(u8 c, int step, float x) {
-    static const float gap[20] = {0.075f, 0.05f, 0.035f, 0, 0, 0.06f, 0.07f, 0, 0, 0, 0, 0.09f, 0, 0.1f, 0, 0, 0, 0, 0, 0};
+    static const float gap[20] = {0.075f, 0.05f, 0.035f, 0, 0, 0.06f, 0.07f, 0, 0, 0, 0, 0.09f, 0, 0.1f, 0, 0, 0, 0, 0.06f, 0};
     if (c < 20 && gap[c] > 0) {
         if (time - cueClock_[c] < gap[c]) return;
         cueClock_[c] = time;
     }
-    if (cueN_ < kCues) cues_[cueN_++] = {c, step, clampv(x / sim::kRoadHalf, -1.0f, 1.0f) * 0.6f};
+    if (cueN_ < kCues) cues_[cueN_++] = {c, weaponNow_, step, clampv(x / sim::kRoadHalf, -1.0f, 1.0f) * 0.6f};
 }
 
 int Field::takeCues(CueEvent* out, int max) {
@@ -601,6 +626,7 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     lastZ_ = b.z;
     lastX_ = b.x;
     if (!def_) return;
+    weaponNow_ = b.weapon < sim::kWeaponCount ? b.weapon : 0;
     const int shown = minv(kMaxShown, minv(int(tune.soldiersShown), maxv<i32>(b.squad, 0)));
     if (ev.shots > 0) {
         for (int i = 0; i < minv(ev.shots, 3) && shown > 0; ++i) flash_[int(rnd() * float(shown)) % shown] = 0.07f;
@@ -624,7 +650,7 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     // The boss: a blast on its body for every tenth of its strength gone.
     if (const int bi0 = b.bossIndex(); bi0 >= 0 && ids_.explosion >= 0 && def_->bossHp > 0) {
         const sim::Enemy& e = b.enemies[bi0];
-        const int tenth = int(std::ceil(10.0f * float(e.hp) / float(def_->bossHp)));
+        const int tenth = int(std::ceil(10.0f * float(e.hp) / float(def_->bossHp * sim::kHp)));
         if (tenth < bossTenth_) {
             bossTenth_ = tenth;
             flipbook(ids_.explosion, e.x + (rnd() - 0.5f) * 2.4f, e.z - 0.4f, 1.0f + rnd() * 2.2f, 0.6f);
@@ -651,14 +677,39 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         cue(kCueBarrelHit, 0, def_->barrels[k].x);
         if (rnd() < 0.3f) burst(def_->barrels[k].x, def_->barrels[k].z - 0.4f, 0.8f, 1, kGoldC, kGoldDarkC, 2.5f, 0.09f, 0);
     }
+    // Rockets bursting, lance bolts going through.
+    for (int i = 0; i < ev.spotN; ++i) {
+        const float x = ev.spotX[i], z = ev.spotZ[i];
+        if (ev.spotWhat[i] == 0) {
+            if (ids_.explosion >= 0) {
+                flipbook(ids_.explosionGlow, x, z - 0.12f, 0.0f, 0.8f);
+                flipbook(ids_.explosion, x, z - 0.1f, 0.0f, 0.8f);
+                flipbook(ids_.ring, x, z - 0.2f, 0.02f, 0.8f);
+            } else {
+                burst(x, z, 0.6f, 8, 0xFFB040, kSpark, 5.0f, 0.12f, 3);
+            }
+            shake_ = maxv(shake_, 0.12f);
+            cue(kCueBlast, 0, x);
+        } else if (ids_.pierce >= 0) {
+            flipbook(ids_.pierce, x, z - 0.05f, 0.7f, 1.0f);
+        }
+    }
     char t[24];
+    if (ev.weapon >= 0 && ev.weapon < sim::kWeaponCount) {  // a new weapon: its name over the squad, a fanfare
+        std::snprintf(t, sizeof t, "%s!", kWeaponName[ev.weapon]);
+        floater(0, 1.0f, 4.8f, t, kOrangeC, 0x16224F, 1.15f, true);
+        if (ids_.sparkle >= 0)
+            for (int i = 0; i < 10; ++i) flipbook(ids_.sparkle, b.x + (rnd() - 0.5f) * b.radius() * 2.0f, b.z + (rnd() - 0.5f) * b.radius(), 0.8f, 1.0f, 0, 0.03f * float(i));
+        cue(kCueWeapon, ev.weapon, b.x);
+        badgePop_ = 1;
+    }
     if (ev.gate >= 0) {
         const sim::GateDef& g = def_->gates[ev.gate];
         const i32 delta = ev.gateAfter - ev.gateBefore;
         const bool good = delta >= 0;
         if (g.kind == sim::kGateMul) std::snprintf(t, sizeof t, "\xC3\x97%d", b.gates[ev.gate].value);
         else std::snprintf(t, sizeof t, "%+d", b.gates[ev.gate].value);
-        floater(0, 1.0f, 4.4f, t, good ? kWhiteC : 0xFF7A86, 0x16224F, good ? 1.1f : 1.0f, true);
+        if (g.kind != sim::kGateWeapon) floater(0, 1.0f, 4.4f, t, good ? kWhiteC : 0xFF7A86, 0x16224F, good ? 1.1f : 1.0f, true);
         const u32 c = g.kind == sim::kGateMul ? kVioletC : (b.gates[ev.gate].value > 0 ? kBlue : kRed);
         gateUsedAt_[ev.gate] = time;
         const int side = g.kind == sim::kGateMul ? 1 : (ev.gateBefore >= 0 && b.gates[ev.gate].value >= 0 ? 0 : 2);
@@ -677,10 +728,20 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
             for (int i = 0; i < 6; ++i) flipbook(ids_.sparkle, b.x + (rnd() - 0.5f) * b.radius() * 1.8f, b.z + (rnd() - 0.5f) * b.radius(), 0.6f, 1.0f);
         int step = 0;
         for (i32 v = maxv<i32>(1, delta < 0 ? -delta : delta); v > 1 && step < 14; v /= 2) ++step;
-        cue(good ? kCueGate : kCueGateBad, step, b.x);
+        if (g.kind != sim::kGateWeapon) cue(good ? kCueGate : kCueGateBad, step, b.x);
         badgePop_ = 1;
     }
-    if (ev.barrel >= 0) {
+    if (ev.barrel >= 0 && def_->barrels[ev.barrel].weapon > 0) {  // a weapon crate opens
+        const sim::BarrelDef& bd = def_->barrels[ev.barrel];
+        if (ids_.crateBreak >= 0) flipbook(ids_.crateBreak, bd.x, bd.z - 0.1f, 0.0f, 1.0f);
+        else burst(bd.x, bd.z, 0.7f, 14, kOrangeC, kWoodC, 6.0f, 0.15f, 0);
+        if (ids_.debris >= 0) {
+            const int first = partHead_;
+            burst(bd.x, bd.z, 0.7f, 8, kWoodC, kWoodC, 6.0f, 1.0f, 0);
+            for (int i = 0; i < (reduceEffects ? 3 : 8); ++i) parts_[(first + i) % kParticles].anim = i16(ids_.debris);
+        }
+        shake_ = maxv(shake_, 0.25f);
+    } else if (ev.barrel >= 0) {
         const sim::BarrelDef& bd = def_->barrels[ev.barrel];
         std::snprintf(t, sizeof t, "+%d", ev.barrelReward);
         floater(bd.x, bd.z, 1.8f, t, kWhiteC, 0x16224F, 1.0f);
@@ -793,6 +854,18 @@ void Field::update(float dt, const sim::Battle& b) {
     if (ids_.banner >= 0 && int(shownSquad_ + 0.5f) != lastShown_) {
         lastShown_ = int(shownSquad_ + 0.5f);
         badgePop_ = 1;
+    }
+    // Rockets leave a trail of smoke: a puff behind each every 0.05 s (a dozen at most at a time).
+    smokeClock_ += dt;
+    if (smokeClock_ >= 0.05f) {
+        smokeClock_ = std::fmod(smokeClock_, 0.05f);
+        int n = 0;
+        for (int i = 0; i < b.bulletCount && n < 12 && ids_.smoke >= 0; ++i) {
+            const sim::Bullet& bl = b.bullets[i];
+            if (!bl.alive || bl.kind != sim::kRockets) continue;
+            flipbook(ids_.smoke, bl.x - bl.vx * 0.6f, bl.z - 0.6f, 0.9f, 0.8f + 0.3f * rnd(), rnd() * 6.28f);
+            ++n;
+        }
     }
     shake_ = maxv(0.0f, shake_ - dt * 2.2f);
     zoom_ = maxv(0.0f, zoom_ - dt * 0.6f);
@@ -983,10 +1056,12 @@ void Field::drawGates(const sim::Battle& b, UiBatch& labels) {
                 taken = 0.6f * maxv(0.0f, 1.0f - since / 0.15f);
             }
             const float fade = gs.passed && !gs.used ? 0.25f + 0.75f * clampv(1.0f - (b.z - gd.z) / 1.5f, 0.0f, 1.0f) : 1.0f;
-            const bool mul = gd.kind == sim::kGateMul;
-            const int kind = mul ? 1 : (gs.value > 0 ? 0 : 2);
-            static const u32 kC[3] = {0x2E8BFF, 0x9B4DFF, 0xF0323C}, kH[3] = {0xBFE4FF, 0xE6CCFF, 0xFFC2B8};
-            const u32 C = !mul && gs.value == 0 ? 0x8C96A8 : kC[kind], Hc = !mul && gs.value == 0 ? 0xD8DEE8 : kH[kind];
+            const bool mul = gd.kind == sim::kGateMul, wpn = gd.kind == sim::kGateWeapon;
+            const int kind = wpn ? 3 : (mul ? 1 : (gs.value > 0 ? 0 : 2));
+            // Blue adds, violet multiplies, red takes; a weapon is a cream panel in an orange frame (ART_DIRECTION 16).
+            static const u32 kC[4] = {0x2E8BFF, 0x9B4DFF, 0xF0323C, 0xFFF6E0}, kH[4] = {0xBFE4FF, 0xE6CCFF, 0xFFC2B8, 0xFF8A1E};
+            const bool grey = !mul && !wpn && gs.value == 0;
+            const u32 C = grey ? 0x8C96A8 : kC[kind], Hc = grey ? 0xD8DEE8 : kH[kind];
             const float top = kBottom + (kTop - kBottom) * collapse;
             float xl, yb, sb, xr, yr, sr, xt, yt, st;
             if (!cam_.project(gd.x0, gd.z, kBottom, xl, yb, sb) || !cam_.project(gd.x1, gd.z, kBottom, xr, yr, sr) ||
@@ -1011,13 +1086,25 @@ void Field::drawGates(const sim::Battle& b, UiBatch& labels) {
             p->c2[0] = u8(taken * 255.0f);
             p->c2[3] = gs.passed ? 0 : 255;
             // Its posts (over the panel's sides) and, for a barricade, sharpened stakes along its foot.
-            const int post = ids_.gatePost[kind];
+            const int post = wpn ? (ids_.gatePostWpn >= 0 ? ids_.gatePostWpn : ids_.gatePost[0]) : ids_.gatePost[kind];
             for (int side = 0; side < 2; ++side) {
                 const float x = side ? gd.x1 : gd.x0;
                 if (sprite(post, x, gd.z, 0, time, 1.0f, fade).st) castShadow(x, gd.z, 2.7f, 0.18f);
             }
             if (kind == 2 && ids_.gateSpikes >= 0)
                 for (float x = gd.x0 + 0.5f; x < gd.x1 - 0.2f; x += 1.0f) sprite(ids_.gateSpikes, x, gd.z - 0.02f, 0, time, 1.0f, fade);
+            if (wpn) {  // its weapon's icon, 1.3 units tall, the name under it
+                const int w = clampv<int>(gs.value, 0, sim::kWeaponCount - 1);
+                const float ph = yb - yt, cx = (xl + xr) * 0.5f;
+                if (fade > 0.3f) {
+                    icon(labels, ids_.wpnIcon[w], cx, yt + ph * 0.42f, minv(1.3f * sb, ph * 0.66f), fade);
+                    float size = 0.42f * sb * tune.tagScale;
+                    const float tw = UiBatch::textWidth(kWeaponShort[w], size);
+                    if (tw > (xr - xl) * 0.85f) size *= (xr - xl) * 0.85f / tw;
+                    if (size >= 7.0f) label(labels, kWeaponShort[w], cx, yt + ph * 0.86f, size, 0x16224F, 0xFFF6E0);
+                }
+                continue;
+            }
             // Its number: white, outlined in a dark shade of its colour, pulsing when it changes.
             char t[16];
             if (mul) std::snprintf(t, sizeof t, "\xC3\x97%d", gs.value);
@@ -1083,6 +1170,23 @@ void Field::drawBarrels(const sim::Battle& b, UiBatch& labels) {
         if (!cam_.project(bd.x + jig, bd.z, 0, sx, sy, s)) continue;
         const float hw = 0.5f * s;
         float top = sy - 1.28f * s;  // the barrel's top on screen (its tag sits above)
+        const bool crate = bd.weapon > 0 && bd.weapon < sim::kWeaponCount;
+        if (crate && ids_.crateWpn >= 0) {
+            // A weapon crate: its weapon's icon bobbing over it, its strength above (ART_DIRECTION 16).
+            const Placed pl = sprite(ids_.crateWpn, bd.x + jig, bd.z, 0, time, 1.0f, 1.0f, 0, false, flash * 0.3f);
+            if (pl.st) {
+                castShadow(bd.x, bd.z, 1.25f, 0.6f);
+                const float iy = sy - (1.5f + 0.08f * std::sin(time * 3.0f + float(k))) * s;
+                icon(labels, ids_.wpnIcon[bd.weapon], sx, iy, 0.9f * s);
+                const float bw = 0.95f * s, bh = maxv(3.0f, 0.13f * s), by = iy - 0.62f * s;
+                const float frac = clampv(float(bs.hp) / float(maxv<i32>(bd.hp * sim::kHp, 1)), 0.0f, 1.0f);
+                if (0.72f * s * tune.tagScale >= 7.0f) {
+                    labels.rect(sx, by, bw, bh, bh * 0.5f, rgba(0x3A2410, 200));
+                    if (frac > 0) labels.rect(sx - bw * 0.5f * (1.0f - frac), by, bw * frac, bh * 0.7f, bh * 0.35f, rgba(kOrangeC));
+                }
+            }
+            continue;
+        }
         if (ids_.barrel >= 0) {
             const Placed pl = sprite(ids_.barrel, bd.x + jig, bd.z, 0, time, 1.0f, 1.0f, 0, false, flash * 0.3f * (0.5f + 0.5f * std::sin(time * 47.0f)));
             if (pl.fr) top = pl.sy - pl.fr->py * pl.k;
@@ -1109,13 +1213,14 @@ void Field::drawBarrels(const sim::Battle& b, UiBatch& labels) {
             shadow(sx, sy, hw * 1.05f, 0.16f * s);
         }
         char t[16];
-        std::snprintf(t, sizeof t, "+%d", bd.reward);
+        if (crate) std::snprintf(t, sizeof t, "%s", kWeaponShort[bd.weapon]);
+        else std::snprintf(t, sizeof t, "+%d", bd.reward);
         const float size = 0.72f * s * tune.tagScale;
         const float ly = top - 0.62f * s;
         if (size >= 7.0f) {
             label(labels, t, sx, ly, size, kWhiteC, kGoldDeep);
             const float bw = 0.95f * s, bh = maxv(3.0f, 0.13f * s);
-            const float frac = clampv(float(bs.hp) / float(maxv<i32>(bd.hp, 1)), 0.0f, 1.0f);
+            const float frac = clampv(float(bs.hp) / float(maxv<i32>(bd.hp * sim::kHp, 1)), 0.0f, 1.0f);
             labels.rect(sx, ly + size * 0.62f, bw, bh, bh * 0.5f, rgba(0x3A2410, 200));
             if (frac > 0) labels.rect(sx - bw * 0.5f * (1.0f - frac), ly + size * 0.62f, bw * frac, bh * 0.7f, bh * 0.35f, rgba(0xFFE24A));
         }
@@ -1287,10 +1392,17 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
             const int gun = cheering ? -1 : ids_.wpn[b.weapon < sim::kWeaponCount ? b.weapon : 0];
             const Placed pg = gun >= 0 ? sprite(gun, x, z, 0, step, var * pop, 1.0f) : pl;
             const int src = gun >= 0 ? gun : ids_.soldier;
+            // Its muzzle flash, the weapon's own (the twin's right and left rifles by turns).
+            const u8 w = b.weapon < sim::kWeaponCount ? b.weapon : 0;
+            const int flashFx = w == sim::kScatter && ids_.muzzleWide >= 0  ? ids_.muzzleWide
+                                : w == sim::kLance && ids_.muzzleRing >= 0  ? ids_.muzzleRing
+                                : w == sim::kRockets && ids_.puffSmall >= 0 ? ids_.puffSmall
+                                                                            : ids_.muzzle;
             float mx, my;
-            if (flash_[i] > 0 && ids_.muzzle >= 0 && pg.st && art_->point(src, pg.elev, "muzzle", mx, my)) {
+            if (flash_[i] > 0 && flashFx >= 0 && pg.st &&
+                ((w == sim::kTwin && (i & 1) && art_->point(src, pg.elev, "muzzle2", mx, my)) || art_->point(src, pg.elev, "muzzle", mx, my))) {
                 const SpriteFrame& f0 = art_->frameAt(src, pg.elev, 0);
-                spriteAt(ids_.muzzle, z - 0.01f, pg.sx + (mx - f0.px) * pg.k, pg.sy + (my - f0.py) * pg.k, pg.s, 0.07f - flash_[i], 1.0f, 1.0f);
+                spriteAt(flashFx, z - 0.01f, pg.sx + (mx - f0.px) * pg.k, pg.sy + (my - f0.py) * pg.k, pg.s, 0.07f - flash_[i], 1.0f, 1.0f);
             }
             continue;
         }
@@ -1502,11 +1614,14 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     for (int i = 0; i < b.bulletCount; ++i) {
         const sim::Bullet& bl = b.bullets[i];
         if (!bl.alive) continue;
-        const float z = bl.z + 42.0f * step, bx0 = bl.x + bl.vx * 42.0f * step;
-        if (ids_.tracer >= 0) {  // a streak along its flight: up the road (toward the boss when it converges on it)
+        const float speed = sim::weaponStats(bl.kind).speed;
+        const float z = bl.z + speed * step, bx0 = bl.x + bl.vx * speed * step;
+        const int fx = bl.kind < sim::kWeaponCount && ids_.shotFx[bl.kind] >= 0 ? ids_.shotFx[bl.kind] : ids_.tracer;
+        if (fx >= 0) {  // a streak along its flight (each weapon's own): up the road, toward its target
+            const float y = bl.kind == sim::kRockets ? 0.9f : 0.62f;
             float ax, ay, bx, by, s;
-            if (!cam_.project(bx0, z, 0.62f, ax, ay, s) || !cam_.project(bx0 + bl.vx, z + 1.0f, 0.62f, bx, by, s)) continue;
-            sprite(ids_.tracer, bx0, z, 0.62f, time, 1.0f, 1.0f, std::atan2(bx - ax, ay - by));
+            if (!cam_.project(bx0, z, y, ax, ay, s) || !cam_.project(bx0 + bl.vx, z + 1.0f, y, bx, by, s)) continue;
+            sprite(fx, bx0, z, y, time, 1.0f, 1.0f, std::atan2(bx - ax, ay - by));
             continue;
         }
         float sx, sy, s;

@@ -149,6 +149,7 @@ void Game::loadLevel(int n) {
     level_ = clampv(n, 1, sim::levelCount());
     def_ = &sim::level(level_);
     battle_.init(*def_);
+    if (args_.weapon >= 0 && args_.weapon < sim::kWeaponCount) battle_.weapon = u8(args_.weapon);
     go_ = false;
     steerX_ = 0;
     steerDown_ = false;
@@ -184,6 +185,7 @@ void Game::enterLevel(int n, bool turn) {
 
 void Game::restart() {
     battle_.init(*def_);
+    if (args_.weapon >= 0 && args_.weapon < sim::kWeaponCount) battle_.weapon = u8(args_.weapon);
     go_ = false;
     steerX_ = 0;
     steerDown_ = false;

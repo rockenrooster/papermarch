@@ -33,18 +33,26 @@ parallel jobs everywhere.
 4. Wake waves whose front is within 62 units (`spawnWave`: ranks of `gap = 2.05·radius`, odd rows offset half a gap,
    each soldier jittered by ±0.25 and ±0.4 gaps); place the boss at the level's length when it is within 62.
 5. Gates whose z the squad's centre crossed this step: the one containing `x` applies (`+value` or `×value`, clamped to
-   0..99,999), the others become `passed`.
-6. Barrels within reach of the squad's front and footprint: run into, they burst and cost max(1, hp/2).
-7. Fire: `fireRate·dt` bullets accumulate; each starts at a random point across the squad's footprint (x ± radius,
-   squeezed inside the road: `footprint`) and goes for the nearest enemy ahead (by distance up the road, then across)
-   whose hit points exceed the damage already flying at it (`incoming`), led to where the two meet (the owner,
-   2026-11-27: "generally hit the closest enemy to the squad"); the fire spreads over the front ranks, a brute in front
-   takes all it needs, the boss everything once nothing stands before it. With no enemy within range a bullet flies
-   straight up the road (and grows the gates and breaks the barrels in its lane).
-8. Bullets: enemies are bucketed by distance ahead (64 one-unit cells, rebuilt each step by `fire`); each bullet moves 42
-   units a second along its aim, finds the nearest growing gate, barrel or enemy along its step and stops there (a gate
-   gains one up to its cap; a barrel or enemy loses the bullet's damage), or flies on until its range (48 units) is
-   spent; when it stops, its damage no longer counts as incoming. Compacting the dead away remaps the bullets' targets.
+   0..99,999; a weapon gate hands over weapon `value`), the others become `passed`.
+6. Barrels within reach of the squad's front and footprint: run into, they burst and cost max(1, hp/2) (a weapon crate
+   still hands over its weapon).
+7. Fire: the squad carries one weapon (`weapon`, `WeaponStats`, docs/CONTENT_PASS.md 1; the level's `gun` at the start).
+   Hit points are counted in tenths (`kHp`); a musket ball does `damage() = max(10, squad/5)` tenths and the musket
+   fires `fireRate()` shots a second; the weapon multiplies both. `rate·fireRate·dt` shots accumulate; each starts at a
+   random point across the squad's footprint (x ± radius, squeezed inside the road: `footprint`) and goes for the nearest
+   enemy within the weapon's range (by distance up the road, then across) whose hit points exceed the damage already
+   flying at it (`incoming`), led to where the two meet (the owner, 2026-11-27: "generally hit the closest enemy to the
+   squad"); the fire spreads over the front ranks, a brute in front takes all it needs, the boss everything once nothing
+   stands before it. With no enemy within range a shot flies straight up the road (and grows the gates and breaks the
+   barrels in its lane). Twin rifles fire a pair 0.5 apart; the scattergun a fan of five over ±14°, only its aimed
+   middle pellet counted as incoming and growing gates.
+8. Bullets: enemies are bucketed by distance ahead (64 one-unit cells, rebuilt each step by `fire`); each bullet moves at
+   its weapon's speed along its aim, finds the nearest growing gate or barrel along its step, and the enemies before it:
+   a ball stops at the first enemy (or at the gate, which gains one up to its cap, or the barrel); a lance bolt passes
+   through up to six enemies, each once (those whose middle it passes this step), and stops at the boss or a structure;
+   a rocket bursts where it strikes, half its direct damage to every other enemy within 1.8 (`blast`).
+   A bullet flies on until its range is spent; when it strikes, its damage no longer counts as incoming. Compacting
+   the dead away remaps the bullets' targets.
 9. Enemies: march down; within 14 units close in on `x` (riders faster); one that touches the footprint
    (`d < 0.6·r + radius`, across within the footprint ± radius) costs its strength and is gone (and is counted against its wave,
    `waveLost`); the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
@@ -60,8 +68,9 @@ only moves stars, so nothing depends on cross-platform equality.
 ## 4. Levels
 
 The text form, one string per level: `S<start> L<length×10> V<speed×100> B<bossHp> W<world> X<boss> T<hint> E<seed>
-A<star2> C<star3> R<botEnd>`, then `g<x0>,<x1>,<z>,<value>,<kind>,<grows>,<cap>` (x and z ×10), `b<x>,<z>,<hp>,<reward>`,
-`w<z>,<x0>,<x1>,<count>,<kind>`. `generate` returns a level that has been through this form, so the bake plays exactly
+A<star2> C<star3> R<botEnd>`, optional `K<spike> Y<pace×100> D<drain×10> P<planLook×10> Q<plan,...> G<gun>`, then
+`g<x0>,<x1>,<z>,<value>,<kind>,<grows>,<cap>` (x and z ×10; kind 2 is a weapon gate, its value the weapon),
+`b<x>,<z>,<hp>,<reward>`, `c<x>,<z>,<hp>,<weapon>` (a weapon crate, in the barrels' list), `w<z>,<x0>,<x1>,<count>,<kind>`. `generate` returns a level that has been through this form, so the bake plays exactly
 what the table will hold. `levelCount()`/`level(n)` decode `kBaked[]` once; a fallback level exists if the table is empty.
 
 ## 5. The view (`src/game/field.*`)

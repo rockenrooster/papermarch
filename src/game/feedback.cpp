@@ -41,9 +41,27 @@ void Feedback::cue(const CueEvent& c, double now) {
     rng_ = rng_ * 1664525u + 1013904223u;
     const float jitter = 0.94f + 0.12f * float(rng_ >> 24) / 255.0f;
     switch (c.cue) {
-        case kCueShot:  // a volley: louder with more guns, never a wall of noise
-            play(kSndShot, minv(0.75f, 0.42f + 0.04f * float(c.step)), c.pan + (jitter - 1.0f) * 3.0f, jitter);
+        case kCueShot: {  // a volley: louder with more guns, never a wall of noise; each weapon its own voice
+            const float v = minv(0.75f, 0.42f + 0.04f * float(c.step)), pan = c.pan + (jitter - 1.0f) * 3.0f;
+            switch (c.weapon) {
+                case sim::kTwin: play(kSndShot, v * 0.85f, pan, jitter * 1.35f); break;
+                case sim::kScatter:
+                    play(kSndShot, v, pan, jitter * 0.72f);
+                    play(kSndKnock, v * 0.5f, pan, jitter * 0.8f);
+                    break;
+                case sim::kLance: play(kSndShot, v * 0.8f, pan, jitter * 1.9f); break;
+                case sim::kRockets: play(kSndSwish, v * 0.9f, pan, jitter * 0.8f); break;
+                default: play(kSndShot, v, pan, jitter); break;
+            }
             break;
+        }
+        case kCueWeapon:  // a new weapon: a snare roll and a bright brass note
+            play(kSndSnare, 0.7f, c.pan);
+            play(kSndHorn, 0.6f, c.pan, 1.5f, 0.06f);
+            play(kSndCoin, 0.6f, c.pan, 0.8f, 0.12f);
+            haptic(kHapticMedium, now);
+            break;
+        case kCueBlast: play(kSndBoom, 0.55f, c.pan, jitter * 1.3f); break;
         case kCueHit: play(kSndThwack, 0.45f, c.pan, jitter * 1.2f); break;
         case kCueKill:
             play(c.step == sim::kBrute ? kSndClash : kSndFlip, c.step == sim::kBrute ? 0.7f : 0.5f, c.pan, jitter);

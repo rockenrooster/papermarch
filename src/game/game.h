@@ -80,7 +80,9 @@ private:
     // the art has none; a title ribbon (0 cobalt, 1 red, 2 gold) with its text.
     enum UiArt {
         kUiStarFull, kUiStarEmpty, kUiShako, kUiBossHead, kUiSkull, kUiHand, kUiTrophy, kUiLogo, kUiRays,
-        kUiRibbonL, kUiRibbonM, kUiRibbonR, kUiRedL, kUiRedM, kUiRedR, kUiGoldL, kUiGoldM, kUiGoldR, kUiArtCount
+        kUiRibbonL, kUiRibbonM, kUiRibbonR, kUiRedL, kUiRedM, kUiRedR, kUiGoldL, kUiGoldM, kUiGoldR,
+        kUiWeapon,  // the weapons' icons, by sim::WeaponKind from here
+        kUiArtCount = kUiWeapon + sim::kWeaponCount
     };
     void findUiArt();
     bool uiArt(int which, float x, float y, float hDp, Rgba tint = {255, 255, 255, 255}, float angle = 0, float hue = 0);
@@ -90,6 +92,8 @@ private:
     int uiArt_[kUiArtCount] = {};
     float uiDt_ = 0;     // this frame's step, for the UI's own motion
     float bossLag_ = 1;  // the boss bar's trailing gold strip
+    int shownWeapon_ = -1;   // the weapon in the HUD's chip, and how fresh it is (1 just taken, popping)
+    float weaponPop_ = 0;
     void flowStep();
     bool press(const char* label);  // the flow test: a tap on a control by its label
     // Pictures (pictures.cpp).

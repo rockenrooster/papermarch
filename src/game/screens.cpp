@@ -38,10 +38,11 @@ const char* bossTitle(int world) {
 }  // namespace
 
 void Game::findUiArt() {
-    static const char* const names[kUiArtCount] = {
+    static const char* const names[] = {
         "ui.star_full", "ui.star_empty", "ui.shako", "ui.boss_head", "ui.skull", "ui.hand", "ui.trophy", "ui.logo", "ui.rays",
         "ui.ribbon_l", "ui.ribbon_m", "ui.ribbon_r", "ui.ribbon_red_l", "ui.ribbon_red_m", "ui.ribbon_red_r", "ui.ribbon_gold_l",
-        "ui.ribbon_gold_m", "ui.ribbon_gold_r"};
+        "ui.ribbon_gold_m", "ui.ribbon_gold_r", "ui.wpn_musket", "ui.wpn_twin", "ui.wpn_scatter", "ui.wpn_lance", "ui.wpn_rocket"};
+    static_assert(sizeof names / sizeof names[0] == kUiArtCount, "a name for every UI sprite");
     for (int i = 0; i < kUiArtCount; ++i) uiArt_[i] = art_.ready() ? art_.findKind(names[i]) : -1;
 }
 
@@ -201,6 +202,19 @@ void Game::drawHud() {
         return;
     }
     pauseGlyph(uiBatch_, pr, L, pauseDown);
+    // Left of it: the weapon the squad carries once it is not the musket, popping when just taken.
+    const int wpn = battle_.weapon < sim::kWeaponCount ? battle_.weapon : 0;
+    if (wpn != shownWeapon_) {
+        if (shownWeapon_ >= 0) weaponPop_ = 1;
+        shownWeapon_ = wpn;
+    }
+    weaponPop_ = maxv(0.0f, weaponPop_ - uiDt_ * 3.0f);
+    if (wpn != sim::kMusket && uiArt_[kUiWeapon + wpn] >= 0) {
+        const float s = 1.0f + 0.35f * weaponPop_ * weaponPop_;
+        const float cx = pr.x - L.px(34), cy = pr.cy();
+        uiBatch_.rect(cx, cy, L.px(46) * s, L.px(46) * s, L.px(23) * s, rgba(ui::kCard), rgba(ui::kInk), L.px(2.5f));
+        uiArt(kUiWeapon + wpn, cx, cy, 32.0f * s);
+    }
     // Under it: the road to the end with the soldier marching along it, or once the ogre is in sight, its strength.
     const float barY = top + L.px(82);
     const float barW = minv(W - L.safe.left - L.safe.right - L.px(84), L.px(420));
@@ -208,7 +222,7 @@ void Game::drawHud() {
     const Rgba headTint = rgba(bossTint());
     const int bi = battle_.bossIndex();
     if (bi >= 0 && battle_.enemies[bi].z - battle_.z < 60.0f) {
-        const float frac = clampv(float(battle_.enemies[bi].hp) / float(maxv<i32>(def_->bossHp, 1)), 0.0f, 1.0f);
+        const float frac = clampv(float(battle_.enemies[bi].hp) / float(maxv<i32>(def_->bossHp * sim::kHp, 1)), 0.0f, 1.0f);
         bossLag_ = maxv(frac, minv(bossLag_, 1.0f) - uiDt_ * 0.35f);  // a gold strip trails what was just lost
         const float h = L.px(26);
         uiBatch_.rect(W * 0.5f, barY, barW, h, h * 0.5f, rgba(ui::kInk), rgba(col::kWhite, 90), L.px(1.5f));

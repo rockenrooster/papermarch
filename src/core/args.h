@@ -8,6 +8,7 @@ namespace pm {
 struct Args {
     char scenario[24] = "play";    // play | bench_idle | bench_battle | bench_play | sim_hash
     int level = 0;                 // 0: the saved level
+    int weapon = -1;               // >= 0: the squad starts every level with this weapon (pictures, checks)
     i64 seed = -1;                 // -1: the level's own
     int world = 0;                 // 0: the level's own (1..10)
     char bot[12] = "";             // best | greedy | random
