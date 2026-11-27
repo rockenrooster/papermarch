@@ -60,6 +60,8 @@ void snap(LevelDef& d) {
     for (int i = 0; i < d.medalCount; ++i) d.medals[i].x = r10(d.medals[i].x), d.medals[i].z = r10(d.medals[i].z);
     for (int i = 0; i < d.mineCount; ++i) d.mines[i].x = r10(d.mines[i].x), d.mines[i].z = r10(d.mines[i].z);
     for (int i = 0; i < d.cageCount; ++i) d.cages[i].x = r10(d.cages[i].x), d.cages[i].z = r10(d.cages[i].z);
+    for (int i = 0; i < d.rollerCount; ++i) d.rollers[i].x = r10(d.rollers[i].x), d.rollers[i].z = r10(d.rollers[i].z);
+    for (int i = 0; i < d.wallCount; ++i) d.walls[i].z = r10(d.walls[i].z);
     for (int i = 0; i < d.waveCount; ++i) {
         WaveDef& w = d.waves[i];
         w.z = r10(w.z);
@@ -128,13 +130,19 @@ bool cratePower(u8 p) { return !medalPower(p) || p == kRapid || p == kPowerShot 
 
 }  // namespace
 
+// Each block of ten (docs/CONTENT_PASS.md 4.1): 1 march, 2 arsenal, 3 rescue, 4 gauntlet, 5 gold rush, 6 march, 7 siege,
+// 8 rush, 9 giants' road, 10 the boss; each mode from the level that brings it in (a march before); a hard level marches.
 u8 levelMode(int n) {
     const int slot = (n - 1) % 10 + 1;
     if (slot == 10) return kModeBoss;
     if (isSpike(n)) return kModeMarch;
     if (slot == 5 && n >= 15) return kModeGold;
+    if (n == 33 || (slot == 7 && n >= 37)) return kModeSiege;
     if (slot == 2 && n >= 22) return kModeArsenal;
-    if (slot == 4 && n >= 24) return kModeRescue;  // (slot 3 once the gauntlet takes slot 4: step 6)
+    if (slot == 3 && n >= 34) return kModeRescue;  // rescue moves here once the gauntlet takes slot 4
+    if (slot == 4) return n >= 34 ? kModeGauntlet : n >= 24 ? kModeRescue : kModeMarch;
+    if (slot == 8 && n >= 38) return kModeRush;
+    if (slot == 9 && n >= 49) return kModeGiants;
     return kModeMarch;
 }
 
@@ -188,9 +196,9 @@ void build(int n, u64 seed, Shape& out) {
     // level faster still. Each level is longer than the one before, from half a minute to about fifteen at level 100
     // (the owner, 2026-11-27): the road is the time at the march's speed, less the third spent standing for hordes.
     const float late = float(n - 1) / float(kLevels - 1);
-    d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f);
+    d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f) * (levelMode(n) == kModeRush ? 1.5f : 1.0f);
     d.pace = (1.0f + 0.35f * late) * (isSpike(n) ? 1.1f : 1.0f);
-    d.length = levelSeconds(n) * d.speed * 0.68f + (d.boss ? 24.0f : 0.0f);
+    d.length = levelSeconds(n) * d.speed * (levelMode(n) == kModeRush ? 0.4f : 0.68f) + (d.boss ? 24.0f : 0.0f);  // a rush is short
     d.start = n <= 5 ? 3 : 3 + int(r.next() % 4u);
     switch (n) {  // introductions: their hint lines (src/sim/levels.cpp)
         case 1: d.hint = 1; break;
@@ -239,6 +247,13 @@ void build(int n, u64 seed, Shape& out) {
         d.start = 3;
     }
     if (arsenal) d.hint = 26;
+    const bool siege = d.mode == kModeSiege, gauntlet = d.mode == kModeGauntlet, rush = d.mode == kModeRush, giantsRoad = d.mode == kModeGiants;
+    if (siege) d.hint = 48;
+    if (gauntlet) d.hint = 49;
+    if (rush) d.hint = 50;
+    if (giantsRoad) d.hint = 51;
+    const bool rollers = n >= 27;  // boulders down marked lanes, from 27
+    if (n == 27) d.hint = 47;
     // What this level knows (docs/CONTENT_PASS.md 4.2): mines from 13, archers from 17, moving gates from 19, catapults
     // from 21, cages from 24, shield bearers from 26, giants from 29, bombers from 37, drummers from 42; each is brought
     // in on its first level.
@@ -310,7 +325,7 @@ void build(int n, u64 seed, Shape& out) {
     int section = 0, last = -1;
     while (z < end) {
         const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount,
-                  minesBefore = d.mineCount, cagesBefore = d.cageCount;
+                  minesBefore = d.mineCount, cagesBefore = d.cageCount, rollersBefore = d.rollerCount, wallsBefore = d.wallCount;
         // Above the level's ceiling: gains shrink by `over`, multipliers are left out.
         const float over = maxv(1.0f, E / ceilingOf(n));
         const bool grow = over <= 1.0f;
@@ -318,20 +333,24 @@ void build(int n, u64 seed, Shape& out) {
         // this level knows, never the same twice running. The first section is always gates.
         int kind;
         if (section == 0) kind = n < 10 || r.f01() < 0.5f ? 0 : 1;
-        else if (section == 1 && offer > 0) kind = 6;
+        else if (section == 1 && n == 27) kind = 9;  // the first rollers (the level's weapon comes next)
+        else if (section == (n == 27 ? 2 : 1) && offer > 0) kind = 6;
         else if (section == 1 && n == 19) kind = 7;  // the first moving gate
-        else if (!gold && sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
+        // A horde after every two or three other sections: never on a gold rush, a rush or a gauntlet (their roads are
+        // hazards and gates; the end fight is their only horde).
+        else if (!gold && !rush && !gauntlet && sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
         else {
-            // Gold rush: gates, barrels, medallions; rescue: few gates.
-            const float gk = rescue ? 0.4f : 1.0f;
-            float w[9] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
-                          triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f};
-            if (last >= 0 && last < 9) w[last] *= 0.12f;
+            // Gold rush: gates, barrels, medallions; rescue: few gates; gauntlet: rollers and minefields, gates as bait.
+            const float gk = rescue ? 0.4f : gauntlet ? 0.5f : 1.0f;
+            float w[11] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
+                           triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f,
+                           rollers && !gold ? (gauntlet ? 3.0f : rush ? 1.5f : 0.6f) : 0.0f, gauntlet || (rush && mines) ? 1.4f : 0.0f};
+            if (last >= 0 && last < 11) w[last] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
             float x = r.f01() * sum;
             kind = 0;
-            for (int k = 0; k < 9; ++k) {
+            for (int k = 0; k < 11; ++k) {
                 if (x < w[k]) {
                     kind = k;
                     break;
@@ -442,6 +461,24 @@ void build(int n, u64 seed, Shape& out) {
                 ++sinceWave;
                 break;
             }
+            case 9: {  // rollers: one to three boulders waiting down different lanes
+                const int k = n == 27 && section <= 2 ? 1 : 1 + int(r.next() % 3u);
+                int lane = int(r.next() % 3u);
+                for (int i = 0; i < k && d.rollerCount < kMaxRollers; ++i) {
+                    d.rollers[d.rollerCount++] = {-2.6f + 2.6f * float(lane), z + 10.0f + 9.0f * float(i)};
+                    lane = (lane + 1 + int(r.next() % 2u)) % 3;
+                }
+                z += 16.0f + 9.0f * float(k);
+                ++sinceWave;
+                break;
+            }
+            case 10: {  // a minefield across the road
+                const int k = 5 + int(r.next() % 5u);
+                for (int i = 0; i < k && d.mineCount < kMaxMines; ++i) d.mines[d.mineCount++] = {uni(r, -4.2f, 4.2f), z + uni(r, 4.0f, 14.0f)};
+                z += 18.0f;
+                ++sinceWave;
+                break;
+            }
             case 8: {  // a gold rush's medallions, one or two across the road
                 const int k = 1 + int(r.next() % 2u);
                 for (int i = 0; i < k && d.medalCount < kMaxMedals; ++i) {
@@ -480,12 +517,12 @@ void build(int n, u64 seed, Shape& out) {
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
                 const bool withRiders = riders && r.f01() < 0.4f, withBrutes = brutes && r.f01() < 0.35f;
-                const bool withArchers = archers && (n == 17 ? archerRanks == 0 : r.f01() < 0.3f);
+                const bool withArchers = archers && (siege || (n == 17 ? archerRanks == 0 : r.f01() < 0.3f));
                 if (withArchers) ++archerRanks;
                 // A catapult at the road's side beyond it; a giant at its head (with three seconds of the squad's fire in
                 // it), each brought in on its own level.
                 const bool withCatapult = catapults && (n == 21 ? catapultsLaid == 0 : r.f01() < 0.25f);
-                const bool withGiant = !gold && giants && (n == 29 ? giantsLaid == 0 : r.f01() < 0.18f);
+                const bool withGiant = !gold && giants && (giantsRoad || (n == 29 ? giantsLaid == 0 : r.f01() < 0.18f));
                 if (withCatapult) ++catapultsLaid;
                 if (withGiant) ++giantsLaid;
                 const float catX = r.f01() < 0.5f ? -3.6f : 3.6f;
@@ -499,6 +536,10 @@ void build(int n, u64 seed, Shape& out) {
                 if (withBombers) ++bomberRuns;
                 if (withDrums) ++drumBands;
                 const float zw = z;
+                // A siege: a fort wall before the horde (it waits behind it), archers on the ramparts; the wall holds about
+                // four to seven seconds of the squad's fire.
+                if (siege && d.wallCount < kMaxWalls) d.walls[d.wallCount++] = {zw + 4.0f, maxv<i32>(20, i32(dps(E) * uni(r, 4.0f, 7.0f)))};
+                const float archerZ = siege ? zw + 12.0f : zw + 21.0f;
                 // This section's waves for a horde of `count` foot (and those that come with them).
                 auto lay = [&](float count) {
                     d.waveCount = wavesBefore;
@@ -509,9 +550,10 @@ void build(int n, u64 seed, Shape& out) {
                     if (withBrutes) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(maxv<i32>(1, foot / 12), 320), kBrute, tough(kBrute, k)};
                     // Archers behind it all, standing in their ranks.
                     if (withArchers)
-                        d.waves[d.waveCount++] = {zw + 21.0f, -4.2f, 4.2f, minv(maxv<i32>(3, foot / 5), 80), kArcher, tough(kArcher)};
+                        d.waves[d.waveCount++] = {archerZ, -4.2f, 4.2f, minv(maxv<i32>(3, foot / 5), 80), kArcher, tough(kArcher)};
                     if (withCatapult) d.waves[d.waveCount++] = {zw + 26.0f, catX, catX, 1, kCatapult};
                     if (withGiant) d.waves[d.waveCount++] = {zw + 9.0f, -0.6f, 0.6f, 1, kGiant, giantHp};
+                    if (withGiant && giantsRoad) d.waves[d.waveCount++] = {zw + 16.0f, -2.6f, 2.6f, 2, kGiant, giantHp};  // two more
                     if (withShields)
                         d.waves[d.waveCount++] = {zw + 8.5f, cx - half, cx + half, minv(maxv<i32>(3, foot / 8), 60), kShieldman, tough(kShieldman, k)};
                     if (withBombers)
@@ -566,6 +608,8 @@ void build(int n, u64 seed, Shape& out) {
             d.medalCount = medalsBefore;
             d.mineCount = minesBefore;
             d.cageCount = cagesBefore;
+            d.rollerCount = rollersBefore;
+            d.wallCount = wallsBefore;
         }
     }
     // The end: the boss, or a last stand of the horde across the road; finish() sizes it.

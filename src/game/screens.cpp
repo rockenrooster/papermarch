@@ -45,7 +45,8 @@ void Game::findUiArt() {
         "ui.wpn_flame", "ui.pow_fieldgun" /* the cannon */, "ui.wpn_coil", "ui.wpn_mortar", "ui.wpn_frost",
         "ui.pow_none", "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike", "ui.pow_magnet",
         "ui.pow_giants", "ui.pow_reinforce", "ui.pow_quick", "ui.pow_hourglass", "ui.pow_double", "ui.pow_fieldgun",
-        "ui.mode_march", "ui.mode_boss", "ui.mode_gold", "ui.mode_rescue", "ui.mode_arsenal"};
+        "ui.mode_march", "ui.mode_boss", "ui.mode_gold", "ui.mode_rescue", "ui.mode_arsenal", "ui.mode_siege", "ui.mode_gauntlet",
+        "ui.mode_rush", "ui.mode_giants"};
     static_assert(sizeof names / sizeof names[0] == kUiArtCount, "a name for every UI sprite");
     for (int i = 0; i < kUiArtCount; ++i) uiArt_[i] = art_.ready() ? art_.findKind(names[i]) : -1;
 }

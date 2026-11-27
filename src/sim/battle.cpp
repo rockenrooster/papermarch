@@ -66,7 +66,7 @@ void Battle::init(const LevelDef& d) {
     x = z = vx = time = 0;
     started = won = lost = halted = false;
     enemyCount = bulletCount = 0;
-    gatesInit_ = barrelsInit_ = 0;
+    gatesInit_ = barrelsInit_ = rollersInit_ = wallsInit_ = 0;
     sync();
     nextWave = 0;
     bossDrain = bossRate = 0;
@@ -131,6 +131,29 @@ void Battle::spawnWave(int w, BattleEvents& ev) {
 void Battle::sync() {
     for (; gatesInit_ < def->gateCount; ++gatesInit_) gates[gatesInit_] = {def->gates[gatesInit_].value, 0, 0, 99.0f};
     for (; barrelsInit_ < def->barrelCount; ++barrelsInit_) barrels[barrelsInit_] = {def->barrels[barrelsInit_].hp * kHp, 0, 99.0f};
+    for (; rollersInit_ < def->rollerCount; ++rollersInit_) rollerGone[rollersInit_] = 0;
+    for (; wallsInit_ < def->wallCount; ++wallsInit_) {
+        wallHp[wallsInit_] = def->walls[wallsInit_].hp * kHp;
+        wallHit[wallsInit_] = 99.0f;
+    }
+}
+
+int Battle::wallAhead() const {
+    int best = -1;
+    for (int w = 0; w < def->wallCount; ++w)
+        if (wallHp[w] > 0 && def->walls[w].z > z - 1.0f && (best < 0 || def->walls[w].z < def->walls[best].z)) best = w;
+    return best;
+}
+
+void Battle::hitWall(int w, i32 dmg, BattleEvents& ev) {
+    if (wallHp[w] <= 0) return;
+    wallHp[w] -= dmg;
+    wallHit[w] = 0;
+    ++ev.hits;
+    if (wallHp[w] <= 0) {
+        wallHp[w] = 0;
+        ev.wallDown = w;
+    }
 }
 
 void Battle::gateSpan(int g, float t, float& lo, float& hi) const {
@@ -249,6 +272,7 @@ void Battle::scorch(i32 dmg, BattleEvents& ev) {
         const float dz = md.z - z0;
         if (!mineGone[m] && dz > -1.0f && dz < w.range && std::fabs(md.x - x) <= base + maxv(0.0f, dz) * w.spread) explode(m, ev);
     }
+    if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z0 < w.range) hitWall(wa, dmg, ev);
 }
 
 void Battle::bucket() {
@@ -434,6 +458,8 @@ void Battle::powers(BattleEvents& ev) {
         if (s.t <= 0.0f) {
             bucket();
             blast(s.x, s.z, weaponStats(kMortar).splash, s.dmg, -1, 5, ev);
+            for (int w = 0; w < def->wallCount; ++w)
+                if (std::fabs(def->walls[w].z - s.z) < weaponStats(kMortar).splash) hitWall(w, s.dmg * 3, ev);
         } else {
             shells[o++] = s;
         }
@@ -537,9 +563,23 @@ void Battle::attacks(BattleEvents& ev) {
         s.t = s.full = 1.2f;
         s.fromX = e.x;
         s.fromZ = e.z;
-        s.cap = 14;
+        s.cap = toll(14);
         strike(s, ev);
         ++ev.thrown;
+    }
+    // Rollers within 30 start down their lanes, at 7 units a second toward the squad.
+    for (int k = 0; k < def->rollerCount; ++k) {
+        const RollerDef& rd = def->rollers[k];
+        if (rollerGone[k] || rd.z - z > 30.0f || rd.z < z) continue;
+        rollerGone[k] = 1;
+        Strike s;
+        s.kind = 3;
+        s.x = rd.x;
+        s.z = rd.z;
+        s.r = 1.2f;
+        s.t = s.full = maxv(1.0f, (rd.z - z) / (7.0f + def->speed));
+        s.cap = maxv<i32>(1, squad * 4 / 10);
+        strike(s, ev);
     }
     // The boss's attacks while it is in sight and not frozen: the club when it is close, boulders while it is not, the
     // stomp's ridge, a war cry at two thirds and one third of its strength.
@@ -619,6 +659,7 @@ void Battle::attacks(BattleEvents& ev) {
         float f;
         if (s.kind == 0) f = std::fabs(s.z - z) <= s.r + radius() * 0.6f ? share(s.x - s.r, s.x + s.r) : 0.0f;
         else if (s.kind == 1) f = s.x < 0.0f ? share(-kRoadHalf, 0.0f) : share(0.0f, kRoadHalf);
+        else if (s.kind == 3) f = share(s.x - s.r, s.x + s.r);
         else f = 1.0f - share(s.x - 1.5f, s.x + 1.5f);
         const i32 n = minv(s.cap, i32(std::ceil(float(squad) * f - 0.001f)));
         lose(n, ev);
@@ -779,6 +820,13 @@ void Battle::moveBullets(BattleEvents& ev) {
                 gs.value = minv(gs.value + 1, gd.cap);
                 gs.hit = 0;
             }
+            bool walled = false;
+            for (int wl = 0; wl < def->wallCount && !walled; ++wl)
+                if (wallHp[wl] > 0 && def->walls[wl].z >= zp && def->walls[wl].z < zn) {
+                    hitWall(wl, b.dmg * 3, ev);
+                    walled = true;
+                }
+            if (walled) continue;
             b.z = zn;
             if (b.z < b.zEnd) bullets[o++] = b;
             continue;
@@ -815,6 +863,15 @@ void Battle::moveBullets(BattleEvents& ev) {
                 wallZ = md.z - 0.5f;
                 kind = 3;
                 which = m;
+            }
+        }
+        for (int wl = 0; wl < def->wallCount; ++wl) {  // a fort wall across the whole road
+            const float wz = def->walls[wl].z - 0.4f;
+            if (wallHp[wl] <= 0 || wz < zp || wz > zn) continue;
+            if (wz < wallZ) {
+                wallZ = wz;
+                kind = 4;
+                which = wl;
             }
         }
         // Enemies before that, nearest first: a ball stops at the first; a lance bolt goes through up to `pierce` of
@@ -877,10 +934,12 @@ void Battle::moveBullets(BattleEvents& ev) {
                 bs.hit = 0;
                 ++ev.hits;
                 if (bs.hp <= 0) breakBarrel(which, ev);
-            } else {
+            } else if (kind == 3) {
                 mineHp[which] -= b.dmg;
                 ++ev.hits;
                 if (mineHp[which] <= 0) explode(which, ev);
+            } else {  // rockets do three times to a wall
+                hitWall(which, b.kind == kRockets ? b.dmg * 3 : b.dmg, ev);
             }
             if (w.splash > 0.0f) blast(b.x, wallZ, w.splash, i32(float(b.dmg) * w.splashDamage / w.damage + 0.5f), -1, 0, ev);
             continue;
@@ -904,6 +963,8 @@ void Battle::moveEnemies(BattleEvents& ev) {
             drumZ_[drumN_++] = enemies[i].z;
         }
     const bool giants = powered(kGiants);  // GIANTS: what touches the squad is trampled and takes nothing
+    const int wa = wallAhead();
+    const float wallZ = wa >= 0 ? def->walls[wa].z : -1e9f;  // the horde waits behind it
     for (int i = 0; i < enemyCount; ++i) {
         Enemy& e = enemies[i];
         if (!e.alive) continue;
@@ -930,6 +991,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
         }
         if (!(powered(kFreeze) && d < 45.0f) && e.kind != kArcher && e.kind != kCatapult) {  // frozen (or one that stands)
             e.z -= enemySpeed(e) * kDt;
+            if (e.z + enemyStats(e.kind).speed * kDt > wallZ && e.z < wallZ + 0.8f) e.z = wallZ + 0.8f;
             if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * def->pace * k * kDt;
         }
         if (d < r * 0.6f + st.radius && e.x > lo - st.radius && e.x < hi + st.radius) {
@@ -965,7 +1027,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
 void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     ev.clear();
     if (won || lost || !def) return;
-    if (gatesInit_ < def->gateCount || barrelsInit_ < def->barrelCount) sync();
+    if (gatesInit_ < def->gateCount || barrelsInit_ < def->barrelCount || rollersInit_ < def->rollerCount || wallsInit_ < def->wallCount) sync();
     if (!started) {
         if (!go) return;
         started = true;
@@ -989,6 +1051,8 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
         const float d = e.z - z;
         halted = e.alive && d > 0.5f && d < 25.0f && e.kind != kBoss && e.kind != kArcher && e.kind != kCatapult;
     }
+    // A fort wall stops it until it falls.
+    if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z < 2.0f + r * 0.5f) halted = true;
     if (!bossNear && !halted && !(def->bossHp == 0 && z >= def->length)) z += def->speed * (powered(kQuick) ? 1.6f : 1.0f) * kDt;
     while (nextWave < def->waveCount && def->waves[nextWave].z - z < kWake) spawnWave(nextWave++, ev);
     if (def->bossHp > 0 && boss_ < 0 && !won && def->length - z < kWake && enemyCount < kMaxEnemies) {
@@ -1108,6 +1172,7 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     powers(ev);
     for (int g = 0; g < def->gateCount; ++g) gates[g].hit += kDt;
     for (int k = 0; k < def->barrelCount; ++k) barrels[k].hit += kDt;
+    for (int w = 0; w < def->wallCount; ++w) wallHit[w] += kDt;
     if (squad <= 0) {
         squad = 0;
         lost = true;

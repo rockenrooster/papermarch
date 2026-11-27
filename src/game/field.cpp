@@ -880,6 +880,18 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     }
     char t[24];
     if (ev.doubled) floater(0, 1.0f, 5.8f, "DOUBLED!", kGoldC, 0x16224F, 1.0f, true);
+    if (ev.wallDown >= 0) {
+        const float wz = def_->walls[ev.wallDown].z;
+        for (int i = 0; i < 5; ++i) {
+            const float x = -4.0f + 2.0f * float(i);
+            if (ids_.explosion >= 0) flipbook(ids_.explosion, x, wz - 0.1f, 0.6f + rnd() * 1.2f, 0.9f, 0, 0.06f * float(i));
+            if (ids_.dust >= 0) flipbook(ids_.dust, x, wz, 0.0f, 2.2f, 0, 0.1f + 0.05f * float(i));
+        }
+        burst(0.0f, wz, 1.2f, reduceEffects ? 10 : 28, 0xC9BFAE, 0x8A8070, 7.0f, 0.22f, 0);
+        floater(0.0f, wz, 3.2f, "WALL DOWN!", kWhiteC, 0x16224F, 1.2f);
+        shake_ = maxv(shake_, 0.7f);
+        cue(kCueBomb, 0, 0.0f);
+    }
     if (ev.power > 0 && ev.power < sim::kPowerCount) {  // a power-up: its name, a burst of light, its sound
         std::snprintf(t, sizeof t, "%s!", kPowerName[ev.power]);
         floater(0, 1.0f, 5.2f, t, kGoldC, 0x16224F, 1.1f, true);
@@ -1594,6 +1606,14 @@ void Field::drawStrikes(const sim::Battle& b, float step) {
             } else {
                 redZone(x0, x0 + sim::kRoadHalf, b.z - 3.0f, b.z + 8.0f, 0.3f * pulse);
             }
+        } else if (s.kind == 3) {  // a roller: its lane in red tiles from the squad to the boulder rolling down it
+            const float zr = b.z + (s.z - b.z) * left / maxv(0.01f, s.full);
+            for (float zz = b.z - 1.5f; zz < zr - 0.5f; zz += 2.5f)
+                if (!flat(ids_.warnHalf, s.x, zz, 2.4f, 0.8f * pulse)) redZone(s.x - 1.2f, s.x + 1.2f, zz - 1.2f, zz + 1.2f, 0.3f * pulse);
+            if (ids_.boulder >= 0) {
+                castShadow(s.x, zr, 2.0f, 1.0f);
+                sprite(ids_.boulder, s.x, zr, 0.0f, 0, 2.3f, 1.0f, -time * 7.0f);
+            }
         } else {  // the stomp's ridge (2-unit tiles, upright) rolls from the boss down to the squad, leaving its gap
             const float zr = b.z + (s.z - b.z) * left / maxv(0.01f, s.full);
             for (float xx = -4.0f; xx <= 4.01f; xx += 2.0f) {
@@ -1656,6 +1676,39 @@ void Field::drawHazards(const sim::Battle& b, UiBatch& labels, float step) {
         std::snprintf(t, sizeof t, "+%d", cd.reward);
         const float size = 0.72f * s * tune.tagScale;
         if (size >= 7.0f) label(labels, t, sx, sy - 2.6f * s, size, kWhiteC, 0x1E6E36);
+    }
+    // Boulders waiting at the top of their lanes.
+    for (int k = 0; k < def_->rollerCount; ++k) {
+        const sim::RollerDef& rd = def_->rollers[k];
+        if (b.rollerGone[k] || rd.z < zMin || rd.z > zMax || ids_.boulder < 0) continue;
+        if (sprite(ids_.boulder, rd.x, rd.z, 0.0f, 0, 2.3f, 1.0f, float(k) * 1.3f).st) castShadow(rd.x, rd.z, 2.0f, 1.0f);
+    }
+    // Fort walls: stone across the road with battlements, cracking as they weaken, their strength in a bar over them.
+    for (int w = 0; w < def_->wallCount; ++w) {
+        const sim::WallDef& wd = def_->walls[w];
+        if (b.wallHp[w] <= 0 || wd.z < zMin || wd.z > zMax) continue;
+        float lx, ly, ls, rx, ry, rs;
+        if (!cam_.project(-sim::kRoadHalf - 0.4f, wd.z, 0, lx, ly, ls) || !cam_.project(sim::kRoadHalf + 0.4f, wd.z, 0, rx, ry, rs)) continue;
+        const float frac = clampv(float(b.wallHp[w]) / float(maxv<i32>(1, wd.hp * sim::kHp)), 0.0f, 1.0f);
+        const float hit = b.wallHit[w] < 0.08f ? 1.0f - b.wallHit[w] / 0.08f : 0.0f;
+        const float h = 2.4f * ls, cx = 0.5f * (lx + rx), hw = 0.5f * (rx - lx);
+        const u32 stone = mixc(mixc(0xC9BFAE, 0x8A8070, 1.0f - frac), kWhiteC, hit * 0.5f), side = mixc(0x8A8070, 0x5A5248, 1.0f - frac);
+        const int cracks = frac < 0.34f ? 4 : frac < 0.67f ? 2 : 0;
+        Sticker* st = add(wd.z, 1 + 7 + cracks + 2);
+        if (!st) return;
+        int i = 0;
+        st[i++] = sticker(kShBox, cx, ly - 0.5f * h, hw, 0.5f * h, stone, side, 0x3A342C);
+        for (int c = 0; c < 7; ++c)  // battlements
+            st[i++] = sticker(kShBox, lx + hw * (0.14f + 0.286f * float(c)), ly - h - 0.22f * ls, 0.32f * ls, 0.24f * ls, stone, side, 0x3A342C);
+        for (int c = 0; c < cracks; ++c) {  // dark cracks
+            st[i] = sticker(kShCapsule, lx + hw * (0.3f + 0.45f * float(c)), ly - h * (0.35f + 0.12f * float(c % 2)), 0.5f * ls, maxv(0.8f, 0.04f * ls), 0x2A241E,
+                            0x2A241E, 0x2A241E, 0.85f);
+            st[i++].rot = c % 2 ? 0.9f : -0.7f;
+        }
+        const float bw = 2.6f * ls, bh = maxv(4.0f, 0.2f * ls), by = ly - h - 0.9f * ls;  // its strength
+        st[i++] = sticker(kShBox, cx, by, bw * 0.5f + 1.5f, bh * 0.5f + 1.5f, 0x16224F, 0x16224F, 0x16224F);
+        st[i++] = sticker(kShBox, cx - bw * 0.5f * (1.0f - frac), by, maxv(0.5f, bw * 0.5f * frac), bh * 0.5f, 0xF0323C, 0xF0323C, 0xF0323C);
+        castShadow(0.0f, wd.z, 2.4f, sim::kRoadHalf);
     }
     for (int k = 0; k < b.arrowCount; ++k) {  // from the archer to the squad in 0.8 s, along an arc
         const sim::Arrow& a = b.arrows[k];

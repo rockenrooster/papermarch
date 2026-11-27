@@ -65,6 +65,11 @@ const char* const kHints[kHintCount] = {
     "SLOW THEM DOWN",                    // 44: the hourglass (54)
     "NEXT GATE COUNTS TWICE",            // 45: double gates (58)
     "A CANNON JOINS YOU",                // 46: the field gun (64)
+    "LEAVE THE MARKED LANE",             // 47: rollers (27)
+    "BREAK THE WALL",                    // 48: every siege level (from 33)
+    "DODGE THE ROLLERS",                 // 49: every gauntlet (from 34)
+    "RUN FOR IT",                        // 50: every rush (from 38)
+    "TOPPLE THE GIANTS",                 // 51: every giants' road (from 49)
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -225,6 +230,16 @@ bool decodeLevel(const char* text, LevelDef& out) {
                 out.medals[out.medalCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, u8(v[2])};
                 break;
             }
+            case 'o': {  // a roller: x, z
+                if (out.rollerCount >= kMaxRollers || !nums(p, v, 2)) return false;
+                out.rollers[out.rollerCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f};
+                break;
+            }
+            case 'l': {  // a fort wall: z, hit points
+                if (out.wallCount >= kMaxWalls || !nums(p, v, 2)) return false;
+                out.walls[out.wallCount++] = {float(v[0]) / 10.0f, i32(v[1])};
+                break;
+            }
             case 'w': {  // z, x0, x1, count, kind[, hit points each]
                 if (out.waveCount >= kMaxWaves || !nums(p, v, 5) || v[4] < 0 || v[4] >= kEnemyKindCount) return false;
                 v[5] = 0;
@@ -280,6 +295,8 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     for (int i = 0; i < d.medalCount; ++i) put(" m%d,%d,%d", t10(d.medals[i].x), t10(d.medals[i].z), d.medals[i].power);
     for (int i = 0; i < d.mineCount; ++i) put(" n%d,%d", t10(d.mines[i].x), t10(d.mines[i].z));
     for (int i = 0; i < d.cageCount; ++i) put(" k%d,%d,%d", t10(d.cages[i].x), t10(d.cages[i].z), d.cages[i].reward);
+    for (int i = 0; i < d.rollerCount; ++i) put(" o%d,%d", t10(d.rollers[i].x), t10(d.rollers[i].z));
+    for (int i = 0; i < d.wallCount; ++i) put(" l%d,%d", t10(d.walls[i].z), d.walls[i].hp);
     for (int i = 0; i < d.waveCount; ++i) {
         const WaveDef& w = d.waves[i];
         put(" w%d,%d,%d,%d,%d", t10(w.z), t10(w.x0), t10(w.x1), w.count, w.kind);

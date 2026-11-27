@@ -133,13 +133,21 @@ Waves spawn as a loose crowd (ranks with every soldier a little off its place). 
 **On the road** (docs/CONTENT_PASS.md 3.2): **mines** (from 13) lie in front of hordes: stepped on they cost 6
 soldiers; shot (three musket balls) they burst and do ten musket balls' damage to every enemy within 2.5, so a mine
 under a horde is a gift. **Moving gates** (from 19) slide 3 units either way every 3 s on a rail. **Cages** (from 24)
-hold prisoners: bullets pass through; the squad touching one frees them (`+N`).
+hold prisoners: bullets pass through; the squad touching one frees them (`+N`). **Rollers** (from 27) wait at the top of a
+lane (x ± 1.2): once the squad is within 30 the boulder rolls down it, the lane marked in red, and takes whoever of the
+squad stands in it (at most 40%); it cannot be shot. **Fort walls** (sieges, from 37) cross the whole road with hit points
+(four to seven seconds of the squad's fire; rockets, the cannon and the mortar do three times, the flame burns it): the
+march stops at a wall and the horde waits behind it while archers shoot from the ramparts; when it falls ("WALL DOWN!")
+the horde charges.
 
-**Modes** (docs/CONTENT_PASS.md 3.3; in every block of ten until the rotation of step 8): the 10th is the boss's; the
-5th a **gold rush** from 15 (no enemies, a road of gates, moving gates, barrels and medallions; a barricade never takes
-the last 3 soldiers, so it cannot be lost); the 2nd an **arsenal** from 22 (the squad starts with a weapon); the 4th a
-**rescue** from 24 (the squad starts with 3, every horde guards a cage). A hard level is always a march or the boss's.
-The mode's icon sits in the level chip.
+**Modes** (docs/CONTENT_PASS.md 3.3), by their place in each block of ten, each from the level that brings it in (a
+march before): 1 and 6 a march; 2 an **arsenal** from 22 (the squad starts with a weapon); 3 a **rescue** from 34 (the
+squad starts with 3, every horde guards a cage; on slot 4 from 24 to 33); 4 a **gauntlet** from 34 (rollers and
+minefields, gates as bait, no horde but the end's); 5 a **gold rush** from 15 (no enemies, a road of gates, moving gates,
+barrels and medallions; a barricade never takes the last 3 soldiers, so it cannot be lost); 7 a **siege** from 37 (every
+horde behind a fort wall with archers); 8 a **rush** from 38 (half again as fast, a short road of gates and hazards, no
+horde but the end's); 9 a **giants' road** from 49 (three giants with every horde); 10 the boss's. A hard level is always
+a march or the boss's. The mode's icon sits in the level chip, and its hint shows on each of its levels.
 
 ## 6. Levels: the generator and the bake
 

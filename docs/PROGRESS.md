@@ -114,6 +114,16 @@ squad moving", chose "halt for hordes", then "the levels can be longer as the ge
   decoded levels are allocated at start, not a static table). The browser's 32 frames a second here is the PC's: it
   is in a Remote Desktop session at 32 Hz (the same with the art off on level 1).
 
+## 2026-11-27: 0.9.0, content step 6
+
+Rollers (27): a boulder down a lane marked in red once the squad is within 30, taking whoever stands in it (at most 40%);
+fort walls (sieges, 37): the march stops at them, the horde waits behind, archers on the ramparts, siege weapons do
+three times, "WALL DOWN!" when one falls; the modes gauntlet (34), siege (37), rush (38) and giants' road (49) in the
+block of ten (GAME_DESIGN 5), rescue moving to slot 3 from 34, each mode's icon and hint. Without new art: the boulder
+and the red lane tiles are reused, walls are stone paper stickers with battlements, cracks and a strength bar.
+Hammers, pits, narrows, tide and the last stand are left out (they need art or a ground shader the game does not have).
+Checks: unit tests 31/31, the table 100/100, the flow test 23/23 on the PC and in the browser, level 1 won by touch.
+
 ## Status
 
 | Part | Status |

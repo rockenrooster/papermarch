@@ -27,8 +27,9 @@ enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kArcher, kCatapult, kGiant, 
 // The boss's attacks (docs/CONTENT_PASS.md 3.1), as bits of LevelDef::bossAttacks.
 enum BossAttack : u8 { kAttackSlam = 1, kAttackToss = 2, kAttackCry = 4, kAttackStomp = 8 };
 // What winning a level means (docs/CONTENT_PASS.md 3.3): gold rush has no enemies and cannot be lost (a barricade never
-// takes the last 3); rescue starts with 3 and frees prisoners from cages; arsenal starts with a weapon.
-enum LevelMode : u8 { kModeMarch, kModeBoss, kModeGold, kModeRescue, kModeArsenal, kModeCount };
+// takes the last 3); rescue starts with 3 and frees prisoners from cages; arsenal starts with a weapon; siege breaks fort
+// walls; the gauntlet runs rollers and mines; rush is a fast, short road; giants' road puts a giant in every horde.
+enum LevelMode : u8 { kModeMarch, kModeBoss, kModeGold, kModeRescue, kModeArsenal, kModeSiege, kModeGauntlet, kModeRush, kModeGiants, kModeCount };
 // docs/CONTENT_PASS.md 1. The flamethrower burns a cone, the cannon rolls a ball through everything on its line, the
 // storm coil's lightning jumps, the mortar lobs shells over everything 18 ahead, the frost blaster slows what it hits.
 enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kFlame, kCannon, kCoil, kMortar, kFrost, kWeaponCount };
@@ -87,6 +88,18 @@ struct CageDef {      // prisoners behind bars (bullets pass through): the footp
     float x = 0, z = 40;
     i32 reward = 20;
 };
+// A boulder waiting at z: once the squad is within 30 it rolls down its lane (x ± 1.2, marked on the road) and takes
+// whoever of the squad stands in it (at most 40%). It cannot be shot: step out of the lane.
+struct RollerDef {
+    float x = 0, z = 40;
+};
+// A fort wall across the road: the march stops at it and the horde waits behind it until it is shot down (hit points in
+// musket balls; rockets, the cannon and the mortar do three times).
+struct WallDef {
+    float z = 40;
+    i32 hp = 60;
+};
+constexpr int kMaxRollers = 96, kMaxWalls = 32;
 struct WaveDef {
     float z = 40;     // its front row
     float x0 = -4, x1 = 4;
@@ -116,13 +129,15 @@ struct LevelDef {
     u16 rowCount = 0, planCount = 0;
     float rowZ[kMaxRows] = {};
     i8 plan[kMaxRows] = {};
-    int gateCount = 0, barrelCount = 0, waveCount = 0, medalCount = 0, mineCount = 0, cageCount = 0;
+    int gateCount = 0, barrelCount = 0, waveCount = 0, medalCount = 0, mineCount = 0, cageCount = 0, rollerCount = 0, wallCount = 0;
     GateDef gates[kMaxGates];
     BarrelDef barrels[kMaxBarrels];
     WaveDef waves[kMaxWaves];
     MedalDef medals[kMaxMedals];
     MineDef mines[kMaxMines];
     CageDef cages[kMaxCages];
+    RollerDef rollers[kMaxRollers];
+    WallDef walls[kMaxWalls];
 };
 // Finds the rows of two or more gates side by side (rowZ, rowCount). The decoder and the generator call it.
 void indexRows(LevelDef& d);
@@ -155,7 +170,8 @@ struct Arrow {          // an archer's arrow on its way: it lands on the squad w
     i16 wave = -1;
 };
 // A blow shown on the road before it lands (dodge it sideways): a boulder's red circle (kind 0, radius r, at x, z), the
-// club's half of the road (kind 1, x < 0 the left half), a stomp's ridge with a gap 3 wide at x (kind 2, it reaches the
+// club's half of the road (kind 1, x < 0 the left half), a roller down the lane x ± r (kind 3, from z, like the ridge),
+// a stomp's ridge with a gap 3 wide at x (kind 2, it reaches the
 // squad when t is 0). When t reaches 0 it takes the soldiers in it, at most `cap`.
 struct Strike {
     u8 kind = 0;
@@ -210,6 +226,7 @@ struct BattleEvents {
     int magnet = -1;        // a barrel (or crate) the magnet opened; a cage it opened is 100 + its index
     i32 reinforced = 0;     // soldiers who parachuted in this step
     bool doubled = false;   // DOUBLE GATES spent on a gate
+    int wallDown = -1;      // a fort wall that fell this step
     // The storm coil's bolts this step, from point to point.
     static constexpr int kMaxZaps = 16;
     float zapX0[kMaxZaps] = {}, zapZ0[kMaxZaps] = {}, zapX1[kMaxZaps] = {}, zapZ1[kMaxZaps] = {};
@@ -307,6 +324,11 @@ public:
     int dropCount = 0;
     // The mortar's shells in the air; the clocks of the flamethrower's ticks, the field gun, the magnet; soldiers still to
     // parachute in (REINFORCEMENTS) and how many a second.
+    // Rollers that have started (or gone); each fort wall's hit points left (tenths) and seconds since it was hit.
+    u8 rollerGone[kMaxRollers] = {};
+    i32 wallHp[kMaxWalls] = {};
+    float wallHit[kMaxWalls] = {};
+    int wallAhead() const;  // the nearest standing wall ahead of the squad, -1 none
     static constexpr int kMaxShells = 16;
     Shell shells[kMaxShells] = {};
     int shellCount = 0;
@@ -361,7 +383,8 @@ private:
     float drumX_[16] = {}, drumZ_[16] = {};  // the drummers this step (their beat hurries whoever is within 5)
     int drumN_ = 0;
     // Gates and barrels whose state has been set up: the generator lengthens the road while a battle plays it (sync).
-    int gatesInit_ = 0, barrelsInit_ = 0;
+    int gatesInit_ = 0, barrelsInit_ = 0, rollersInit_ = 0, wallsInit_ = 0;
+    void hitWall(int w, i32 dmg, BattleEvents& ev);  // a fort wall takes dmg (and falls at none left)
     void sync();
 };
 
@@ -371,7 +394,7 @@ const LevelDef& level(int n);
 bool decodeLevel(const char* text, LevelDef& out);
 int encodeLevel(const LevelDef& d, char* out, int cap);
 const char* hintText(int hint);
-constexpr int kHintCount = 48;
+constexpr int kHintCount = 52;
 constexpr int kHintHard = 11;  // shown on every hard level
 int starsFor(const LevelDef& d, i32 squadLeft);
 
