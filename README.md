@@ -1,15 +1,18 @@
 # PAPERMARCH
 
-A one-thumb squad shooter for Android and the browser, in cut paper. Your little blue squad marches up a stone road
-firing without pause. Drag it left and right: march through the blue gates (+1, +20, ×2), shoot the gate you want to
-make it bigger, shoot gold barrels open for recruits, shoot red barricades until they are worth passing, and crush the
-red hordes coming down the road before they reach you. An ogre waits at the end. Grow your squad, crush the horde. 300
-levels, ten worlds, level after level.
+A one-thumb squad shooter for Android and the browser, with painted toy soldiers in a sunlit diorama. Your little blue
+squad marches up a stone road firing without pause. Drag it left and right: march through the blue gates (+1, +20,
+×2), shoot the gate you want to make it bigger, shoot gold barrels open for recruits, shoot red barricades until they
+are worth passing, and crush the red hordes coming down the road before they reach you. An ogre waits at the end.
+Grow your squad, crush the horde. 300 levels in ten worlds, getting faster and harder, with hard levels thrown in;
+the last ones can only just be won by a perfect run.
 
 - **Android:** download `papermarch.apk` from the [latest release](https://github.com/rockenrooster/papermarch/releases/latest)
   (Android 10 or later, 64-bit ARM). The game shows an UPDATE button when a newer build is out.
 - **Browser:** the same game built with Emscripten (WebAssembly + WebGL 2).
 
-Everything you see and hear is made in code: the road, the paper soldiers, the sound and the march music. The engine
-(C++20, SDL 3, OpenGL ES 3.0) is forked from GLOWTIDE by the same owner. Font: Roboto (Apache 2.0); SDL 3 (zlib
-licence). See `docs/` for the plan, the design and the progress log, and `CLAUDE.md` for the commands.
+Everything you see and hear is made by this repository's code: the soldiers, ogres, props and effects are 3D models
+built and rendered by script in Blender (`tools/art/`, docs/ART_DIRECTION.md), the ground and the UI art by Python,
+the sound and the march music by the synthesizer. The engine (C++20, SDL 3, OpenGL ES 3.0) is forked from GLOWTIDE by
+the same owner. Font: Roboto (Apache 2.0); SDL 3 (zlib licence). See `docs/` for the plan, the design and the
+progress log, and `CLAUDE.md` for the commands.
