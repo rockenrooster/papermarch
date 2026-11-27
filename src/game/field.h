@@ -168,7 +168,8 @@ private:
     float shDx_ = 0.5f, shDz_ = 0.6f, shAlpha_ = 0.35f;
     u32 shColor_ = 0x1B2A55;
     float gateUsedAt_[sim::kMaxGates] = {};  // when the squad took each gate (its collapse), -1 never
-    float bornAt_[200] = {};                 // when each shown soldier appeared (the pop-in)
+    static constexpr int kMaxShown = 600;    // soldiers drawn at most (tune.soldiersShown; the badge counts them all)
+    float bornAt_[kMaxShown] = {};           // when each shown soldier appeared (the pop-in)
     int shownBefore_ = 0;
     int bossFrame_ = -1, bossTenth_ = 10;
     float hitStop = 0;  // seconds the view nearly stops (the boss's fall)
@@ -189,16 +190,16 @@ private:
     u32 rng_ = 0x9E3779B9u;
     int figures_ = 0;
 
-    static constexpr int kPool = 6000;  // the renderer's limit (Paper::kMaxStickers)
+    static constexpr int kPool = 12000;  // the renderer's limit (Paper::kMaxStickers)
     Sticker pool_[kPool];
     int poolN_ = 0;
-    static constexpr int kItems = 4200;
+    static constexpr int kItems = 9000;
     float detailScale_ = 30;  // enemies drawn bigger than this (px a unit) get a face and a spear
     Item items_[kItems];
     int itemN_ = 0;
     Sticker sorted_[kPool];
     int out_ = 0;
-    static constexpr int kCasters = 2600;
+    static constexpr int kCasters = 4000;
     Sticker casters_[kCasters];
     int casterN_ = 0;
 
@@ -221,7 +222,6 @@ private:
     static constexpr int kFloaters = 24;
     Floater floaters_[kFloaters];
     int floaterHead_ = 0;
-    static constexpr int kMaxShown = 200;
     float flash_[kMaxShown] = {};  // a soldier's muzzle flash
     float hurt_[kMaxShown] = {};   // a soldier flashing red: the squad was hit
     float lossAcc_ = 0, lossClock_ = 0;  // soldiers lost lately (a "-N" rises over the squad every half second)
@@ -229,6 +229,7 @@ private:
     float bossPhase_ = 0;          // seconds since its last blow
     // A soldier knocked flying from (x, z): up and back, spinning, `power` 1 for a hit, 2 for a club's blow.
     void launch(float x, float z, float power, float dir);
+    void drawBullets(const sim::Battle& b, float step);
     static constexpr int kCues = 64;
     CueEvent cues_[kCues];
     int cueN_ = 0;

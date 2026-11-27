@@ -12,7 +12,7 @@
     X(camSquadY, 0.80f)         /* the squad's place on the screen, from the top */                                  \
     /* ---- feel ---- */                                                                                             \
     X(steer, 1.25f)             /* road widths the squad moves for a drag across the road's width on screen */       \
-    X(soldiersShown, 150.0f)    /* soldiers drawn at most (the badge counts them all) */                             \
+    X(soldiersShown, 500.0f)    /* soldiers drawn at most (the badge counts them all) */                             \
     X(turnSeconds, 0.65f)       /* the page turn between levels */                                                   \
     X(tagScale, 1.0f)                                                                                                \
     X(winPanelDelay, 1.3f)      /* seconds after the win before the panel */                                         \

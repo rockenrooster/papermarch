@@ -154,6 +154,15 @@ over the squad; a big loss flashes the screen's edge; a club's blow throws dirt,
 keep level 100 near 15 minutes (14:48). Re-baked; unit tests 31/31, the table 100/100, the flow test 23/23 on the PC and in
 the browser, level 1 won by touch.
 
+## 2026-11-27: 0.12.1, a crowd that looks its size
+
+The owner: "having lots of soldiers stops visually past a certain point ... bullets seems to stop drawing too after a
+certain point". The view drew at most 150 soldiers inside a footprint capped at the road's width, the fire stops growing
+past 50 soldiers (each ball does more instead), and bullets were added last, so a full sticker pool dropped them. Now up to
+500 soldiers (250 with REDUCE EFFECTS), the crowd growing back toward the camera; each shot drawn as a volley of up to four
+tracers; bullets added before the horde; the sticker budget doubled to 12,000. Level 20's boss approach with a squad of
+1,100: 385 figures, 2,428 stickers, the view 0.33 ms a frame (P95) on the PC, no allocations. Not yet measured on a phone.
+
 ## Status
 
 | Part | Status |

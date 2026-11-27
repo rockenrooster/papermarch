@@ -137,7 +137,7 @@ private:
     GLuint sprites_ = 0, noSprites_ = 0;  // the frame's atlas array; a 1x1 clear one when there is none
     GLuint blank2D_ = 0;                  // a 1x1 clear texture for samplers with nothing to show
     Target sceneRT_, bloomA_, bloomB_;
-    static constexpr int kMaxStickers = 6000;
+    static constexpr int kMaxStickers = 12000;
     GLuint vaoMain_ = 0, vboMain_ = 0, vaoOver_ = 0, vboOver_ = 0, vaoOne_ = 0, vboOne_ = 0, vaoBake_ = 0, vboBake_ = 0;
     GLuint vaoCast_ = 0, vboCast_ = 0;
     GLuint vaoText_ = 0, vboText_ = 0, iboQuads_ = 0, vaoEmpty_ = 0, vaoCurl_ = 0, vboCurl_ = 0;

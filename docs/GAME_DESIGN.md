@@ -42,8 +42,12 @@ Nothing moves until the player touches the road ("DRAG TO MARCH"). Then:
 A shield bearer's shield takes the musket's, twin's, scattergun's, rockets' and frost blaster's balls from the front; the
 lance, flame, coil, mortar, cannon and every blast get past it.
 
-Drawn: up to 150 painted toy soldiers in a sunflower pattern inside the footprint, bobbing as they march, each with its
-weapon's gun and muzzle flash; the squad's banner over them with the full number; the weapon's icon in the HUD.
+Drawn: up to 500 painted toy soldiers (250 with REDUCE EFFECTS) in a sunflower pattern inside the footprint, bobbing
+as they march, each with its weapon's gun and muzzle flash; past about 150 the crowd grows back toward the camera (up to
+2.4 times as deep behind its front) and packs tighter (the owner, 2026-11-27: lots of soldiers must look like lots). Each
+shot of a big squad is drawn as a volley of up to four tracers (one per 50 soldiers) fired from across its front and
+converging where it goes (a ball carries squad / 50 musket balls); more muzzles flash. The squad's banner over them
+carries the full number; the weapon's icon is in the HUD.
 
 ## 3. Gates
 

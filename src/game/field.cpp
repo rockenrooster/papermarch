@@ -439,6 +439,43 @@ void Field::flipbook(int anim, float x, float z, float y, float scale, float rot
     p.anim = i16(anim);
 }
 
+// Bullets: streaks of light, no shadow. A big squad's ball carries squad / 50 musket balls (Battle::damage): it is drawn
+// as a volley of up to four tracers fired from across the squad's front, converging on where it goes.
+void Field::drawBullets(const sim::Battle& b, float step) {
+    const int volley = clampv(int(shownSquad_ / 50.0f), 1, 4);
+    const float R = minv(4.4f, 0.55f + 0.3f * std::sqrt(maxv(1.0f, shownSquad_)));
+    for (int i = 0; i < b.bulletCount; ++i) {
+        const sim::Bullet& bl = b.bullets[i];
+        if (!bl.alive) continue;
+        const sim::WeaponStats& ws = sim::weaponStats(bl.kind);
+        const float z = bl.z + ws.speed * step, bx0 = bl.x + bl.vx * ws.speed * step;
+        int fx = bl.kind < sim::kWeaponCount && ids_.shotFx[bl.kind] >= 0 ? ids_.shotFx[bl.kind] : ids_.tracer;
+        // Under RAPID FIRE the musket's and twin's tracers burn orange; under POWER SHOT every shot is half again as big.
+        if (b.powered(sim::kRapid) && ids_.tracerHot >= 0 && (bl.kind == sim::kMusket || bl.kind == sim::kTwin)) fx = ids_.tracerHot;
+        const float big = b.powered(sim::kPowerShot) ? 1.5f : 1.0f;
+        if (fx >= 0) {  // a streak along its flight (each weapon's own): up the road, toward its target
+            const float y = bl.kind == sim::kRockets ? 0.9f : 0.62f;
+            float ax, ay, bx, by, s;
+            if (!cam_.project(bx0, z, y, ax, ay, s) || !cam_.project(bx0 + bl.vx, z + 1.0f, y, bx, by, s)) continue;
+            const float rot = std::atan2(bx - ax, ay - by);
+            sprite(fx, bx0, z, y, time, big, 1.0f, rot);
+            if (bl.kind == sim::kCannon) continue;  // one ball, however many fire it
+            const float flown = clampv((z - (bl.zEnd - ws.range)) / maxv(1.0f, ws.range), 0.0f, 1.0f), spread = (1.0f - flown) * R * 1.4f;
+            for (int k = 1; k < volley; ++k) {
+                const float ox = (h01(u32(i) * 131u + u32(k) * 7u) - 0.5f) * spread, oz = -0.8f * float(k) * (1.0f - flown);
+                sprite(fx, bx0 + ox, z + oz, y, time, big * 0.9f, 0.9f, rot);
+            }
+            continue;
+        }
+        float sx, sy, s;
+        if (!cam_.project(bx0, z, 0.62f, sx, sy, s)) continue;
+        Sticker* st = add(z, 2);
+        if (!st) break;
+        st[0] = sticker(kShEllipse, sx, sy, maxv(2.0f, 0.13f * s), maxv(5.0f, 0.5f * s), 0xFFC040, 0xFFC040, 0xFFC040, 0.35f);
+        st[1] = sticker(kShEllipse, sx, sy, maxv(1.2f, 0.055f * s), maxv(3.5f, 0.34f * s), 0xFFFBE0, 0xFFFBE0, 0xFFFBE0);
+    }
+}
+
 void Field::launch(float x, float z, float power, float dir) {
     Particle& p = parts_[partHead_];
     partHead_ = (partHead_ + 1) % kParticles;
@@ -767,7 +804,8 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     weaponNow_ = b.weapon < sim::kWeaponCount ? b.weapon : 0;
     const int shown = minv(kMaxShown, minv(int(tune.soldiersShown), maxv<i32>(b.squad, 0)));
     if (ev.shots > 0) {
-        for (int i = 0; i < minv(ev.shots, 3) && shown > 0; ++i) flash_[int(rnd() * float(shown)) % shown] = 0.07f;
+        const int flashes = minv(ev.shots * clampv(shown / 50, 1, 4), 3 + shown / 40);  // a bigger squad, more muzzles
+        for (int i = 0; i < flashes && shown > 0; ++i) flash_[int(rnd() * float(shown)) % shown] = 0.07f;
         cue(kCueShot, ev.shots, b.x);
     }
     if (ev.hits > 0) cue(kCueHit, 0, b.x);
@@ -2042,17 +2080,21 @@ void Field::drawBoss(const sim::Enemy& e, float z, UiBatch& labels) {
 }
 
 void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labels) {
-    const int m = minv(kMaxShown, minv(int(tune.soldiersShown), int(shownSquad_ + 0.5f)));
+    const int m = minv(reduceEffects ? 250 : kMaxShown, minv(int(tune.soldiersShown), int(shownSquad_ + 0.5f)));  // fewer under REDUCE EFFECTS
     const float R = minv(4.4f, 0.55f + 0.3f * std::sqrt(maxv(1.0f, shownSquad_)));
     const bool marching = b.started && !b.won && !b.lost;
     const bool walking = marching && !b.halted;  // the squad stands while a horde comes to it
     const bool powerShot = b.powered(sim::kPowerShot) && marching;
     const float giantK = b.powered(sim::kGiants) ? 1.6f : 1.0f;  // GIANTS: every soldier half again as tall
+    // Past what the road's width holds (about 150) the crowd grows back toward the camera, up to 2.4 times as deep behind
+    // its front, and packs tighter beyond that (the owner, 2026-11-27: lots of soldiers must look like lots).
+    const float back = clampv(float(m) / 150.0f, 1.0f, 2.4f);
     for (int i = 0; i < m; ++i) {
         const float u = std::sqrt((float(i) + 0.5f) / float(m));
         const float a = float(i) * 2.39996323f;
         const float jx = (h01(u32(i) * 7u + 1u) - 0.5f) * 0.12f, jz = (h01(u32(i) * 13u + 5u) - 0.5f) * 0.12f;
         float dx = std::cos(a) * u * R * 0.95f + jx, dz = std::sin(a) * u * R * 0.85f + jz;
+        if (dz < 0.0f) dz *= back;
         // At an edge of the road the formation bunches up inside it, deeper instead of wider (the owner, 2026-11-27).
         const float room = dx < 0.0f ? xs + sim::kRoadHalf - 0.3f : sim::kRoadHalf - 0.3f - xs;
         const float squeeze = clampv(room / (R * 0.95f + 0.12f), 0.15f, 1.0f);
@@ -2073,7 +2115,7 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
             const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0, step, var * pop, 1.0f, 0, false, 0.25f * hurt,
                                      hurt > 0.0f ? mixc(0xFFFFFF, 0xFF4040, 0.75f * hurt) : 0xFFFFFF);
             if (!pl.st) continue;
-            castShadow(x, z, 1.2f * var, 0.25f);
+            if (i < 250 || (i & 1)) castShadow(x, z, 1.2f * var, 0.25f);  // past 250, every other one casts
             ++figures_;
             // Its gun: rendered with the soldier held out, drawn over it at the same spot, size and step (ART_DIRECTION 16).
             const int gun = cheering ? -1 : ids_.wpn[b.weapon < sim::kWeaponCount ? b.weapon : 0];
@@ -2311,6 +2353,7 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     bossContact_ = b.bossContact;
     bossPhase_ = sim::Battle::kBossBlow - b.bossSwing + alpha * sim::kDt;
     const float step = alpha * sim::kDt;
+    drawBullets(b, step);
     for (int i = 0; i < b.enemyCount; ++i) {
         const sim::Enemy& e = b.enemies[i];
         if (!e.alive) continue;
@@ -2322,30 +2365,6 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
         const float z = e.z - b.enemySpeed(e) * step;
         if (z < zLo || z > zHi) continue;
         drawEnemy(e, z);
-    }
-    // Bullets: streaks of light, no shadow.
-    for (int i = 0; i < b.bulletCount; ++i) {
-        const sim::Bullet& bl = b.bullets[i];
-        if (!bl.alive) continue;
-        const float speed = sim::weaponStats(bl.kind).speed;
-        const float z = bl.z + speed * step, bx0 = bl.x + bl.vx * speed * step;
-        int fx = bl.kind < sim::kWeaponCount && ids_.shotFx[bl.kind] >= 0 ? ids_.shotFx[bl.kind] : ids_.tracer;
-        // Under RAPID FIRE the musket's and twin's tracers burn orange; under POWER SHOT every shot is half again as big.
-        if (b.powered(sim::kRapid) && ids_.tracerHot >= 0 && (bl.kind == sim::kMusket || bl.kind == sim::kTwin)) fx = ids_.tracerHot;
-        const float big = b.powered(sim::kPowerShot) ? 1.5f : 1.0f;
-        if (fx >= 0) {  // a streak along its flight (each weapon's own): up the road, toward its target
-            const float y = bl.kind == sim::kRockets ? 0.9f : 0.62f;
-            float ax, ay, bx, by, s;
-            if (!cam_.project(bx0, z, y, ax, ay, s) || !cam_.project(bx0 + bl.vx, z + 1.0f, y, bx, by, s)) continue;
-            sprite(fx, bx0, z, y, time, big, 1.0f, std::atan2(bx - ax, ay - by));
-            continue;
-        }
-        float sx, sy, s;
-        if (!cam_.project(bx0, z, 0.62f, sx, sy, s)) continue;
-        Sticker* st = add(z, 2);
-        if (!st) break;
-        st[0] = sticker(kShEllipse, sx, sy, maxv(2.0f, 0.13f * s), maxv(5.0f, 0.5f * s), 0xFFC040, 0xFFC040, 0xFFC040, 0.35f);
-        st[1] = sticker(kShEllipse, sx, sy, maxv(1.2f, 0.055f * s), maxv(3.5f, 0.34f * s), 0xFFFBE0, 0xFFFBE0, 0xFFFBE0);
     }
     drawBolts();
     if (flameT_ > 0.0f && ids_.flame >= 0 && weaponNow_ == sim::kFlame && !b.lost && !b.won) {  // the jet over its cone
