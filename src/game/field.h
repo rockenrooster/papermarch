@@ -75,11 +75,14 @@ private:
         int bigboom = -1, bigboomGlow = -1, ring = -1, dust = -1, sparkle = -1;
         int gatePass[3] = {-1, -1, -1}, gatePost[3] = {-1, -1, -1}, gateSpikes = -1;  // add, multiply, negative
         int confetti[6] = {-1, -1, -1, -1, -1, -1};
+        int wpn[sim::kWeaponCount] = {-1, -1, -1, -1, -1};  // the gun over each soldier (it is rendered without one)
         int confettiCount = 0;
     };
-    // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation.
+    // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation. Between
+    // two renderings it is two stickers (st the nearer rendering, st2 the other, fading).
     struct Placed {
         Sticker* st = nullptr;
+        Sticker* st2 = nullptr;
         float sx = 0, sy = 0, k = 0, elev = 0, s = 0;
         const SpriteFrame* fr = nullptr;
     };
@@ -109,9 +112,9 @@ private:
     void cue(u8 c, int step, float x);
     float rnd();
     // The art: a frame of `anim` standing at (x, z), `y` above the road, `t` seconds into it, `scale` times its size,
-    // rotated about its pivot. Off screen or a full pool: st is null.
+    // rotated about its pivot, tinted, its hue turned (degrees). Off screen or a full pool: st is null.
     Placed sprite(int anim, float x, float z, float y, float t, float scale, float alpha, float rot = 0, bool mirror = false,
-                  float flash = 0);
+                  float flash = 0, u32 tint = 0xFFFFFF, float hue = 0);
     // A sprite at a screen spot (its pivot there), `size` road units tall per its height, for effects on a figure.
     Sticker* spriteAt(int anim, float key, float sx, float sy, float s, float t, float scale, float alpha, float rot = 0);
     void flipbook(int anim, float x, float z, float y, float scale, float rot = 0, float delay = 0);

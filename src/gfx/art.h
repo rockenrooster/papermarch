@@ -83,6 +83,9 @@ public:
     // The frame nearest the view elevation (degrees) `t` seconds into the anim (looping or holding its last frame).
     const SpriteFrame& frame(int a, float elevDeg, float t) const;
     const SpriteFrame& frameAt(int a, float elevDeg, int index) const;
+    // The renderings either side of `elevDeg` (lo, hi: their degrees) and how far it is from lo to hi, eased over the
+    // middle 60% of the gap (0 all lo, 1 all hi); -1 with lo = hi = elevDeg outside them or with one rendering.
+    float elevBlend(int a, float elevDeg, float& lo, float& hi) const;
     // A named spot (a muzzle) in the frame's pixels; false if the anim has none.
     bool point(int a, float elevDeg, const char* name, float& x, float& y) const;
 

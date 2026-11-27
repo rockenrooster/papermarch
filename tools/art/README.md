@@ -8,6 +8,7 @@ Everything in `assets/art/` is generated; nothing is drawn by hand or downloaded
 $frames = 'captures\art\frames'
 & 'C:\Program Files\Blender Foundation\Blender 5.2\blender.exe' -b --factory-startup --python-exit-code 1 -P tools\art\render_sprites.py -- --out $frames
 python -I -B tools\art\make_fx.py $frames
+python -I -B tools\art\make_content.py $frames
 python -I -B tools\art\pack_atlas.py $frames assets\art
 python -I -B tools\art\make_ground.py assets\art
 python -I -B tools\art\make_icon.py
@@ -17,6 +18,8 @@ python -I -B tools\art\make_icon.py
 |---|---|
 | `render_sprites.py` (Blender, Cycles on the CPU, 2 threads, about 45 minutes for everything) | every 3D thing, built from primitives in the script: the five units' march cycles, the barrel, gate posts and stakes, world 1's props. `--only soldier,foot,w1` renders some kinds. Frames at 2x, a `.json` per animation (pivot, pixels per unit, named points) |
 | `make_fx.py` (numpy) | the effect flipbooks and ambient particles, same frame and `.json` format |
+| `fxlib.py` | the canvas and helpers both effect scripts draw with |
+| `make_content.py` | the content pass (`docs/CONTENT_PASS.md`): weapon and power-up effects, the weapon and power-up icons |
 | `pack_atlas.py` | scales the frames down, bakes the dark rim round units, trims, packs `atlas_*.png` (2048 wide), bleeds edge colours, writes `sprites.txt` |
 | `worlds.py` | the ten worlds as data: ground styles and colours, backdrop, haze, sky, grade, bloom, the `prop` lines, ambient particles, the boss's recolour |
 | `make_ground.py [dir] [world numbers]` (numpy, scipy) | every world's `ground_wN_road.png`, `ground_wN_land.png`, `backdrop_wN.png`, and `worlds.txt` |

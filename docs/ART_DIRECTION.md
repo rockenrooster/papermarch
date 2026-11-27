@@ -432,3 +432,68 @@ with the knob at the left; the knob slides in 0.1 s; pressed = outline 3 white.
 behind the head. Adaptive layers: the head and hat sit inside the 66 dp safe circle and the body runs off the bottom of
 the 108 dp layer, so every launcher mask cuts it cleanly. Legacy icons are the middle 72 dp in a rounded square; the web
 icons are the same picture, square.
+
+## 16. Content pass assets (design: `docs/CONTENT_PASS.md`)
+
+Built in the design's section-6 order. Steps 1 and 2 (weapons 1-4, pickups, power-ups 1-5) as built:
+
+**Weapons on the squad.** `soldier.march` and `soldier.cheer` no longer hold a gun. The gun is an overlay with the same
+frames and elevations, rendered with the soldier as a hold-out (his hat and arm cut into it): draw it straight after
+its soldier, same ground point, scale, frame. Each has a `muzzle` point per elevation, relative to its own frame 0
+pivot as for every sprite; `wpn.twin` also has `muzzle2` (the left rifle).
+
+| Kind | Look |
+|---|---|
+| `wpn.musket.march` | the old musket and bayonet |
+| `wpn.twin.march` | a short cyan-steel rifle in each hand, gold muzzle rings |
+| `wpn.scatter.march` | a brass blunderbuss with a bell mouth |
+| `wpn.lance.march` | a long white tube with three cobalt rings and a glowing blue tip |
+| `wpn.rocket.march` | an olive tube on the right shoulder, the rocket's red nose showing |
+
+**Carriers** (atlas `atlas_items.png`, global, with the weapon overlays):
+
+| Kind | Size | Notes |
+|---|---|---|
+| `gate.post_wpn.still` | as the other posts | orange and cream stripes, gold ball, orange pennant |
+| `crate.wpn.still` | 1.4 wide, 1.25 tall | orange iron bands; a cream plate on the front and the lid: draw `ui.wpn_<name>` over the crate, centred 1.5 units above its pivot, 0.9 units tall, bobbing |
+| `crate.supply.still` | the same | gold bands and gold stars; draw `ui.pow_<name>` over it the same way |
+| `pickup.medal.spin` | 1.2 across, hovering 1.0 up | 8 frames at 10 fps = half a turn, both faces alike (loop it). Draw `ui.pow_<name>` over its centre (1.0 above the pivot), 0.7 units tall, its width scaled by abs(cos(pi x frame / 8)) so it turns with the disc |
+
+**Weapon gate panel** (the panel shader's colours): body `#FFF6E0`, frame and chevrons `#FF8A1E`, highlight `#FFD9A8`; no
+chevron scroll, a slow sheen only; `ui.wpn_<name>` centred at 1.3 units tall in place of the number, the weapon's name
+under it in ink at 0.3 units if it fits.
+
+**Icons** (`atlas_ui.png`, heights in dp after trimming; each is a coloured glyph with an ink outline and a white
+keyline, so it reads on cream panels, wood and the road): `ui.wpn_musket`, `_twin`, `_scatter`, `_lance`, `_rocket`,
+`_flame`, `_coil`, `_mortar`, `_frost` (drawn on a 40 dp square) and `ui.pow_rapid`, `_power`, `_shield`, `_freeze`,
+`_airstrike`, `_magnet`, `_giants`, `_reinforce`, `_quick`, `_hourglass`, `_double`, `_fieldgun` (36 dp square). All
+nine weapon icons and all twelve power-up icons exist already.
+
+**Effects** (all anim `play`, elevation 0):
+
+| Kind | Blend | Frames, fps | Size (units) | Use |
+|---|---|---|---|---|
+| `fx.tracer_twin` | add | 1 | 0.2 x 1.3 | twin rifles' bullets (cyan) |
+| `fx.hit_cyan` | add | 6, 30 | 1.0 | their hits |
+| `fx.pellet` | add | 1 | 0.24 x 0.55 | scattergun pellets |
+| `fx.muzzle_wide` | add | 4, 30 | 1.1 x 0.7 | scattergun muzzle, with one `fx.puff_small` |
+| `fx.puff_small` | alpha | 6, 16 | 0.5 | small smoke and dust hits |
+| `fx.bolt` | add | 1 | 0.3 x 2.6 | the lance's bolt |
+| `fx.muzzle_ring` | add | 4, 30 | 0.8 | the lance's muzzle |
+| `fx.pierce` | add | 4, 30 | 0.8 x 1.2 | on each enemy the bolt passes through |
+| `fx.rocket` | alpha | 8, 16 loop | 0.5 x 1.0 | the rocket, nose up: rotate along its flight; drop one `fx.smoke_trail` behind it every 0.05 s |
+| `fx.smoke_trail` | alpha | 6, 16 | 0.8 | rocket smoke |
+| `fx.crate_break` | alpha | 8, 20 | 2.6 | any crate opening |
+| `fx.light_column` | add | 8, 10 loop | 1.5 x 4.5, pivot at its foot | over a medallion |
+| `fx.pickup` | add | 8, 24 | 3.0 | a medallion or supply crate taken |
+| `fx.tracer_hot` | add | 1 | 0.3 x 1.7 | bullets under RAPID FIRE |
+| `fx.gun_glow` | add | 1 | 0.6 | at each shown muzzle under POWER SHOT, pulsing 0.6-1.0 |
+| `fx.shield_dome` | add | 8, 10 loop | 2.2 x 1.9 for a footprint radius of 1: scale by the squad's radius; pivot at the base centre | SHIELD |
+| `fx.shield_crack` | add | 4, 24 | 1.4 | where the shield absorbs a hit |
+| `fx.shield_break` | add | 8, 24 | 3.2, scaled like the dome | the shield spent |
+| `fx.frost_ring` | add | 8, 24 | 5, flat on the ground like `fx.ring`; scale it to sweep 45 units | FREEZE |
+| `fx.frost_overlay` | alpha | 1 | 0.9 x 0.5, pivot at its foot | at the feet of each frozen enemy, with a tint of `#9CD4FF` at 60% on the enemy |
+| `fx.bomb` | alpha | 1 | 0.7 x 1.0 | AIRSTRIKE: falls from 12 units up in 0.5 s, nose down |
+| `fx.shadow_grow` | alpha | 1 | 2.0 x 1.0 at full size | under a falling bomb, growing from 0.3x to 1x (later: boulders, shells) |
+
+The explosion of a rocket is `fx.explosion` at 0.8x with its glow and ring; an airstrike bomb is `fx.bigboom` at 0.5x.

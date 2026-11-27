@@ -35,12 +35,18 @@ parallel jobs everywhere.
 5. Gates whose z the squad's centre crossed this step: the one containing `x` applies (`+value` or `×value`, clamped to
    0..99,999), the others become `passed`.
 6. Barrels within reach of the squad's front and footprint: run into, they burst and cost max(1, hp/2).
-7. Fire: `fireRate·dt` bullets accumulate; each starts at a random point across the squad's front.
-8. Bullets: enemies are bucketed by distance ahead (48 one-unit cells, rebuilt each step); each bullet finds the nearest
-   growing gate, barrel or enemy along its step and stops there (a gate gains one up to its cap; a barrel or enemy loses
-   `damage`), or flies on until its range is spent.
+7. Fire: `fireRate·dt` bullets accumulate; each starts at a random point across the squad's footprint (x ± radius,
+   squeezed inside the road: `footprint`) and goes for the nearest enemy ahead (by distance up the road, then across)
+   whose hit points exceed the damage already flying at it (`incoming`), led to where the two meet (the owner,
+   2026-11-27: "generally hit the closest enemy to the squad"); the fire spreads over the front ranks, a brute in front
+   takes all it needs, the boss everything once nothing stands before it. With no enemy within range a bullet flies
+   straight up the road (and grows the gates and breaks the barrels in its lane).
+8. Bullets: enemies are bucketed by distance ahead (64 one-unit cells, rebuilt each step by `fire`); each bullet moves 42
+   units a second along its aim, finds the nearest growing gate, barrel or enemy along its step and stops there (a gate
+   gains one up to its cap; a barrel or enemy loses the bullet's damage), or flies on until its range (48 units) is
+   spent; when it stops, its damage no longer counts as incoming. Compacting the dead away remaps the bullets' targets.
 9. Enemies: march down; within 14 units close in on `x` (riders faster); one that touches the footprint
-   (`d < 0.6·r + radius`, `|dx| < r + radius`) costs its strength and is gone (and is counted against its wave,
+   (`d < 0.6·r + radius`, across within the footprint ± radius) costs its strength and is gone (and is counted against its wave,
    `waveLost`); the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
    `drain`, 22), so a boss fight lasts seconds, not a minute, whatever the squad. The horde moves at its kind's speed
    times the level's `pace`. Dead enemies are compacted away now and then.
@@ -79,8 +85,12 @@ ones 4 or 5. Scenery is hashed from 4.5-unit cells of the road, so it is the sam
 
 **The art.** With `assets/art` loaded (`Field::setArt`), each figure, prop and effect is one sprite sticker: the frame
 of its anim nearest the view's elevation `atan2(h − y, z − camZ)`, sized by the frame's height in road units, placed by
-its pivot, with a per-figure size, shade and step; muzzle flashes at the `muzzle` point; tracers turned along their
-flight. Shadows are cast on the road along the world's sun (`shadow` in `worlds.txt`): a soft ellipse per thing,
+its pivot, with a per-figure size, tint, hue, shade and step; tracers turned along their flight. Between two renderings
+(over the middle 60% of the gap between their elevations, `Art::elevBlend`) a sprite is two stickers under one key: the
+lower rendering first at full strength while the upper comes in over it, then the upper at full while the lower fades
+out under it, so nothing jumps and no body turns see-through (the owner saw the scenery pop, 2026-11-27). Soldiers are
+rendered without a gun; the weapon's overlay (`wpn.<name>.march`) is drawn over each one at the same spot, size and
+step, and its `muzzle` point places the flash. Shadows are cast on the road along the world's sun (`shadow` in `worlds.txt`): a soft ellipse per thing,
 projected from road space, all in the union shadow. Props come from the world's `prop` and `edge` rules (hashed cells),
 drifting bits from `ambient`. Gates are a panel sticker (`kShGate`, animated in `sticker.frag`) between two post sprites,
 with stakes on a barricade; a taken gate folds down, its row fades. Deaths shrink and fade into a puff; barrels burst

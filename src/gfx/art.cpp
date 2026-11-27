@@ -547,6 +547,22 @@ int Art::elevIndex(const SpriteAnim& a, float elevDeg) const {
     return best;
 }
 
+float Art::elevBlend(int a, float elevDeg, float& lo, float& hi) const {
+    const SpriteAnim& A = anims_[a];
+    lo = hi = elevDeg;
+    float below = -1e9f, above = 1e9f;
+    for (int k = 0; k < A.elevCount; ++k) {
+        const float d = float(elevs_[A.elevFirst + k].deg);
+        if (d <= elevDeg && d > below) below = d;
+        if (d >= elevDeg && d < above) above = d;
+    }
+    if (below < -1e8f || above > 1e8f || above - below < 1.0f) return -1.0f;
+    lo = below;
+    hi = above;
+    const float band = 0.3f * (hi - lo), u = clampv((elevDeg - (0.5f * (lo + hi) - band)) / (2.0f * band), 0.0f, 1.0f);
+    return u * u * (3.0f - 2.0f * u);
+}
+
 const SpriteFrame& Art::frameAt(int a, float elevDeg, int index) const {
     const SpriteAnim& A = anims_[a];
     int i = index;

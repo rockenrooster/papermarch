@@ -19,6 +19,7 @@ constexpr int kMaxRows = 32;        // rows of two or more gates side by side: t
 constexpr i32 kSquadCap = 99999;
 
 enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kEnemyKindCount };
+enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kWeaponCount };  // docs/CONTENT_PASS.md 1
 enum GateKind : u8 { kGateAdd, kGateMul };  // an add gate below zero is a red barricade
 
 struct GateDef {
@@ -76,6 +77,7 @@ const EnemyStats& enemyStats(u8 kind);
 struct Enemy {
     float x = 0, z = 0;
     i32 hp = 1;
+    i32 incoming = 0;   // damage of the bullets in flight aimed at it (the fire spreads over the nearest enemies)
     u8 kind = kFoot, alive = 0;
     u16 seed = 0;
     float hit = 0;      // seconds since it was last hit (the view flashes it)
@@ -83,6 +85,9 @@ struct Enemy {
 };
 struct Bullet {
     float x = 0, z = 0, zEnd = 0;
+    float vx = 0;     // sideways per unit forward: aimed at its target (straight up the road without one)
+    i16 target = -1;  // the enemy it was fired at
+    u16 dmg = 1;      // the damage it carries (the squad's when it was fired)
     u8 alive = 0;
 };
 struct GateState {
@@ -120,6 +125,8 @@ public:
     // moves).
     void tick(float steerX, bool go, BattleEvents& ev);
     float radius() const;  // the squad's footprint, units
+    // The footprint across the road: x ± radius, squeezed inside the road (a big squad bunches up at an edge).
+    void footprint(float& lo, float& hi) const;
     float fireRate() const;  // shots a second
     i32 damage() const;      // per bullet
     int aliveEnemies() const { return alive_; }
@@ -128,6 +135,7 @@ public:
 
     const LevelDef* def = nullptr;
     i32 squad = 0, peak = 0;
+    u8 weapon = kMusket;
     float x = 0, z = 0, vx = 0;
     float time = 0;
     bool started = false, won = false, lost = false;
@@ -143,6 +151,9 @@ public:
 
 private:
     void spawnWave(int w, BattleEvents& ev);
+    void bucket();                         // enemies into cells by distance ahead
+    int pickTarget(float bz, i32 dmg);     // the nearest enemy ahead still needing damage, -1 none
+    void release(const Bullet& b);         // a bullet ends: its damage no longer incoming
     void fire(BattleEvents& ev);
     void moveBullets(BattleEvents& ev);
     void moveEnemies(BattleEvents& ev);
@@ -153,9 +164,10 @@ private:
     int alive_ = 0;
     int boss_ = -1;
     // Enemies by distance ahead of the squad, one unit a cell (rebuilt every step).
-    static constexpr int kCells = 48;
+    static constexpr int kCells = 64;
     i16 cellHead_[kCells];
     i16 next_[kMaxEnemies];
+    i16 remap_[kMaxEnemies];  // old index to new when the dead are compacted away (bullets' targets follow)
 };
 
 // Levels (src/sim/levels.cpp): the baked table, numbered from 1, and its text form.

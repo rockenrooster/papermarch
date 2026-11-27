@@ -18,6 +18,7 @@ def atlas_of(kind):
     if kind.startswith('ui.'): return 'ui'
     m = re.match(r'w(\d+)\.', kind)
     if m: return 'props_w' + m.group(1)
+    if kind.startswith(('wpn.', 'crate.', 'pickup.')): return 'items'
     return 'fx' if kind.startswith('fx.') else 'units'
 def world_of(gid):
     m = re.search(r'_w(\d+)$', gid)   # props_wN: world N only
@@ -27,10 +28,16 @@ def world_of(gid):
 UI_DP = {'ui.star_full': 44, 'ui.star_empty': 44, 'ui.shako': 32, 'ui.boss_head': 14, 'ui.skull': 32, 'ui.hand': 50, 'ui.trophy': 60}
 
 def rimmed(kind):
-    return kind in ('soldier', 'foot', 'rider', 'brute', 'barrel', 'squad.banner') or kind.startswith('gate.') or kind == 'boss' or kind in UI_DP
+    return kind in ('soldier', 'foot', 'rider', 'brute', 'barrel', 'squad.banner') or kind.startswith(('gate.', 'wpn.', 'crate.', 'pickup.')) or kind == 'boss' or kind in UI_DP
 
 # kind prefix -> fps, loop, blend (everything else: 12 fps, loop, alpha)
-ANIMS = [('fx.muzzle', 30, 'once', 'add'), ('fx.tracer', 1, 'loop', 'add'), ('fx.hit', 30, 'once', 'add'), ('fx.poof', 20, 'once', 'alpha'),
+ANIMS = [('fx.pellet', 1, 'loop', 'add'), ('fx.bolt', 1, 'loop', 'add'), ('fx.gun_glow', 1, 'loop', 'add'), ('fx.pierce', 30, 'once', 'add'),
+         ('fx.puff_small', 16, 'once', 'alpha'), ('fx.rocket', 16, 'loop', 'alpha'), ('fx.smoke_trail', 16, 'once', 'alpha'),
+         ('fx.crate_break', 20, 'once', 'alpha'), ('fx.light_column', 10, 'loop', 'add'), ('fx.pickup', 24, 'once', 'add'),
+         ('fx.shield_dome', 10, 'loop', 'add'), ('fx.shield', 24, 'once', 'add'), ('fx.frost_ring', 24, 'once', 'add'),
+         ('fx.frost_overlay', 1, 'loop', 'alpha'), ('fx.bomb', 1, 'loop', 'alpha'), ('fx.shadow_grow', 1, 'loop', 'alpha'),
+         ('pickup.medal', 10, 'loop', 'alpha'),
+         ('fx.muzzle', 30, 'once', 'add'), ('fx.tracer', 1, 'loop', 'add'), ('fx.hit', 30, 'once', 'add'), ('fx.poof', 20, 'once', 'alpha'),
          ('fx.debris', 16, 'loop', 'alpha'), ('fx.explosion_glow', 24, 'once', 'add'), ('fx.explosion', 24, 'once', 'alpha'),
          ('fx.bigboom_glow', 20, 'once', 'add'), ('fx.bigboom', 20, 'once', 'alpha'), ('fx.ring', 24, 'once', 'add'),
          ('fx.dust', 12, 'once', 'alpha'), ('fx.sparkle', 20, 'once', 'add'), ('fx.gatepass', 24, 'once', 'add'),

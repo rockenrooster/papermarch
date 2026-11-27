@@ -36,6 +36,24 @@ levels throwing in here and there with the later levels just barely theoreticall
   is short on a phone: the UI atlas (2048 x 512) and small prop atlases could share a layer, or the array could use
   half-size mipmaps.
 
+## 2026-11-27: the owner's first play of 0.4.0, and the content pass
+
+The owner: "Bullets don't do very far. Send it anymore bullets until converge on a single Target on a boss. Seems very
+repetitive we need lots of variety in the levels. And when I have lots of guys and move them all the way to the left or
+all the way to the right a clip out of the path instead of bunching up. We also need a pot of weapon variety and
+temporary upgrades and power-ups ... Once you are done with this content pass we will need to do some rebalancing."
+Then "generally hit the closest enemy to the squad. Tough enemies seem to be ignored" and "lod pop in issues with the
+background objects on the sides".
+
+- **0.4.1:** bullets fly 48 units; each shot goes for the nearest enemy the shots in flight will not already kill, led
+  to where they meet (a brute in front takes all it needs; the boss takes everything once nothing stands before it); a
+  big squad at a road edge bunches up inside the road; sprites cross-fade between their renderings instead of popping
+  (TECH_SPEC 5); soldiers carry their gun as an overlay (Fable's new renders, the first of the content pass). Re-baked:
+  300/300, the tests pass.
+- **The content pass** (`docs/CONTENT_PASS.md`, Fable's design: ten weapons, twelve power-ups, six enemies, boss
+  attacks, fourteen hazards, ten modes, a rotation so neighbours differ) is built in its eight steps, each baked, tested
+  and released; then the rebalance. Fable made the assets for steps 1 and 2.
+
 ## Status
 
 | Part | Status |

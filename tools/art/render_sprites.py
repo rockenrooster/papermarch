@@ -227,7 +227,44 @@ def leg(parent, x, trouser, boot, r=0.08, length=0.3):
     ell((r * 1.05, r * 1.5, r * 0.9), boot, parent=p, loc=(0, r * 0.45, -length * 0.82))
     return p
 
-def soldier(cheer=False, turn=0.0):
+def weapon_parts(kind, gun, body):
+    """The gun in the soldier's hands (CONTENT_PASS 1). `gun` is the right hand's frame, +Y up the road. Returns its points."""
+    if kind == 'musket':
+        rod((0, -0.22, -0.03), (0, 0.2, 0), 0.05, 0.035, M(WOOD), parent=gun)
+        rod((0, 0.1, 0.01), (0, 0.62, 0.01), 0.026, 0.022, M(STEEL_L, 0.25, 0.8), parent=gun)
+        rod((0, 0.62, 0.01), (0, 0.8, 0.01), 0.014, 0.002, M(WHITE, 0.2, 0.9), parent=gun)
+        return {'muzzle': E(gun, (0, 0.64, 0.01))}
+    if kind == 'twin':          # a short cyan-steel rifle in each hand
+        pts = {}
+        for name, g in (('muzzle', gun), ('muzzle2', E(body, (-0.23, 0.05, 0.2), rot=(math.radians(8), 0, 0)))):
+            rod((0, -0.18, -0.03), (0, 0.12, 0), 0.048, 0.036, M(WOOD_D), parent=g)
+            rod((0, 0.04, 0.01), (0, 0.5, 0.01), 0.032, 0.028, M(0x5FCFF0, 0.25, 0.6), parent=g)
+            rod((0, 0.4, 0.01), (0, 0.46, 0.01), 0.042, 0.042, M(GOLD, 0.25, 0.4), parent=g)
+            pts[name] = E(g, (0, 0.52, 0.01))
+        return pts
+    if kind == 'scatter':       # a brass blunderbuss with a bell mouth
+        rod((0, -0.2, -0.03), (0, 0.08, 0), 0.058, 0.046, M(WOOD), parent=gun)
+        rod((0, 0.02, 0.01), (0, 0.32, 0.01), 0.046, 0.046, M(0xD9A441, 0.25, 0.6), parent=gun)
+        rod((0, 0.32, 0.01), (0, 0.44, 0.01), 0.046, 0.085, M(0xD9A441, 0.25, 0.6), parent=gun)
+        rod((0, 0.435, 0.01), (0, 0.45, 0.01), 0.07, 0.07, M(BLACK), parent=gun)
+        return {'muzzle': E(gun, (0, 0.5, 0.01))}
+    if kind == 'lance':         # a long white tube with blue rings and a glowing tip
+        rod((0, -0.32, 0), (0, 0.86, 0), 0.032, 0.03, M(0xDCE6F4, 0.25, 0.5), parent=gun)
+        for y in (0.0, 0.35, 0.7):
+            rod((0, y, 0), (0, y + 0.07, 0), 0.048, 0.048, M(BLUE, 0.3, 0.3), parent=gun)
+        ell(0.06, GL(0x6FB8FF, 8.0), parent=gun, loc=(0, 0.9, 0))
+        return {'muzzle': E(gun, (0, 0.93, 0))}
+    if kind == 'rocket':        # a tube on the shoulder, the rocket's red nose showing
+        g = E(body, (0.2, -0.02, 0.45), rot=(math.radians(5), 0, 0))
+        rod((0, -0.4, 0), (0, 0.38, 0), 0.085, 0.085, M(0x4F6240, 0.5), parent=g)
+        for y in (-0.4, 0.3):
+            rod((0, y, 0), (0, y + 0.08, 0), 0.1, 0.1, M(0x2E3A26, 0.5), parent=g)
+        rod((0, 0.38, 0), (0, 0.58, 0), 0.07, 0.004, M(RED, 0.3), parent=g)
+        box((0.03, 0.08, 0.08), M(BLACK), bevel=0, parent=g, loc=(0, 0.1, 0.1))
+        return {'muzzle': E(g, (0, 0.6, 0))}
+    raise ValueError(kind)
+
+def soldier(cheer=False, turn=0.0, weapon='musket', overlay=False):
     root = E(scale=0.9, rot=(0, 0, turn))
     body = E(root, (0, 0, 0.36))
     legs = [leg(body, -0.09, M(NAVY), M(BLACK)), leg(body, 0.09, M(NAVY), M(BLACK))]
@@ -246,10 +283,9 @@ def soldier(cheer=False, turn=0.0):
     ell((0.062, 0.062, 0.14), M(BLUE), parent=armR, loc=(0, 0, -0.11))
     ell(0.052, M(SKIN, 0.5, 0, 0.2), parent=armR, loc=(0, 0, -0.25))
     gun = E(body, (0.23, 0.05, 0.2), rot=(math.radians(8), 0, 0))
-    rod((0, -0.22, -0.03), (0, 0.2, 0), 0.05, 0.035, M(WOOD), parent=gun)
-    rod((0, 0.1, 0.01), (0, 0.62, 0.01), 0.026, 0.022, M(STEEL_L, 0.25, 0.8), parent=gun)
-    rod((0, 0.62, 0.01), (0, 0.8, 0.01), 0.014, 0.002, M(WHITE, 0.2, 0.9), parent=gun)
-    muzzle = E(gun, (0, 0.64, 0.01))
+    before = set(bpy.data.objects)
+    points = weapon_parts(weapon, gun, body) if weapon else {'muzzle': E(gun, (0, 0.64, 0.01))}
+    weapon_objs = set(bpy.data.objects) - before
     head = E(body, (0, 0, 0.42))
     ell(0.165, M(SKIN, 0.5, 0, 0.2), parent=head, loc=(0, 0, 0.1))
     ell((0.17, 0.17, 0.1), M(0x5A3A22, 0.6), parent=head, loc=(0, -0.02, 0.13))                 # hair under the hat
@@ -284,9 +320,13 @@ def soldier(cheer=False, turn=0.0):
         k = math.sin(math.pi * t) ** 0.8
         hat.location.z = 0.75 * k
         hat.rotation_euler.x = -TAU * t
+    if overlay:     # only the gun is drawn; the soldier hides what is behind him (a sprite over soldier.march)
+        for o in bpy.data.objects:
+            if o.type == 'MESH' and o.visible_camera and o not in weapon_objs:
+                o.is_holdout = True
     if cheer:
         return root, cheer_pose, {}
-    return root, pose, {'muzzle': muzzle}
+    return root, pose, points
 
 def raider(parent, scale=1.0, mounted=False):
     """The red horde's body: used on foot and in the saddle. Faces +Y; the caller turns it round."""
@@ -540,11 +580,11 @@ def gate_post(kind):
                 rod(Vector((0, 0, z)) + v * 0.14, Vector((0, 0, z)) + v * 0.42, 0.05, 0.003, M(STEEL_L, 0.3, 0.7), seg=5)
         pennant(0.55, 0.36, M(RED, 0.7, 0, 0), swallow=True, loc=(0, -0.02, 1.95), rot=(0, 0.25, 0))
         return
-    c, d = (BLUE, WHITE) if kind == 'add' else (VIOLET, GOLD)
+    c, d = {'add': (BLUE, WHITE), 'mul': (VIOLET, GOLD), 'wpn': (0xFF8A1E, 0xE9DFCE)}[kind]
     for i in range(7):
         lathe([(0.12, 0.3 + 0.3 * i), (0.12, 0.6 + 0.3 * i)], M(c if i % 2 == 0 else d, 0.3, 0.3 if (i % 2 and kind == 'mul') else 0), seg=16)
     lathe([(0.17, 2.4), (0.17, 2.46), (0, 2.46)], M(GOLD, 0.25, 0.4), seg=16)
-    if kind == 'add':
+    if kind != 'mul':
         ell(0.17, M(GOLD, 0.2, 0.5), loc=(0, 0, 2.6))
     else:
         star(0.26, 0.12, 0.08, M(GOLD, 0.2, 0.5), loc=(0, 0, 2.68))
@@ -1046,11 +1086,43 @@ def ui_trophy():
             rod(a_, b_, 0.05, 0.05, g, seg=8); ell(0.05, g, loc=b_)
     star(0.24, 0.11, 0.06, M(WHITE, 0.3), loc=(0, -0.57, 1.5))
 
+# ---- content pass: crates, the medallion ---------------------------------------------------------------------------------
+def crate(kind):
+    """A wooden crate: orange iron bands and a cream plate for the weapon's icon, or gold bands and stars (supplies)."""
+    band = M(0xFF8A1E, 0.3, 0.3) if kind == 'wpn' else M(GOLD, 0.2, 0.5)
+    box((1.0, 1.0, 0.9), MT(0xB8823E), bevel=0.03, loc=(0, 0, 0.45))
+    for x in (-0.47, 0.47):
+        for y in (-0.47, 0.47):
+            box((0.14, 0.14, 0.96), MT(0x8A5A34), bevel=0.02, loc=(x, y, 0.48))
+    for z in (0.12, 0.78):
+        box((1.08, 1.08, 0.12), band, bevel=0.015, loc=(0, 0, z))
+    box((1.04, 1.04, 0.06), MT(0x8A5A34), bevel=0.02, loc=(0, 0, 0.93))
+    if kind == 'wpn':
+        box((0.5, 0.04, 0.42), M(0xDDD3BC, 0.5), bevel=0.01, loc=(0, -0.52, 0.45))
+        box((0.6, 0.6, 0.04), M(0xDDD3BC, 0.5), bevel=0.01, loc=(0, 0, 0.97))
+    else:
+        star(0.22, 0.1, 0.05, M(GOLD, 0.2, 0.5), loc=(0, -0.53, 0.45))
+        star(0.26, 0.12, 0.04, M(GOLD, 0.2, 0.5), loc=(0, 0, 0.97), rot=(math.radians(90), 0, 0))
+
+def medal():
+    """A gold medallion standing on edge, turning; the engine draws the power-up's icon on it."""
+    spin = E(loc=(0, 0, 1.0))
+    g, g2 = M(GOLD, 0.18, 0.7), M(0xFFE07A, 0.25, 0.5)
+    disc = E(spin, rot=(math.radians(90), 0, 0))
+    lathe([(0, -0.06), (0.6, -0.06), (0.6, 0.06), (0, 0.06)], g, seg=32, parent=disc)
+    lathe([(0.5, -0.075), (0.6, -0.075), (0.6, 0.075), (0.5, 0.075), (0.5, -0.075)], M(0xD98A00, 0.2, 0.7), seg=32, parent=disc)
+    lathe([(0, -0.068), (0.46, -0.068)], g2, seg=32, parent=disc)
+    lathe([(0, 0.068), (0.46, 0.068)], g2, seg=32, parent=disc)
+    def pose(t):
+        spin.rotation_euler.z = math.pi * t        # half a turn: both faces are alike
+        spin.location.z = 1.0 + 0.06 * math.sin(TAU * t)
+    return spin, pose, {}
+
 # ---- the list ----------------------------------------------------------------------------------------------------------
 UE, PE = [60, 38, 20], [45, 20]
 S, Mv, T, L, XL = (2.6, 2.4, 0.5), (4.6, 5.6, 2.0), (3.4, 6.4, 2.6), (5.6, 8.4, 3.2), (8.0, 10.0, 3.6)    # view w, h, centre z
 JOBS = [  # kind, builder, anim, frames, elevations, px/unit, (view w, view h, centre z), centre y, scale
-    ('soldier', soldier, 'march', 8, UE, 100, (1.3, 1.9, 0.55), 0.15, 1),
+    ('soldier', lambda: soldier(weapon=None), 'march', 8, UE, 100, (1.3, 1.9, 0.55), 0.15, 1),
     ('foot', foot, 'march', 8, UE, 84, (1.5, 2.3, 0.75), 0.0, 1),
     ('rider', rider, 'march', 8, UE, 84, (2.0, 3.6, 0.8), -0.3, 1),
     ('brute', brute, 'march', 8, UE, 84, (2.4, 3.2, 0.9), 0.0, 1),
@@ -1070,7 +1142,11 @@ def ADDON(w, fn):
     JOBS.append(('w%d.boss_addon' % w, lambda: ogre(addon=fn), 'march', 8, [38, 20], 72, (7.2, 8.4, 2.9), -0.4, 1))
 
 JOBS += [
-    ('soldier', lambda: soldier(cheer=True), 'cheer', 8, UE, 100, (1.5, 2.9, 0.95), 0.15, 1),
+    ('soldier', lambda: soldier(cheer=True, weapon=None), 'cheer', 8, UE, 100, (1.5, 2.9, 0.95), 0.15, 1),
+    ('gate.post_wpn', lambda: gate_post('wpn'), 'still', 1, UE, 84, (1.8, 3.6, 1.4), 0.0, 1),
+    ('crate.wpn', lambda: crate('wpn'), 'still', 1, UE, 90, (2.2, 2.6, 0.7), 0.0, 1.3),
+    ('crate.supply', lambda: crate('supply'), 'still', 1, UE, 90, (2.2, 2.6, 0.7), 0.0, 1.3),
+    ('pickup.medal', medal, 'spin', 8, UE, 90, (1.6, 2.6, 0.95), 0.0, 1),
     ('squad.banner', squad_banner, 'march', 8, UE, 100, (2.8, 4.2, 1.5), 0.2, 1),
     # HUD sprites: seen from the front; pack_atlas.py turns units into dp (UI_DP there)
     ('ui.star_full', lambda: ui_star(True), 'still', 1, [10], 132, (1.2, 1.2, 0.5), 0.0, 1),
@@ -1082,6 +1158,8 @@ JOBS += [
     ('ui.trophy', ui_trophy, 'still', 1, [12], 180, (2.2, 2.2, 0.95), 0.0, 1),
     ('icon.bust', lambda: soldier(turn=math.pi - 0.5), 'still', 1, [8], 420, (1.3, 1.3, 0.78), 0.0, 1),
 ]
+for _w in ('musket', 'twin', 'scatter', 'lance', 'rocket'):     # the gun alone, over soldier.march
+    JOBS.append(('wpn.' + _w, lambda _w=_w: soldier(weapon=_w, overlay=True), 'march', 8, UE, 100, (1.3, 1.9, 0.55), 0.15, 1))
 # 1 GREENMEADOW
 P('w1.tree_a', lambda: tree_round((0x4FB04A, 0x3C9440, 0x7FD060), fruit=(RED,))); P('w1.tree_b', poplar, T); P('w1.tree_c', blossom)
 P('w1.bush', bush, S); P('w1.rock', rock, S); P('w1.flowers', flowers, S); P('w1.haystack', haystack, (2.4, 2.8, 0.8))

@@ -141,6 +141,11 @@ void Field::setArt(Art* art) {
         ids_.gatePost[i] = kind(name);
     }
     ids_.gateSpikes = kind("gate.spikes");
+    const char* guns[sim::kWeaponCount] = {"musket", "twin", "scatter", "lance", "rocket"};
+    for (int w = 0; w < sim::kWeaponCount; ++w) {
+        std::snprintf(name, sizeof name, "wpn.%s", guns[w]);
+        ids_.wpn[w] = kind(name);
+    }
     for (int i = 0; i < 6; ++i) {
         std::snprintf(name, sizeof name, "fx.confetti_%c", 'a' + i);
         const int c = kind(name);
@@ -212,48 +217,73 @@ void Field::confetti(float x, float z, float y, int n, float spread) {
     }
 }
 
-Field::Placed Field::sprite(int anim, float x, float z, float y, float t, float scale, float alpha, float rot, bool mirror, float flash) {
+Field::Placed Field::sprite(int anim, float x, float z, float y, float t, float scale, float alpha, float rot, bool mirror, float flash,
+                           u32 tint, float hue) {
     Placed out;
     float sx, sy, s;
     if (anim < 0 || !art_ || !cam_.project(x, z, y, sx, sy, s)) return out;
     out.elev = std::atan2(cam_.h - y, maxv(0.01f, z - cam_.z)) * (180.0f / kPi);
-    const SpriteFrame& fr = art_->frame(anim, out.elev, t);
-    const float k = fr.height * s * scale / fr.h;
+    // Between two renderings (camera elevations) a figure cross-fades instead of jumping from one to the next (the owner
+    // saw the scenery pop, 2026-11-27): the lower one first at full strength while the upper one comes in over it, then
+    // the upper at full while the lower fades out under it, so its body never turns see-through.
+    float lo, hi;
+    const float w = art_->elevBlend(anim, out.elev, lo, hi);
+    const int n = w > 0.0f && w < 1.0f ? 2 : 1;
+    const SpriteFrame* fr[2] = {&art_->frame(anim, n == 1 && w >= 1.0f ? hi : lo, t), &art_->frame(anim, hi, t)};
+    const float a[2] = {n == 2 ? alpha * minv(1.0f, 2.0f - 2.0f * w) : alpha, alpha * minv(1.0f, 2.0f * w)};
+    float cx[2], cy[2], hw[2], hh[2], k[2];
+    bool seen = false;
+    for (int i = 0; i < n; ++i) {
+        const SpriteFrame& f = *fr[i];
+        k[i] = f.height * s * scale / f.h;
+        hw[i] = f.w * 0.5f * k[i];
+        hh[i] = f.h * 0.5f * k[i];
+        float ox = (f.w * 0.5f - f.px) * k[i], oy = (f.h * 0.5f - f.py) * k[i];
+        if (mirror) ox = -ox;
+        if (rot != 0.0f) {
+            const float c = std::cos(rot), sn = std::sin(rot);
+            const float rx = c * ox - sn * oy, ry = sn * ox + c * oy;
+            ox = rx;
+            oy = ry;
+        }
+        cx[i] = sx + ox;
+        cy[i] = sy + oy;
+        const float r = maxv(hw[i], hh[i]) * 1.42f;
+        seen = seen || !(cx[i] + r < 0 || cx[i] - r > float(L_.w) || cy[i] + r < 0 || cy[i] - r > float(L_.h) || hh[i] < 0.4f);
+    }
+    const int main = n == 2 && w >= 0.5f ? 1 : 0;
     out.sx = sx;
     out.sy = sy;
-    out.k = k;
+    out.k = k[main];
     out.s = s;
-    out.fr = &fr;
-    const float hw = fr.w * 0.5f * k, hh = fr.h * 0.5f * k;
-    float ox = (fr.w * 0.5f - fr.px) * k, oy = (fr.h * 0.5f - fr.py) * k;
-    if (mirror) ox = -ox;
-    if (rot != 0.0f) {
-        const float c = std::cos(rot), sn = std::sin(rot);
-        const float rx = c * ox - sn * oy, ry = sn * ox + c * oy;
-        ox = rx;
-        oy = ry;
-    }
-    const float cx = sx + ox, cy = sy + oy, r = maxv(hw, hh) * 1.42f;
-    if (cx + r < 0 || cx - r > float(L_.w) || cy + r < 0 || cy - r > float(L_.h) || hh < 0.4f) return out;
-    Sticker* st = add(z, 1);
+    out.fr = fr[main];
+    if (!seen) return out;
+    Sticker* st = add(z, n);
     if (!st) return out;
-    Sticker& q = *st;
-    q = Sticker{};
-    q.x = cx;
-    q.y = cy;
-    q.hw = mirror ? -hw : hw;
-    q.hh = hh;
-    q.rot = rot;
-    q.shape = float(kShSprite);
-    q.soft = fr.layer;
-    q.p0 = fr.u0;
-    q.p1 = fr.v0;
-    q.p2 = fr.u1;
-    q.fold = fr.v1;
-    setColor(q.c0, 0xFFFFFF, alpha);
-    setColor(q.c1, 0xFFFFFF, flash);
-    q.c2[3] = art_->anim(anim).additive ? 255 : 0;
-    out.st = st;
+    float turn = std::fmod(hue, 360.0f);
+    if (turn < 0) turn += 360.0f;
+    for (int i = 0; i < n; ++i) {
+        const SpriteFrame& f = *fr[i];
+        Sticker& q = st[i];
+        q = Sticker{};
+        q.x = cx[i];
+        q.y = cy[i];
+        q.hw = mirror ? -hw[i] : hw[i];
+        q.hh = hh[i];
+        q.rot = rot;
+        q.shape = float(kShSprite);
+        q.soft = f.layer;
+        q.p0 = f.u0;
+        q.p1 = f.v0;
+        q.p2 = f.u1;
+        q.fold = f.v1;
+        setColor(q.c0, tint, a[i]);
+        setColor(q.c1, 0xFFFFFF, flash);
+        q.c2[0] = u8(turn / 360.0f * 255.0f + 0.5f);
+        q.c2[3] = art_->anim(anim).additive ? 255 : 0;
+    }
+    out.st = st + main;
+    out.st2 = n == 2 ? st + (1 - main) : nullptr;
     return out;
 }
 
@@ -1057,8 +1087,11 @@ void Field::drawBarrels(const sim::Battle& b, UiBatch& labels) {
             const Placed pl = sprite(ids_.barrel, bd.x + jig, bd.z, 0, time, 1.0f, 1.0f, 0, false, flash * 0.3f * (0.5f + 0.5f * std::sin(time * 47.0f)));
             if (pl.fr) top = pl.sy - pl.fr->py * pl.k;
             if (pl.st) {
-                pl.st->hh *= 1.0f - 0.06f * flash;  // squashed by the hit, feet on the road
-                pl.st->y += pl.st->hh * 0.06f * flash;
+                for (Sticker* q : {pl.st, pl.st2})
+                    if (q) {
+                        q->hh *= 1.0f - 0.06f * flash;  // squashed by the hit, feet on the road
+                        q->y += q->hh * 0.06f * flash;
+                    }
                 castShadow(bd.x, bd.z, 1.3f, 0.5f);
             }
         } else {
@@ -1101,9 +1134,8 @@ void Field::drawEnemy(const sim::Enemy& e, float z) {
         const float var = 0.94f + 0.12f * h01(u32(e.seed) * 2654435761u + 3u);
         const float shade = 0.90f + 0.16f * h01(u32(e.seed) * 40503u + 11u);
         const Placed pl = sprite(anim, e.x, z, 0, time + float(e.seed & 255) * 0.043f, var, 1.0f, 0, false,
-                                 maxv(flash * 0.85f, shade - 1.0f));
+                                 maxv(flash * 0.85f, shade - 1.0f), shade < 1.0f ? mixc(0x000000, 0xFFFFFF, shade) : 0xFFFFFF);
         if (pl.st) {
-            if (shade < 1.0f) setColor(pl.st->c0, mixc(0x000000, 0xFFFFFF, shade), 1.0f);
             const float h = e.kind == sim::kBrute ? 1.9f : (e.kind == sim::kRider ? 1.7f : 1.05f);
             const float r = e.kind == sim::kBrute ? 0.65f : (e.kind == sim::kRider ? 0.5f : 0.27f);
             castShadow(e.x, z, h * var, r * var);
@@ -1166,13 +1198,9 @@ void Field::drawBoss(const sim::Enemy& e, float z, UiBatch& labels) {
         // Hit all the time while the squad fires: a quick flicker, never a white-out.
         const float flicker = flash * 0.28f * (0.5f + 0.5f * std::sin(time * 47.0f));
         const WorldArt& wa = art_->world(def_->world);
-        const Placed pl = sprite(boss, e.x, z, 0, time, breathe, 1.0f, 0, false, flicker);
+        // The world's recolour of the shared boss, and its add-on drawn over it in step.
+        const Placed pl = sprite(boss, e.x, z, 0, time, breathe, 1.0f, 0, false, flicker, wa.bossTint, wa.bossHue);
         if (pl.st) {
-            // The world's recolour of the shared boss, and its add-on drawn over it in step.
-            float hue = std::fmod(wa.bossHue, 360.0f);
-            if (hue < 0) hue += 360.0f;
-            pl.st->c2[0] = u8(hue / 360.0f * 255.0f + 0.5f);
-            setColor(pl.st->c0, wa.bossTint, 1.0f);
             if (wa.bossAddon >= 0) sprite(wa.bossAddon, e.x, z, 0, time, breathe, 1.0f, 0, false, flicker);
             castShadow(e.x, z, 4.6f, 1.7f);
             ++figures_;
@@ -1234,8 +1262,15 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
         const float u = std::sqrt((float(i) + 0.5f) / float(m));
         const float a = float(i) * 2.39996323f;
         const float jx = (h01(u32(i) * 7u + 1u) - 0.5f) * 0.12f, jz = (h01(u32(i) * 13u + 5u) - 0.5f) * 0.12f;
-        const float x = xs + std::cos(a) * u * R * 0.95f + jx;
-        const float z = zs + std::sin(a) * u * R * 0.85f + jz;
+        float dx = std::cos(a) * u * R * 0.95f + jx, dz = std::sin(a) * u * R * 0.85f + jz;
+        // At an edge of the road the formation bunches up inside it, deeper instead of wider (the owner, 2026-11-27).
+        const float room = dx < 0.0f ? xs + sim::kRoadHalf - 0.3f : sim::kRoadHalf - 0.3f - xs;
+        const float squeeze = clampv(room / (R * 0.95f + 0.12f), 0.15f, 1.0f);
+        if (squeeze < 1.0f) {
+            dx *= squeeze;
+            dz *= 1.0f + 0.7f * (1.0f - squeeze);
+        }
+        const float x = xs + dx, z = zs + dz;
         if (ids_.soldier >= 0) {
             // A new soldier pops in (0 to 1.15 to 1 over 0.2 s); each is a little taller or shorter than the next.
             if (i >= shownBefore_) bornAt_[i] = time;
@@ -1243,15 +1278,19 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
             const float pop = age >= 0.2f ? 1.0f : (age < 0.13f ? 1.15f * age / 0.13f : 1.15f - 0.15f * (age - 0.13f) / 0.07f);
             const float var = 0.94f + 0.12f * h01(u32(i) * 31u + 7u);
             const bool cheering = b.won && ids_.cheer >= 0;  // hats in the air
-            const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0,
-                                     marching || cheering ? time + float(i) * 0.137f : 0.0f, var * pop, 1.0f);
+            const float step = marching || cheering ? time + float(i) * 0.137f : 0.0f;
+            const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0, step, var * pop, 1.0f);
             if (!pl.st) continue;
             castShadow(x, z, 1.2f * var, 0.25f);
             ++figures_;
+            // Its gun: rendered with the soldier held out, drawn over it at the same spot, size and step (ART_DIRECTION 16).
+            const int gun = cheering ? -1 : ids_.wpn[b.weapon < sim::kWeaponCount ? b.weapon : 0];
+            const Placed pg = gun >= 0 ? sprite(gun, x, z, 0, step, var * pop, 1.0f) : pl;
+            const int src = gun >= 0 ? gun : ids_.soldier;
             float mx, my;
-            if (flash_[i] > 0 && ids_.muzzle >= 0 && art_->point(ids_.soldier, pl.elev, "muzzle", mx, my)) {
-                const SpriteFrame& f0 = art_->frameAt(ids_.soldier, pl.elev, 0);
-                spriteAt(ids_.muzzle, z - 0.01f, pl.sx + (mx - f0.px) * pl.k, pl.sy + (my - f0.py) * pl.k, pl.s, 0.07f - flash_[i], 1.0f, 1.0f);
+            if (flash_[i] > 0 && ids_.muzzle >= 0 && pg.st && art_->point(src, pg.elev, "muzzle", mx, my)) {
+                const SpriteFrame& f0 = art_->frameAt(src, pg.elev, 0);
+                spriteAt(ids_.muzzle, z - 0.01f, pg.sx + (mx - f0.px) * pg.k, pg.sy + (my - f0.py) * pg.k, pg.s, 0.07f - flash_[i], 1.0f, 1.0f);
             }
             continue;
         }
@@ -1317,21 +1356,17 @@ void Field::drawParticles() {
             if (p.kind == 6) {
                 if (age < 0) continue;  // not yet (a delayed blast)
                 const Placed pl = sprite(p.anim, p.x, p.z, p.y, age, p.size, 1.0f, p.rot);
-                if (pl.st && p.anim == ids_.ring) {  // lies flat on the road
-                    pl.st->hh *= maxv(0.12f, std::sin(pl.elev * kPi / 180.0f));
-                }
+                if (pl.st && p.anim == ids_.ring)  // lies flat on the road
+                    for (Sticker* q : {pl.st, pl.st2})
+                        if (q) q->hh *= maxv(0.12f, std::sin(pl.elev * kPi / 180.0f));
             } else if (p.kind == 7) {
                 sprite(p.anim, p.x, p.z, p.y, age, p.size, minv(1.0f, minv(age * 2.0f, p.life / 0.6f)), p.rot);
             } else if (p.kind == 8) {
                 const float t = p.life / p.max;  // 1 .. 0: shrinks to 0.6 and fades
-                const Placed pl = sprite(p.anim, p.x, p.z, 0, time + p.rot, p.size * (0.6f + 0.4f * t), t);
                 const WorldArt& wa = art_->world(def_ ? def_->world : 1);
-                if (pl.st && def_ && p.anim == ids_.bossOf[clampv<int>(def_->world, 1, 10) - 1]) {  // the world's recolour
-                    float hue = std::fmod(wa.bossHue, 360.0f);
-                    if (hue < 0) hue += 360.0f;
-                    pl.st->c2[0] = u8(hue / 360.0f * 255.0f + 0.5f);
-                    setColor(pl.st->c0, wa.bossTint, t);
-                }
+                const bool boss = def_ && p.anim == ids_.bossOf[clampv<int>(def_->world, 1, 10) - 1];  // the world's recolour
+                sprite(p.anim, p.x, p.z, 0, time + p.rot, p.size * (0.6f + 0.4f * t), t, 0, false, 0, boss ? wa.bossTint : 0xFFFFFF,
+                       boss ? wa.bossHue : 0.0f);
             } else if (p.kind == 5) {
                 sprite(p.anim, p.x, p.z, p.y, age, 1.0f, minv(1.0f, p.life / 0.25f), p.rot);
             } else if (p.kind == 0) {
@@ -1467,15 +1502,15 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     for (int i = 0; i < b.bulletCount; ++i) {
         const sim::Bullet& bl = b.bullets[i];
         if (!bl.alive) continue;
-        const float z = bl.z + 42.0f * step;
-        if (ids_.tracer >= 0) {  // a streak along its flight: up the road, toward the vanishing point
+        const float z = bl.z + 42.0f * step, bx0 = bl.x + bl.vx * 42.0f * step;
+        if (ids_.tracer >= 0) {  // a streak along its flight: up the road (toward the boss when it converges on it)
             float ax, ay, bx, by, s;
-            if (!cam_.project(bl.x, z, 0.62f, ax, ay, s) || !cam_.project(bl.x, z + 1.0f, 0.62f, bx, by, s)) continue;
-            sprite(ids_.tracer, bl.x, z, 0.62f, time, 1.0f, 1.0f, std::atan2(bx - ax, ay - by));
+            if (!cam_.project(bx0, z, 0.62f, ax, ay, s) || !cam_.project(bx0 + bl.vx, z + 1.0f, 0.62f, bx, by, s)) continue;
+            sprite(ids_.tracer, bx0, z, 0.62f, time, 1.0f, 1.0f, std::atan2(bx - ax, ay - by));
             continue;
         }
         float sx, sy, s;
-        if (!cam_.project(bl.x, z, 0.62f, sx, sy, s)) continue;
+        if (!cam_.project(bx0, z, 0.62f, sx, sy, s)) continue;
         Sticker* st = add(z, 2);
         if (!st) break;
         st[0] = sticker(kShEllipse, sx, sy, maxv(2.0f, 0.13f * s), maxv(5.0f, 0.5f * s), 0xFFC040, 0xFFC040, 0xFFC040, 0.35f);
