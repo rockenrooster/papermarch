@@ -796,7 +796,8 @@ void build(int n, u64 seed, Shape& out) {
                 if (withCatapult) ++catapultsLaid;
                 if (withGiant) ++giantsLaid;
                 const float catX = r.f01() < 0.5f ? -3.6f : 3.6f;
-                const i32 giantHp = maxv<i32>(30, i32(dps(E) * 3.0f));
+                // Three seconds of fire from the weaker squad the hordes are sized for (0.5 to 0.85 of the bot's, below).
+                const i32 giantHp = maxv<i32>(30, i32(dps(E * (0.5f + 0.35f * late)) * 3.0f));
                 // Shield bearers in its front rank, bombers among it, a drummer or two in it, each brought in on its own
                 // level.
                 const bool withShields = shieldmen && (n == 26 ? shieldLines == 0 : r.f01() < odds(kFavShields, 0.25f));

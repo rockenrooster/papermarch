@@ -121,7 +121,8 @@ it costs (a squad of 96 takes nothing from 400 foot and nearly everything from 8
 
 **The boss** stops on the squad and clubs it: a blow every 0.9 s, each taking what a ninth of the squad a second adds up
 to (at least 22 a second), the club coming down in time and the soldiers it hits sent flying. **A giant** that reaches the
-squad stops and clubs it every 1.2 s (4 for every 50 soldiers) until it falls; the squad halts while one stands on it.
+squad stops and clubs it every 1.2 s (4 for every 50 soldiers, the same share below 50, at least 1) until it falls; the
+squad halts while one stands on it. A giant has three seconds of the fire of the weaker squad the hordes are sized for.
 
 | Kind | Hit points | Speed | Radius | Strength | Drawn |
 |---|---|---|---|---|---|

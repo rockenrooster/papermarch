@@ -44,15 +44,17 @@ double nowSec() {
     return duration<double>(steady_clock::now().time_since_epoch()).count();
 }
 
-int cmdPlay(int n) {
+// --steer X: hold the squad at X instead of the bot's steering (a player who never moves), to reproduce a run.
+int cmdPlay(int n, float steer) {
     const sim::LevelDef& d = sim::level(n);
     static sim::Battle b;
     b.init(d);
     sim::BattleEvents ev;
     int lastSecond = -1, kills = 0, lost = 0, shots = 0;
     while (!b.won && !b.lost && b.time < 3600) {
-        b.tick(sim::botSteer(b), true, ev);
+        b.tick(steer > -99.0f ? steer : sim::botSteer(b), true, ev);
         kills += ev.kills;
+        if (ev.blow) std::printf("  %5.1f s blow at %.1f: -%d (squad %d)\n", double(b.time), double(ev.blowX), int(ev.blowLost), int(b.squad));
         lost += ev.lost;
         shots += ev.shots;
         if (ev.gate >= 0) std::printf("  %5.1f s gate %d: %d -> %d\n", double(b.time), ev.gate, ev.gateBefore, ev.gateAfter);
@@ -234,7 +236,10 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "--set %s: unknown name or bad value\n", argv[i + 1]);
             return 2;
         }
-    if (flag(argc, argv, "--play")) return cmdPlay(argi(argc, argv, "--level", 1));
+    if (flag(argc, argv, "--play")) {
+        const char* st = arg(argc, argv, "--steer");
+        return cmdPlay(argi(argc, argv, "--level", 1), st ? float(std::atof(st)) : -100.0f);
+    }
     if (const char* s = arg(argc, argv, "--sim")) {
         if (!std::strcmp(s, "table")) return cmdTable(argi(argc, argv, "--from", 1), argi(argc, argv, "--to", 9999));
         std::fprintf(stderr, "unknown --sim %s\n", s);

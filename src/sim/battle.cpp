@@ -1082,12 +1082,14 @@ void Battle::moveEnemies(BattleEvents& ev) {
             }
             continue;
         }
-        // A giant that reaches the squad stops and clubs it every 1.2 s (4 for every 50 soldiers) until it falls; under
+        // A giant that reaches the squad stops and clubs it every 1.2 s (4 for every 50 soldiers, at least 1) until it falls; under
         // GIANTS it is trampled like any other.
         if (e.kind == kGiant && !giants && d < r * 0.6f + st.radius && e.x > lo - st.radius && e.x < hi + st.radius) {
             if ((e.cool -= kDt * (powered(kHourglass) ? 0.4f : 1.0f)) <= 0.0f) {
                 e.cool += 1.2f;
-                const i32 n = minv(squad, toll(4));
+                // 4 for every 50 soldiers, and below 50 the same share (at least 1): a small squad is not clubbed flat
+                // before it can bring a giant down (the owner lost level 49 three times so, 2026-11-27).
+                const i32 n = minv(squad, maxv<i32>(1, i32(i64(4) * squad / 50)));
                 lose(n, ev, e.wave);
                 ev.blow = true;
                 ev.blowX = e.x;

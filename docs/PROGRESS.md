@@ -220,15 +220,29 @@ software GPU); the title card; the updater sees build 31; level 1 won by touch (
 home and back pauses and resumes; killed and relaunched it opens on level 2 (the save kept); 60 MB total PSS. Frame rate,
 heat and sound wait for a real phone.
 
+## 2026-11-27: 0.16.2, the first phone; giants a small squad can beat
+
+The owner put build 32 on the OnePlus 12R (Adreno 740) and played, and the log was read from the PC: the first frame
+0.83 s after main, the art loaded in 0.48 s, 91 MB of graphics and 21 MB of native memory, thermal status 0 (battery
+28 C), no errors. Level 1 won with 108 (two stars); level 49 (a giants' road) lost four times: at 9% with 96 (twice), 19%
+with 301 and 29% with 2,133. Giants had three seconds of the bot's own fire (102 there) and clubbed a flat 4 even from a
+squad of 18, so a run that missed the x3 was clubbed flat. Now a giant has three seconds of the weaker squad's fire the
+hordes are sized for (0.5-0.85 of the bot's) and below 50 soldiers a blow takes the same share as above (at least 1).
+The owner then asked to make sure the bot completes every level: re-baked, `papermarch_headless --sim table` replays all
+100 from the start and wins each with exactly its baked squad (13 hard ones keep 0.5-1.4%). `papermarch_headless --play
+--level N --steer X` replays a level holding the squad at X (a player who never steers; such a player loses 49). Checks:
+unit tests 32/32, the table 100/100, the flow test 27/27 on the PC and in the browser, the layout lint, level 1 won by
+touch in the browser.
+
 ## Status
 
 | Part | Status |
 |---|---|
 | The battle (rules, bot, generator, 100 baked levels, endless) | Done; the bot wins every level with the squad the bake recorded; the content pass is built in full |
-| The view (road, squad, gates, barrels, hordes, boss, hazards, effects) | Done on the PC, in the browser and on an Android 15 emulator; not yet seen on a phone |
+| The view (road, squad, gates, barrels, hordes, boss, hazards, effects) | Done on the PC, in the browser, on an Android 15 emulator and on the owner's OnePlus 12R |
 | Screens, flow, LEVELS, ENDLESS, save, updater pill | Done; flow test 27/27; layout lint clean on every screen at 4 sizes |
 | Audio | Battle sounds and cues; offline renders measured (below); the owner's ears pending |
-| Android | Signed releases on GitHub from every push that changes the game (`build-N`); the release APK installs and plays on an emulator; not yet on a phone (none attached) |
+| Android | Signed releases on GitHub from every push that changes the game (`build-N`); build 32 installed and played on the OnePlus 12R |
 | Browser | Builds (index.wasm 1.7 MB); headless Chrome: the flow test 27/27, level 1 won by touch, NEXT, the save; served on the LAN at port 8092 |
 | Netlify | Not deployed: the owner said "just local for now" (2026-11-27) |
 
