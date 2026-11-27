@@ -261,6 +261,10 @@ struct BattleEvents {
     i32 absorbed = 0;       // soldiers the shield saved this step
     bool shieldGone = false;
     bool bossHit = false, bossDown = false, won = false, lostAll = false;
+    // A blow that landed on the squad this step (the boss's club, a giant's): where, how many it took, whose.
+    bool blow = false, blowBoss = false;
+    float blowX = 0, blowZ = 0;
+    i32 blowLost = 0;
     static constexpr int kMaxKills = 24;
     float killX[kMaxKills] = {}, killZ[kMaxKills] = {};
     u8 killKind[kMaxKills] = {};
@@ -302,7 +306,7 @@ public:
     float x = 0, z = 0, vx = 0;
     float time = 0;
     bool started = false, won = false, lost = false;
-    bool halted = false;  // standing its ground: a horde is coming (the view stops the soldiers' march)
+    bool halted = false;  // stopped (before the boss, a giant or a wall): the view stops the soldiers' march
     // Won once every enemy is beaten, not only at the finish line (init leaves it as it is: the generator turns it off for
     // its run of a road it is still laying, and the bake for its run to just before the end fight).
     bool clearWins = true;
@@ -314,6 +318,11 @@ public:
     BarrelState barrels[kMaxBarrels];
     int nextWave = 0;
     float bossDrain = 0, bossRate = 0;  // the boss's crushing: its debt in soldiers; its rate, set when it reaches the squad
+    // The boss strikes with its club every kBossBlow seconds while it stands on the squad (the view swings it in time):
+    // the clock to its next blow, and whether it is on the squad now.
+    static constexpr float kBossBlow = 0.9f;
+    float bossSwing = 0;
+    bool bossContact = false;
     i32 waveLost[kMaxWaves] = {};  // soldiers each wave's enemies took when they reached the squad (the generator's measure)
     // Power-ups running: seconds left and their full time (the HUD's rings); what the shield will still absorb; the
     // medallions taken; an airstrike's bombs on their way down (they land at x, z in t seconds).

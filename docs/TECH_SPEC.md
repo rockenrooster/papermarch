@@ -57,12 +57,14 @@ parallel jobs everywhere.
    a rocket bursts where it strikes, half its direct damage to every other enemy within 1.8 (`blast`).
    A bullet flies on until its range is spent; when it strikes, its damage no longer counts as incoming. Compacting
    the dead away remaps the bullets' targets.
-9. Enemies: run down at `enemySpeed` (their kind's speed times the level's `pace`, plus the march's speed; 0 for those
+9. Enemies: run down at `enemySpeed` (their kind's speed times the level's `pace`; 0 for those
    that stand or are frozen; slowed by frost and the hourglass, hurried by drummers); within 14 units close in on `x`
    (riders faster); one that touches the footprint (`d < 0.6·r + radius`, across within the footprint ± radius) costs
    `toll(strength)` (its strength times squad / 50 past 50) and is gone (and is counted against its wave, `waveLost`).
-   The squad stands (`halted`) while a horde enemy is within 25 units ahead; the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
-   `drain`, 22), so a boss fight lasts seconds, not a minute, whatever the squad. Dead enemies are compacted away now
+   The squad stops (`halted`) only where a giant stands on it or at a fort wall (and 8 before the boss); a giant on the
+   squad clubs it every 1.2 s (`toll(8)`); the boss stops on it and runs up a debt of a ninth of the squad a second (at
+   least the level's `drain`, 22), paid in blows every `kBossBlow` (0.9 s: `bossSwing`, `bossContact`, the event's
+   `blow`), so a boss fight lasts seconds, not a minute, whatever the squad. Dead enemies are compacted away now
    and then.
 10. Power-ups: rapid fire doubles the shots, power shot the damage; under freeze the horde within 45 units does not
    move (the boss not for the first half); the clocks run down (`powers`) and bombs land (`blast`, radius 3, 12 musket

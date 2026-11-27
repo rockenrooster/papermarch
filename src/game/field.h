@@ -223,6 +223,12 @@ private:
     int floaterHead_ = 0;
     static constexpr int kMaxShown = 200;
     float flash_[kMaxShown] = {};  // a soldier's muzzle flash
+    float hurt_[kMaxShown] = {};   // a soldier flashing red: the squad was hit
+    float lossAcc_ = 0, lossClock_ = 0;  // soldiers lost lately (a "-N" rises over the squad every half second)
+    bool bossContact_ = false;     // the boss stands on the squad: it swings its club in time with its blows
+    float bossPhase_ = 0;          // seconds since its last blow
+    // A soldier knocked flying from (x, z): up and back, spinning, `power` 1 for a hit, 2 for a club's blow.
+    void launch(float x, float z, float power, float dir);
     static constexpr int kCues = 64;
     CueEvent cues_[kCues];
     int cueN_ = 0;

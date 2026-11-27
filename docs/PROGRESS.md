@@ -142,6 +142,18 @@ holds twenty). The rotation of modes is the block of ten built in 0.9.0. Checks:
 flow test 23/23 on the PC and in the browser, level 1 won by touch. The content pass (CONTENT_PASS 6, steps 1-8) is
 done; left out for want of art or a ground shader: hammers, pits, narrows, tide, mud, the last stand.
 
+## 2026-11-27: 0.12.0, the march goes on; blows and flying soldiers
+
+The owner: "I thought we were only causing the march for the big bosses. Can you change it to that? Also we need more
+visual effects for when my soldiers get hit and boss enemies should swing and hit my soldiers and the soldiers that killed
+should go flying". The squad marches through hordes again (hordes at their own pace) and stops only before the boss,
+where a giant stands on it, and at fort walls. The boss now clubs in blows every 0.9 s with its slam pose timed to them
+(the same rate of loss as before); a giant that reaches the squad stops and clubs it every 1.2 s. Soldiers lost are knocked
+flying, spinning, from where they were hit (harder from a club), with sparks; a few more flash red; the count lost rises
+over the squad; a big loss flashes the screen's edge; a club's blow throws dirt, a ring and a jolt. Roads are longer to
+keep level 100 near 15 minutes (14:48). Re-baked; unit tests 31/31, the table 100/100, the flow test 23/23 on the PC and in
+the browser, level 1 won by touch.
+
 ## Status
 
 | Part | Status |

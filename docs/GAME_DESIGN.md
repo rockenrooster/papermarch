@@ -8,7 +8,7 @@ A level is a straight road along z (units; the squad starts at z = 0), x in [-5,
 2026-11-27: "the last level can be 100", "like 15 mins total"), each longer than the one before: a level is meant to
 last 30·30^((n−1)/99) seconds (`levelSeconds`: half a minute at level 1, about 2:40 at 50, 15 minutes at 100). The squad
 marches up it at the level's speed (4.6 units a second at level 1 to 7.0 at 100); the road is that time at that speed,
-times 0.68 for the time spent standing for hordes, 24 more on a boss level. A level without a boss is won when the squad's centre crosses the finish line (a band of checks
+times 0.9 for the time spent fighting (0.5 on a rush), 24 more on a boss level. A level without a boss is won when the squad's centre crosses the finish line (a band of checks
 painted across the road at its length) or once every wave has come and every enemy is beaten (the owner, 2026-11-27:
 "level should be finished when finish line is crossed or all enemies are gone"; a gold rush, with no enemies, runs to
 its line). On a boss level the ogre stands at the end and the level is won when it falls.
@@ -99,24 +99,29 @@ A power-up stands a few units before a horde (its first horde on the level that 
 
 ## 5. The horde
 
-Waves wake when the squad is 62 units from their front row; they run down the road at the squad, at their own speed
-(times the level's pace) plus the march's, so they close on it as fast as the two did when both moved, and within 14
-units they close in on its x. **The squad stands its ground** while a horde (not archers, catapults or the boss) is
-within 25 units ahead, and marches on once it is beaten (the owner, 2026-11-27: "the enemies come to the squad rather
-than the enemies and squad moving"). An enemy that touches the squad's footprint is gone and takes its strength in
-soldiers with it, times squad / 50 past 50 soldiers (`Battle::toll`: a horde takes the same share of any squad, as the
-squad's balls grow past 50); arrows and mines too. Enemies that slip 8 units past are gone.
+Waves wake when the squad is 62 units from their front row; they march down the road at their own speed (times the
+level's pace) and, within 14 units, close in on its x. **The squad marches through the hordes**; it stops only for the
+big ones: before the boss, where a giant stands on it, and at a fort wall (the owner, 2026-11-27: "I thought we were only
+causing the march [to stop] for the big bosses"; for a day in 0.8.0-0.11.0 it stood for every horde). An enemy that
+touches the squad's footprint is gone and takes its strength in soldiers with it, times squad / 50 past 50 soldiers
+(`Battle::toll`: a horde takes the same share of any squad, as the squad's balls grow past 50); arrows and mines too.
+Enemies that slip 8 units past are gone. Soldiers lost are knocked flying from the squad's front, a few more flash red,
+and the count lost rises over it every half second; a loss of a twentieth or more flashes the screen's edge.
 
-The generator gives every horde enemy three times its kind's hit points (below): the squad's fire, at most 125 musket
-balls a second, holds back a horde that falls to one ball each so it never arrives; at three a horde closes in about five
-seconds and its size sets what it costs.
+The generator gives every horde enemy three times its kind's hit points (below): with the squad's fire (at most 125
+musket balls a second, 48 units ahead) a horde that falls to one ball each never reaches it; at three its size sets what
+it costs (a squad of 96 takes nothing from 400 foot and nearly everything from 800), and hordes run to hundreds.
+
+**The boss** stops on the squad and clubs it: a blow every 0.9 s, each taking what a ninth of the squad a second adds up
+to (at least 22 a second), the club coming down in time and the soldiers it hits sent flying. **A giant** that reaches the
+squad stops and clubs it every 1.2 s (8 for every 50 soldiers) until it falls; the squad halts while one stands on it.
 
 | Kind | Hit points | Speed | Radius | Strength | Drawn |
 |---|---|---|---|---|---|
 | Foot | 1 | 3.2 | 0.42 | 1 | red pawn, spiked helmet, spear |
 | Rider | 2 | 5.6 | 0.55 | 2 | a red rider on a brown horse |
 | Brute | 8 | 2.2 | 0.85 | 6 | a big dark-red pawn with a round shield |
-| Boss | the level's | 1.5 | 1.9 | crushes 22 soldiers a second while it touches the squad | the ogre: horns, tusks, a club |
+| Boss | the level's | 1.5 | 1.9 | clubs a ninth of the squad a second (at least 22) while it touches it, a blow every 0.9 s | the ogre: horns, tusks, a club |
 | Archer (from 17) | 1 | stands | 0.42 | 1 | a hooded raider with a bow: from 18 units it looses an arrow every 1.6 s that lands on the squad 0.8 s later and takes a soldier |
 | Catapult (from 21) | 40 | stands at the road's side | 1.2 | 0 | a timber engine beyond a horde: from 45 units it hurls a boulder every 3.2 s at where the squad will be; a red circle (1.7) shows 1.2 s before it lands and takes the soldiers in it (at most 14) |
 | Giant (from 29) | three seconds of the squad's fire | 1.8 | 1.3 | 25 | a brute twice the size with a club, a health bar over its head; it drops a medallion when it falls |

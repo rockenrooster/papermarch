@@ -70,6 +70,8 @@ void Battle::init(const LevelDef& d) {
     sync();
     nextWave = 0;
     bossDrain = bossRate = 0;
+    bossSwing = kBossBlow * 0.5f;  // the first blow comes half a swing after it reaches the squad
+    bossContact = false;
     for (i32& l : waveLost) l = 0;
     for (int p = 0; p < kPowerCount; ++p) powerLeft[p] = powerFull[p] = 0;
     shieldPool = 0;
@@ -319,9 +321,7 @@ float Battle::enemySpeed(const Enemy& e) const {
     const EnemyStats& st = enemyStats(e.kind);
     if (e.kind == kBoss) return st.speed * drive(e);
     if (e.kind == kArcher || e.kind == kCatapult || (powered(kFreeze) && e.z - z < 45.0f)) return 0.0f;
-    // It runs at the squad at the march's speed on top of its own: it closes on the standing squad as fast as the two
-    // closed when both moved.
-    return (st.speed * def->pace + def->speed) * drive(e);
+    return st.speed * def->pace * drive(e);
 }
 
 i32 Battle::gateNow(int g, float t) const {
@@ -977,6 +977,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
             drumZ_[drumN_++] = enemies[i].z;
         }
     const bool giants = powered(kGiants);  // GIANTS: what touches the squad is trampled and takes nothing
+    bossContact = false;
     const int wa = wallAhead();
     const float wallZ = wa >= 0 ? def->walls[wa].z : -1e9f;  // the horde waits behind it
     for (int i = 0; i < enemyCount; ++i) {
@@ -988,18 +989,41 @@ void Battle::moveEnemies(BattleEvents& ev) {
         e.slow = maxv(0.0f, e.slow - kDt);
         if (e.kind == kBoss) {
             if (powerLeft[kFreeze] > powerFull[kFreeze] * 0.5f) continue;  // frozen (half as long as the horde)
-            if (d - st.radius <= r * 0.6f) {  // it reaches the squad: it stops and crushes soldiers until it falls
+            if (d - st.radius <= r * 0.6f) {  // it reaches the squad: it stops and clubs soldiers until it falls
                 // It crushes a ninth of the squad it meets every second (at least the level's `drain`), whatever its size:
-                // the fight lasts seconds (half as fast against GIANTS, slowed by the hourglass).
+                // the fight lasts seconds (half as fast against GIANTS, slowed by the hourglass). The debt is paid in
+                // blows of its club, one every kBossBlow seconds (the view swings it and sends them flying).
+                bossContact = true;
+                const float slow = powered(kHourglass) ? 0.4f : 1.0f;
                 if (bossRate <= 0.0f) bossRate = maxv(def->drain, float(squad) / 9.0f);
-                bossDrain += bossRate * (giants ? 0.5f : 1.0f) * (powered(kHourglass) ? 0.4f : 1.0f) * kDt;
-                while (bossDrain >= 1.0f && squad > 0) {
-                    bossDrain -= 1.0f;
-                    lose(1, ev);
+                bossDrain += bossRate * (giants ? 0.5f : 1.0f) * slow * kDt;
+                if ((bossSwing -= kDt * slow) <= 0.0f) {
+                    bossSwing += kBossBlow;
+                    const i32 n = minv(squad, i32(bossDrain));
+                    bossDrain -= float(n);
+                    lose(n, ev);
+                    ev.blow = ev.blowBoss = true;
+                    ev.blowX = e.x;
+                    ev.blowZ = e.z - st.radius;
+                    ev.blowLost = n;
                 }
             } else {
                 e.z -= st.speed * k * kDt;
                 e.x += clampv(x - e.x, -1.0f, 1.0f) * 0.8f * k * kDt;
+            }
+            continue;
+        }
+        // A giant that reaches the squad stops and clubs it every 1.2 s (8 for every 50 soldiers) until it falls; under
+        // GIANTS it is trampled like any other.
+        if (e.kind == kGiant && !giants && d < r * 0.6f + st.radius && e.x > lo - st.radius && e.x < hi + st.radius) {
+            if ((e.cool -= kDt * (powered(kHourglass) ? 0.4f : 1.0f)) <= 0.0f) {
+                e.cool += 1.2f;
+                const i32 n = minv(squad, toll(8));
+                lose(n, ev, e.wave);
+                ev.blow = true;
+                ev.blowX = e.x;
+                ev.blowZ = e.z - st.radius;
+                ev.blowLost = n;
             }
             continue;
         }
@@ -1057,16 +1081,14 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     vx = clampv((tx - x) * 12.0f * grip * quick, -18.0f * grip * quick, 18.0f * grip * quick);
     x += vx * kDt;
     if (strip && strip->kind == kStripWind) x = clampv(x + strip->push * kDt, -lim, lim);  // the wind pushes it
-    // March. The squad stands its ground while a horde that comes to it is within 25 units ahead, and marches on once
-    // that horde is beaten (the owner, 2026-11-27: "the enemies come to the squad"); archers and catapults stand, so they
-    // do not stop it. It halts before the boss.
+    // March. It marches through the hordes and halts only for the big ones (the owner, 2026-11-27: "only causing the
+    // march [to stop] for the big bosses"): before the boss, and where a giant stands on it.
     const float zPrev = z;
     const bool bossNear = boss_ >= 0 && enemies[boss_].z - z < 8.0f;
     halted = false;
     for (int i = 0; i < enemyCount && !halted; ++i) {
         const Enemy& e = enemies[i];
-        const float d = e.z - z;
-        halted = e.alive && d > 0.5f && d < 25.0f && e.kind != kBoss && e.kind != kArcher && e.kind != kCatapult;
+        halted = e.alive && e.kind == kGiant && e.z - z > 0.0f && e.z - z < r * 0.6f + enemyStats(kGiant).radius + 0.2f;
     }
     // A fort wall stops it until it falls.
     if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z < 2.0f + r * 0.5f) halted = true;

@@ -439,6 +439,25 @@ void Field::flipbook(int anim, float x, float z, float y, float scale, float rot
     p.anim = i16(anim);
 }
 
+void Field::launch(float x, float z, float power, float dir) {
+    Particle& p = parts_[partHead_];
+    partHead_ = (partHead_ + 1) % kParticles;
+    partCount_ = minv(partCount_ + 1, kParticles);
+    p = Particle{};
+    p.x = x;
+    p.z = z;
+    p.y = 0.3f;
+    p.vx = dir * (1.5f + 2.5f * rnd()) * power;
+    p.vz = -(0.5f + 2.5f * rnd()) * power;  // back toward the camera
+    p.vy = (5.0f + 3.0f * rnd()) * (0.75f + 0.35f * power);
+    p.vr = (rnd() < 0.5f ? -1.0f : 1.0f) * (7.0f + 7.0f * rnd());
+    p.rot = 0;
+    p.max = p.life = 1.0f + 0.3f * power;
+    p.size = 0.95f + 0.1f * rnd();
+    p.kind = 9;
+    p.anim = i16(ids_.soldier);
+}
+
 void Field::bolt(int anim, float x0, float z0, float x1, float z1, float life) {
     if (anim < 0 || !art_) return;
     bolts_[boltHead_] = {x0, z0, x1, z1, life, life, anim};
@@ -1059,22 +1078,46 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
     }
     if (ev.wave >= 0) cue(kCueWave, ev.wave, 0);
     if (ev.lost > 0 && !ev.lostAll) {
+        // Soldiers hit are knocked flying from the squad's front (from where a club or a giant struck, harder), with a
+        // spark where each was hit; a few more flash red; the count lost rises over the squad.
         const float r = b.radius();
-        for (int i = 0; i < minv(ev.lost, 4); ++i) {
-            const float a = kPi * (0.15f + 0.7f * rnd());
-            const float x = b.x + std::cos(a) * r, z = b.z + std::sin(a) * r * 0.8f;
+        const int fly = minv(ev.lost, ev.blow ? (reduceEffects ? 5 : 12) : (reduceEffects ? 2 : 5));
+        for (int i = 0; i < fly; ++i) {
+            float x, z;
+            if (ev.blow) {
+                x = clampv(ev.blowX + (rnd() - 0.5f) * 2.4f, b.x - r, b.x + r);
+                z = b.z + r * (0.2f + 0.5f * rnd());
+            } else {
+                const float a = kPi * (0.15f + 0.7f * rnd());
+                x = b.x + std::cos(a) * r;
+                z = b.z + std::sin(a) * r * 0.8f;
+            }
             if (ids_.soldier >= 0) {
-                dying(ids_.soldier, x, z, -0.3f, 0.12f);
-                flipbook(ids_.poofBlue, x, z - 0.05f, 0.0f, 1.0f);
+                launch(x, z, ev.blow ? 2.0f : 1.0f, x < b.x ? -1.0f : 1.0f);
+                if (ids_.hit >= 0 && i < 4) flipbook(ids_.hit, x, z - 0.1f, 0.7f, 1.0f, rnd() * 6.28f);
             } else {
                 figureFalls(x, z, 0.9f, kBlue, kBlueDark, kBlueDeep, rnd() < 0.5f ? -1.0f : 1.0f);
             }
         }
+        const int shown = minv(kMaxShown, minv(int(tune.soldiersShown), maxv<i32>(b.squad, 1)));
+        for (int i = 0; i < minv(ev.lost * 2, 10); ++i) hurt_[int(rnd() * float(shown)) % shown] = 0.22f;
         if (ev.gate < 0) {
             std::snprintf(t, sizeof t, "-%d", ev.lost);
             if (ev.crashed >= 0) floater(0, 1.0f, 4.4f, t, 0xFF7A86, 0x16224F, 1.0f, true);
+            else lossAcc_ += float(ev.lost);
+        }
+        if (ev.lost * 20 >= maxv<i32>(b.squad, 1)) {  // a twentieth of the squad or more: the screen's edge flashes red
+            edge_ = maxv(edge_, 0.6f);
+            shake_ = maxv(shake_, 0.15f);
         }
         cue(kCueLoss, ev.lost, b.x);
+    }
+    if (ev.blow) {  // a club landed: dust, a ring on the road, a jolt
+        if (ids_.ring >= 0) flipbook(ids_.ring, ev.blowX, ev.blowZ, 0.02f, ev.blowBoss ? 1.6f : 1.0f);
+        if (ids_.dirtBurst >= 0) flipbook(ids_.dirtBurst, ev.blowX, ev.blowZ - 0.1f, 0.0f, ev.blowBoss ? 1.4f : 1.0f);
+        for (int i = 0; i < 3 && ids_.dust >= 0; ++i) flipbook(ids_.dust, ev.blowX + (rnd() - 0.5f) * 3.0f, ev.blowZ - 0.3f, 0.0f, 2.2f);
+        shake_ = maxv(shake_, ev.blowBoss ? 0.55f : 0.35f);
+        cue(kCueBomb, 0, ev.blowX);
     }
     const int bi = b.bossIndex();
     if (bi >= 0 && bossSeen_ == 0 && b.enemies[bi].z - b.z < 60.0f) {
@@ -1155,6 +1198,17 @@ void Field::update(float dt, const sim::Battle& b) {
     bossActT_ += dt;
     edge_ = maxv(0.0f, edge_ - dt / 0.3f);
     for (float& f : flash_) f = maxv(0.0f, f - dt);
+    for (float& f : hurt_) f = maxv(0.0f, f - dt);
+    lossClock_ += dt;
+    if (lossClock_ >= 0.45f) {
+        lossClock_ = 0;
+        if (lossAcc_ >= 1.0f) {
+            char t[16];
+            std::snprintf(t, sizeof t, "-%d", int(lossAcc_ + 0.5f));
+            floater((rnd() - 0.5f) * 1.5f, 1.2f, 4.0f, t, 0xFF5A6A, 0x3A0A14, 0.95f, true);
+        }
+        lossAcc_ = 0;
+    }
     flameT_ = maxv(0.0f, flameT_ - dt);
     for (Bolt& bt : bolts_) bt.life -= dt;
     for (int i = 0; i < partCount_; ++i) {
@@ -1165,7 +1219,7 @@ void Field::update(float dt, const sim::Battle& b) {
         p.z += p.vz * dt;
         p.y += p.vy * dt;
         p.rot += p.vr * dt;
-        if (p.kind == 0 || p.kind == 3) p.vy -= 14.0f * dt;
+        if (p.kind == 0 || p.kind == 3 || p.kind == 9) p.vy -= 14.0f * dt;
         else if (p.kind == 2) p.vy -= 12.0f * dt;
         else if (p.kind == 5) {
             p.vy = maxv(p.vy - 6.0f * dt, -1.2f);
@@ -1921,12 +1975,19 @@ void Field::drawBoss(const sim::Enemy& e, float z, UiBatch& labels) {
         // The club lands on its 5th frame (12 a second) as the blow does: the slam starts 7/12 s after the half turns red.
         const int pose = bossAct_ == 1 ? ids_.bossSlam : bossAct_ == 2 ? ids_.bossThrow : bossAct_ == 3 ? ids_.bossRoar : -1;
         const float pt = bossAct_ == 1 ? bossActT_ - (1.0f - 5.0f / 12.0f) : bossActT_;
-        const bool posing = pose >= 0 && pt < 0.9f && (bossAct_ != 1 || bossActT_ < 1.4f);
-        const float at = posing ? maxv(0.0f, pt) : time;
-        const Placed pl = sprite(posing ? pose : boss, e.x, z, 0, at, breathe, 1.0f, 0, false, flicker, wa.bossTint, wa.bossHue);
+        bool posing = pose >= 0 && pt < 0.9f && (bossAct_ != 1 || bossActT_ < 1.4f);
+        float at = posing ? maxv(0.0f, pt) : time;
+        int shown = posing ? pose : boss, act = bossAct_;
+        if (!posing && bossContact_ && ids_.bossSlam >= 0) {  // on the squad: the club comes down (5th frame) on each blow
+            shown = ids_.bossSlam;
+            at = std::fmod(bossPhase_ + 5.0f / 12.0f, sim::Battle::kBossBlow);
+            posing = true;
+            act = 1;
+        }
+        const Placed pl = sprite(shown, e.x, z, 0, at, breathe, 1.0f, 0, false, flicker, wa.bossTint, wa.bossHue);
         if (pl.st) {
             const int w = clampv<int>(def_->world, 1, 10) - 1;
-            const int addon = posing ? ids_.addonPose[w][bossAct_ - 1] : wa.bossAddon;
+            const int addon = posing ? ids_.addonPose[w][act - 1] : wa.bossAddon;
             if (addon >= 0 && (posing || wa.bossAddon >= 0)) sprite(addon, e.x, z, 0, at, breathe, 1.0f, 0, false, flicker);
             castShadow(e.x, z, 4.6f, 1.7f);
             ++figures_;
@@ -2008,7 +2069,9 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
             const float var = (0.94f + 0.12f * h01(u32(i) * 31u + 7u)) * giantK;
             const bool cheering = b.won && ids_.cheer >= 0;  // hats in the air
             const float step = walking || cheering ? time + float(i) * 0.137f : 0.0f;
-            const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0, step, var * pop, 1.0f);
+            const float hurt = hurt_[i] > 0.0f ? minv(1.0f, hurt_[i] / 0.12f) : 0.0f;  // hit: a red flash
+            const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0, step, var * pop, 1.0f, 0, false, 0.25f * hurt,
+                                     hurt > 0.0f ? mixc(0xFFFFFF, 0xFF4040, 0.75f * hurt) : 0xFFFFFF);
             if (!pl.st) continue;
             castShadow(x, z, 1.2f * var, 0.25f);
             ++figures_;
@@ -2123,6 +2186,8 @@ void Field::drawParticles() {
                 sprite(p.anim, p.x, p.z, p.y, age, 1.0f, minv(1.0f, p.life / 0.25f), p.rot);
             } else if (p.kind == 0) {
                 sprite(p.anim, p.x, p.z, p.y, age, p.size, minv(1.0f, p.life / 0.2f), p.rot);
+            } else if (p.kind == 9) {  // a soldier knocked flying, spinning
+                sprite(p.anim, p.x, p.z, p.y, 0.3f, p.size, minv(1.0f, p.life / 0.3f), p.rot, false, 0, 0xFFD8D8);
             }
             continue;
         }
@@ -2243,6 +2308,8 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     if (art_ && (art_->world(def_->world).propCount > 0 || art_->world(def_->world).edgeCount > 0)) sceneryArt(zLo, zHi);
     else scenery(zLo, zHi);
     detailScale_ = b.aliveEnemies() > 700 ? 60.0f : (b.aliveEnemies() > 400 ? 42.0f : 30.0f);
+    bossContact_ = b.bossContact;
+    bossPhase_ = sim::Battle::kBossBlow - b.bossSwing + alpha * sim::kDt;
     const float step = alpha * sim::kDt;
     for (int i = 0; i < b.enemyCount; ++i) {
         const sim::Enemy& e = b.enemies[i];

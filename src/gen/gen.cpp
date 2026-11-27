@@ -219,11 +219,11 @@ void build(int n, u64 seed, Shape& out) {
     d.boss = n % 10 == 0;
     // Faster as the game goes on: the march from 4.6 to 7.0 units a second, the horde's pace up to 1.35 times; a hard
     // level faster still. Each level is longer than the one before, from half a minute to about fifteen at level 100
-    // (the owner, 2026-11-27): the road is the time at the march's speed, less the third spent standing for hordes.
+    // (the owner, 2026-11-27): the road is the time at the march's speed, less a tenth spent fighting.
     const float late = float(n - 1) / float(kLevels - 1);
     d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f) * (levelMode(n) == kModeRush ? 1.5f : 1.0f);
     d.pace = (1.0f + 0.35f * late) * (isSpike(n) ? 1.1f : 1.0f);
-    d.length = levelSeconds(n) * d.speed * (levelMode(n) == kModeRush ? 0.4f : 0.68f) + (d.boss ? 24.0f : 0.0f);  // a rush is short
+    d.length = levelSeconds(n) * d.speed * (levelMode(n) == kModeRush ? 0.5f : 0.9f) + (d.boss ? 24.0f : 0.0f);  // a rush is short
     d.start = n <= 5 ? 3 : 3 + int(r.next() % 4u);
     switch (n) {  // introductions: their hint lines (src/sim/levels.cpp)
         case 1: d.hint = 1; break;
@@ -366,7 +366,7 @@ void build(int n, u64 seed, Shape& out) {
     int sinceWave = 0;
     int section = 0, last = -1;
     // A long road offers another weapon about every two minutes, and holds a power-up for about every 45 s of it.
-    const float weaponGap = 120.0f * d.speed * 0.68f;
+    const float weaponGap = 120.0f * d.speed * 0.9f;
     float nextWeaponZ = 14.0f + weaponGap;
     int lastOffered = offer;
     const int maxPickups = 2 + int(levelSeconds(n) / 45.0f);
