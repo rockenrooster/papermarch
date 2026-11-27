@@ -1743,10 +1743,110 @@ void Field::drawStrikes(const sim::Battle& b, float step) {
         }
     }
     // Weather over the road: ice a pale sheen in slices up the road; wind arrows on the road and streaks blowing across.
+    // The hazards (no art of their own): mud, the tide, the narrows' gorge and railings, pits, hammers on their gantries.
     const float zMin = cam_.z + cam_.tBottom - 1.0f, zMax = cam_.z + cam_.tTop + 2.0f;
+    // A band of the road from xa to xb, z0 to z1 (flat on the road, behind what stands on it), in slices about 6 pixels
+    // high so its slanting sides do not step.
+    auto band = [&](float xa, float xb, float z0, float z1, u32 c, float a) {
+        const float xm = 0.5f * (xa + xb);
+        float step = 2.0f;
+        for (float zz = maxv(z0, zMin); zz < minv(z1, zMax); zz += step) {
+            float ax, ay, as, bx, by, bs;
+            if (!cam_.project(xm, zz, 0, ax, ay, as) || !cam_.project(xm, zz + 1.0f, 0, bx, by, bs)) continue;
+            step = clampv(6.0f / maxv(0.5f, ay - by), 0.15f, 2.0f);
+            const float z2 = minv(zz + step, z1);
+            if (!cam_.project(xm, z2, 0, bx, by, bs)) continue;
+            Sticker* q = add(z2 + 0.5f, 1);
+            if (q) *q = sticker(kShBox, 0.5f * (ax + bx), 0.5f * (ay + by), 0.25f * (xb - xa) * (as + bs), maxv(1.0f, 0.5f * (ay - by)), c, c, c, a);
+        }
+    };
+    // An upright post at x, z, `h` high (a railing's, a warning's, the hammer's gantry).
+    auto post = [&](float x, float z, float h, float w, u32 c) {
+        float sx, sy, s;
+        if (!cam_.project(x, z, 0, sx, sy, s)) return;
+        Sticker* q = add(z, 1);
+        if (q) *q = sticker(kShBox, sx, sy - 0.5f * h * s, maxv(1.0f, w * s), 0.5f * h * s, c, mixc(c, 0x000000, 0.3f), 0x2A241E);
+    };
+    // A bar between two points in the air (a railing, the hammer's beam and chain).
+    auto bar = [&](float x0, float z0, float y0, float x1, float z1, float y1, float w, u32 c, float key) {
+        float ax, ay, as, bx, by, bs;
+        if (!cam_.project(x0, z0, y0, ax, ay, as) || !cam_.project(x1, z1, y1, bx, by, bs)) return;
+        Sticker* q = add(key, 1);
+        if (!q) return;
+        *q = sticker(kShCapsule, 0.5f * (ax + bx), 0.5f * (ay + by), 0.5f * std::sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay)) + w * as,
+                     maxv(0.8f, w * 0.5f * (as + bs)), c, c, c);
+        q->rot = std::atan2(by - ay, bx - ax);
+    };
+    // What lies below the road where it is gone: the world's water, clouds, lava or a dark gorge.
+    const int wn = def_->world;
+    const u32 below = wn == 5 || wn == 1 ? 0x2F6FA8 : wn == 8 ? 0xDCE8F6 : wn == 9 ? 0xE0541C : wn == 3 ? 0x1E3A52 : 0x2A2420;
+    const u32 flood = wn == 9 ? 0xF0601E : wn == 8 ? 0xF2F5FF : wn == 7 ? 0x5C6B3A : 0x3D8FD6;
+    const float now = b.time + step;
     for (int k = 0; k < def_->stripCount; ++k) {
         const sim::StripDef& st = def_->strips[k];
         if (st.z1 < zMin || st.z0 > zMax) continue;
+        if (st.kind == sim::kStripMud) {  // brown over the road, darker puddles
+            band(-sim::kRoadHalf, sim::kRoadHalf, st.z0, st.z1, 0x6B4A2E, 0.55f);
+            const int n = int((st.z1 - st.z0) / 2.5f);
+            for (int i = 0; i < n; ++i) {
+                const float px = h01(u32(k * 131 + i * 7)) * 8.0f - 4.0f, pz = st.z0 + (float(i) + 0.5f) * (st.z1 - st.z0) / float(n);
+                float sx, sy, s;
+                if (pz < zMin || pz > zMax || !cam_.project(px, pz, 0, sx, sy, s)) continue;
+                Sticker* q = add(pz + 0.4f, 1);
+                if (q) *q = sticker(kShEllipse, sx, sy, (0.6f + 0.5f * h01(u32(k * 17 + i))) * s, 0.22f * s, 0x4A3220, 0x4A3220, 0x4A3220, 0.75f);
+            }
+            continue;
+        }
+        if (st.kind == sim::kStripTide) {  // the half that floods: a wet sheen; a red shimmer as it comes; water sliding in
+            const float sgn = st.push < 0.0f ? -1.0f : 1.0f, c = sim::tideClock(st, now);
+            const float edge = sim::kRoadHalf + 0.6f;
+            band(sgn < 0 ? -edge : 0.0f, sgn < 0 ? 0.0f : edge, st.z0, st.z1, flood, 0.24f);
+            if (c < 1.0f) {
+                band(sgn < 0 ? -edge : 0.0f, sgn < 0 ? 0.0f : edge, st.z0, st.z1, 0xF0323C, 0.12f + 0.12f * (0.5f + 0.5f * std::sin(c * 25.0f)));
+            } else if (c < 4.0f) {
+                const float f = minv(1.0f, minv((c - 1.0f) / 0.4f, (4.0f - c) / 0.4f)), inner = edge - edge * f;  // the water's edge
+                const float xa = sgn < 0 ? -edge : sgn * inner, xb = sgn < 0 ? -inner : edge;
+                band(xa, xb, st.z0, st.z1, flood, 0.82f);
+                band(sgn < 0 ? -inner - 0.25f : inner, sgn < 0 ? -inner : inner + 0.25f, st.z0, st.z1, kWhiteC, 0.6f + 0.2f * std::sin(now * 9.0f));
+            }
+            continue;
+        }
+        if (st.kind == sim::kStripNarrow) {  // the gorge either side of a bridge, its railings
+            const float edge = sim::kRoadHalf + 0.7f, nh = sim::kNarrowHalf;
+            band(-edge, -nh, st.z0, st.z1, below, 1.0f);
+            band(nh, edge, st.z0, st.z1, below, 1.0f);
+            for (float zz = st.z0; zz <= st.z1 + 0.01f; zz += 2.0f) {
+                if (zz < zMin || zz > zMax) continue;
+                for (int sd = -1; sd <= 1; sd += 2) {
+                    post(float(sd) * (nh + 0.1f), zz, 1.0f, 0.07f, 0x8A5A32);
+                    if (zz + 2.0f <= st.z1 + 0.01f) bar(float(sd) * (nh + 0.1f), zz, 0.95f, float(sd) * (nh + 0.1f), zz + 2.0f, 0.95f, 0.06f, 0x9A6A3E, zz + 1.0f);
+                }
+            }
+            continue;
+        }
+        if (st.kind == sim::kStripPit) {  // the road gone on one side: what lies below, a crumbling rim, warning posts
+            const float w = std::fabs(st.push), sgn = st.push < 0.0f ? -1.0f : 1.0f, edge = sim::kRoadHalf + 0.7f;
+            const float inner = sgn * (sim::kRoadHalf - w);
+            band(sgn < 0 ? -edge : inner, sgn < 0 ? inner : edge, st.z0, st.z1, below, 1.0f);
+            band(sgn < 0 ? inner : inner - 0.3f, sgn < 0 ? inner + 0.3f : inner, st.z0, st.z1, 0x8C7B66, 0.9f);
+            for (float zz : {st.z0 - 0.4f, st.z1 + 0.2f})
+                if (zz > zMin && zz < zMax) {
+                    post(inner - sgn * 0.3f, zz, 1.1f, 0.08f, 0xF0323C);
+                    post(sgn * (sim::kRoadHalf - 0.3f), zz, 1.1f, 0.08f, 0xF4F0E8);
+                }
+            continue;
+        }
+        if (st.kind == sim::kStripHammer) {  // a wrecking ball on a chain from a gantry over the road, its path in red
+            const float z0 = st.z0, top = 7.5f, len = 6.8f;
+            band(-sim::kHammerReach - sim::kHammerHead, sim::kHammerReach + sim::kHammerHead, z0 - 0.5f, z0 + 0.5f, 0xF0323C, 0.22f);
+            post(-sim::kRoadHalf - 0.4f, z0, top, 0.16f, 0x7A4E2C);
+            post(sim::kRoadHalf + 0.4f, z0, top, 0.16f, 0x7A4E2C);
+            bar(-sim::kRoadHalf - 0.6f, z0, top, sim::kRoadHalf + 0.6f, z0, top, 0.2f, 0x8A5A32, z0 + 0.05f);
+            const float hx = sim::hammerX(st, now), hy = top - std::sqrt(maxv(1.0f, len * len - hx * hx));
+            bar(0.0f, z0, top, hx, z0, hy + 0.8f, 0.05f, 0x3A342C, z0 + 0.02f);
+            if (ids_.boulder >= 0 && sprite(ids_.boulder, hx, z0, hy - 0.9f, 0, 2.2f, 1.0f, std::atan2(hx, len)).st) castShadow(hx, z0, hy, 1.0f);
+            continue;
+        }
         if (st.kind == sim::kStripIce) {
             for (float zz = maxv(st.z0, zMin); zz < minv(st.z1, zMax); zz += 2.0f) {
                 float ax, ay, as, bx, by, bs;
@@ -1756,7 +1856,7 @@ void Field::drawStrikes(const sim::Battle& b, float step) {
                 if (q) *q = sticker(kShBox, 0.5f * (ax + bx), 0.5f * (ay + by), sim::kRoadHalf * 0.5f * (as + bs), maxv(1.0f, 0.5f * (ay - by)), 0xD8F4FF,
                                     0xD8F4FF, 0xD8F4FF, 0.38f + 0.06f * std::sin(time * 2.0f + zz));
             }
-        } else {
+        } else if (st.kind == sim::kStripWind) {
             const float dir = st.push < 0.0f ? -1.0f : 1.0f;
             for (float zz = st.z0 + 2.0f; zz < st.z1; zz += 5.0f)
                 for (int c = 0; c < 2; ++c) {

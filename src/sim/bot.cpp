@@ -51,6 +51,18 @@ float steer(const Battle& b) {
         if (rightOk) return right;
         return s.x < 0.0f ? kRoadHalf : -kRoadHalf;  // no way out: the side with more room
     }
+    // 0b. A hazard ahead or underfoot: the tide's dry half, the far side from a pit, the side the hammer will not be on
+    // when the squad passes under it (keeping its side while the head will be near the middle).
+    for (int k = 0; k < d.stripCount; ++k) {
+        const StripDef& s = d.strips[k];
+        if (s.z1 < b.z - 0.5f || s.z0 - b.z > 12.0f) continue;
+        if (s.kind == kStripTide || s.kind == kStripPit) return s.push < 0.0f ? kRoadHalf : -kRoadHalf;
+        if (s.kind == kStripHammer && s.z0 > b.z) {
+            const float hx = hammerX(s, b.time + (s.z0 - b.z) / maxv(0.5f, d.speed * (b.powered(kQuick) ? 1.6f : 1.0f)));
+            if (std::fabs(hx) < 1.5f) return b.x < 0.0f ? -kRoadHalf : kRoadHalf;
+            return hx > 0.0f ? -kRoadHalf : kRoadHalf;
+        }
+    }
     // 1. The next row of gates (within `look` units): the plan's gate, else the one that leaves the biggest squad, or a
     // gap if every gate hurts.
     float rowZ = 1e9f;

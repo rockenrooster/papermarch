@@ -171,10 +171,11 @@ void Game::loadLevel(int n) {
     // every time; an introduction's once.
     const int h = def_->hint;
     const bool always = h == 22 || h == 25 || h == 26 || (h >= 48 && h <= 51) || (h >= 58 && h <= 62);
-    if (h > 0 && h < 64 && (always || !(save_.hints & (u64(1) << h)))) {
+    u64& seen = h < 64 ? save_.hints : save_.hints2;
+    if (h > 0 && h < sim::kHintCount && (always || !(seen & (u64(1) << (h & 63))))) {
         hintShownFor_ = h;
         hintLineTime_ = 5.0f;
-        save_.hints |= u64(1) << h;
+        seen |= u64(1) << (h & 63);
     } else if (def_->spike) {  // a hard level says so, every time
         hintShownFor_ = sim::kHintHard;
         hintLineTime_ = 4.0f;

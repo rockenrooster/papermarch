@@ -56,6 +56,10 @@ bool loadSave(const char* path, SaveData& out) {
             char* end = nullptr;
             s.hints = u64(std::strtoull(v, &end, 10));
             if (end == v) ok = false;
+        } else if (!std::strcmp(k, "hints2")) {
+            char* end = nullptr;
+            s.hints2 = u64(std::strtoull(v, &end, 10));
+            if (end == v) ok = false;
         } else if (!std::strcmp(k, "endless_best")) num(0, 1000000, s.endlessBest);
         else if (!std::strcmp(k, "endless_distance")) num(0, 2000000000, s.endlessDistance);
     }
@@ -77,10 +81,10 @@ bool writeSave(const char* path, const SaveData& s) {
     for (int i = 0; i < last; ++i) stars[i] = char('0' + s.stars[i]);
     stars[last] = 0;
     std::fprintf(f,
-                 "version=%d\nlevel=%d\nstars=%s\nsound=%d\nmusic=%d\nhaptics=%d\nfast=%d\nreduce_effects=%d\nrefresh60=%d\nfinished=%d\nhints=%llu\n"
+                 "version=%d\nlevel=%d\nstars=%s\nsound=%d\nmusic=%d\nhaptics=%d\nfast=%d\nreduce_effects=%d\nrefresh60=%d\nfinished=%d\nhints=%llu\nhints2=%llu\n"
                  "endless_best=%d\nendless_distance=%d\n",
                  s.version, s.level, stars, s.sound, s.music, s.haptics, s.fast, s.reduceEffects, s.refresh60, s.finished, (unsigned long long)s.hints,
-                 s.endlessBest, s.endlessDistance);
+                 (unsigned long long)s.hints2, s.endlessBest, s.endlessDistance);
     const bool ok = std::fflush(f) == 0;
     std::fclose(f);
     if (!ok) return false;

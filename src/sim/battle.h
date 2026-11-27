@@ -6,6 +6,8 @@
 
 #include "core/types.h"
 
+#include <cmath>
+
 namespace pm::sim {
 
 constexpr float kRoadHalf = 5.0f;   // the road: x in [-5, 5]; z runs up the road
@@ -104,16 +106,28 @@ struct WallDef {
     i32 hp = 60;
 };
 // A stretch of road with weather: wind pushes the squad sideways at `push` units a second (+ to the right); on ice the
-// squad steers a third as quickly.
-enum StripKind : u8 { kStripWind = 1, kStripIce = 2 };
+// squad steers a third as quickly. The road's hazards (docs/CONTENT_PASS.md H2, H4, H5, H10, H11) are strips too: mud
+// halves the march; the tide floods one half of the road (push < 0 the left) 3 s in every 6 after a second's warning,
+// taking a fifth a second of whoever stands in it and sweeping away the enemies in it; the narrows leave the road 2.2
+// either side (the squad squeezes in, its fire x0.6); a pit takes |push| of the road away on one side (push < 0 the left):
+// whoever is over it falls (a squad's share of it over the pit's length, at most a fifth); a hammer swings across the road
+// at z0 (its phase `push` seconds) and takes whoever it meets as the squad passes under it (at most a quarter).
+enum StripKind : u8 { kStripWind = 1, kStripIce = 2, kStripMud = 3, kStripTide = 4, kStripNarrow = 5, kStripPit = 6, kStripHammer = 7 };
 struct StripDef {
     float z0 = 40, z1 = 60;
     u8 kind = kStripWind;
     float push = 0;
 };
+constexpr float kNarrowHalf = 2.2f, kTideCycle = 6.0f, kHammerPeriod = 2.4f, kHammerReach = 3.8f, kHammerHead = 1.0f;
+inline float tideClock(const StripDef& s, float t) { return std::fmod(t + s.z0 * 0.31f, kTideCycle); }  // 0-1 warning, 1-4 in
+inline bool tideIn(const StripDef& s, float t) {
+    const float c = tideClock(s, t);
+    return c >= 1.0f && c < 4.0f;
+}
+inline float hammerX(const StripDef& s, float t) { return kHammerReach * std::sin(6.2831853f * (t + s.push) / kHammerPeriod); }
 // The level's sky (the view only): fog hides what is further than about 22 units, night darkens all but the near road.
 enum SkyKind : u8 { kSkyClear, kSkyFog, kSkyNight };
-constexpr int kMaxRollers = 96, kMaxWalls = 32, kMaxStrips = 48;
+constexpr int kMaxRollers = 96, kMaxWalls = 32, kMaxStrips = 96;
 struct WaveDef {
     float z = 40;     // its front row
     float x0 = -4, x1 = 4;
@@ -320,6 +334,7 @@ public:
     BarrelState barrels[kMaxBarrels];
     int nextWave = 0;
     float bossDrain = 0, bossRate = 0;  // the boss's crushing: its debt in soldiers; its rate, set when it reaches the squad
+    float hazardDebt = 0;               // soldiers the tide and pits have taken, not yet whole
     // The boss strikes with its club every kBossBlow seconds while it stands on the squad (the view swings it in time):
     // the clock to its next blow, and whether it is on the squad now.
     static constexpr float kBossBlow = 0.9f;
@@ -340,6 +355,7 @@ public:
     float enemySpeed(const Enemy& e) const;  // units a second down the road now (the view moves it between steps)
     i32 gateNow(int g, float t) const;       // what gate g gives `t` seconds into the march (a flip gate's face then)
     const StripDef* stripAt(float zz) const; // the weather over the road at zz, null none
+    float roadHalfAt(float zz) const;        // the road's half width at zz (the narrows: kNarrowHalf)
     // Mines (hit points left, gone), cages opened, the archers' arrows in flight.
     i32 mineHp[kMaxMines] = {};
     u8 mineGone[kMaxMines] = {}, cageOpen[kMaxCages] = {};
@@ -377,6 +393,7 @@ private:
     void fire(BattleEvents& ev);
     void moveBullets(BattleEvents& ev);
     void moveEnemies(BattleEvents& ev);
+    void hazards(float zPrev, BattleEvents& ev);  // the tide, pits and hammers
     void kill(int i, BattleEvents& ev);
     // An enemy takes damage (and dies at none left); `front`: a bullet from the front, which a shield takes first.
     void hurt(int i, i32 dmg, BattleEvents& ev, bool front = false);
@@ -425,7 +442,7 @@ const LevelDef& level(int n);
 bool decodeLevel(const char* text, LevelDef& out);
 int encodeLevel(const LevelDef& d, char* out, int cap);
 const char* hintText(int hint);
-constexpr int kHintCount = 64;
+constexpr int kHintCount = 72;
 constexpr int kHintHard = 11;  // shown on every hard level
 int starsFor(const LevelDef& d, i32 squadLeft);
 

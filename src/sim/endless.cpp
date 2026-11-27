@@ -39,7 +39,7 @@ float onOne(u8 weapon) {
 }
 
 // How hard stage k is (k from 1): a horde's foot and the last stand's, and how much tougher each enemy gets a stage
-// (tuned with papermarch_headless --endless: the bot falls somewhere about stage 8 to 15).
+// (tuned with papermarch_headless --endless: the bot falls between stages 3 and 14, about 7 on average).
 constexpr float kHordeBase = 110.0f, kHordeGrow = 30.0f, kStandBase = 150.0f, kStandGrow = 40.0f, kTougher = 0.04f;
 
 }  // namespace
@@ -95,15 +95,16 @@ void Endless::extend(LevelDef& d, Battle& b) {
         if (section_ == 0) kind = 0;
         else if (since_ >= 2 + int(r.next() % 2u)) kind = 4;  // a horde after every two or three others
         else {
-            // columns, pairs, barrels, barricades, (horde), triples, a weapon, moving gates, rollers, flip, mystery, weather
-            float w[12] = {0.8f, 2.2f, 1.6f, 1.1f, 0.0f, k >= 2 && grow ? 1.0f : 0.0f, sinceWeapon_ >= 4 ? 1.5f : 0.0f, k >= 2 ? 0.8f : 0.0f,
-                           k >= 3 ? 0.8f : 0.0f, k >= 4 ? 0.7f : 0.0f, k >= 6 ? 0.6f : 0.0f, k >= 5 ? 0.6f : 0.0f};
-            if (last_ >= 0 && last_ < 12) w[last_] *= 0.12f;
+            // columns, pairs, barrels, barricades, (horde), triples, a weapon, moving gates, rollers, flip, mystery, weather,
+            // a hazard (a hammer, a pit, the narrows, the tide, mud)
+            float w[13] = {0.8f, 2.2f, 1.6f, 1.1f, 0.0f, k >= 2 && grow ? 1.0f : 0.0f, sinceWeapon_ >= 4 ? 1.5f : 0.0f, k >= 2 ? 0.8f : 0.0f,
+                           k >= 3 ? 0.8f : 0.0f, k >= 4 ? 0.7f : 0.0f, k >= 6 ? 0.6f : 0.0f, k >= 5 ? 0.6f : 0.0f, k >= 3 ? 0.8f : 0.0f};
+            if (last_ >= 0 && last_ < 13) w[last_] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
             float x = r.f01() * sum;
             kind = 0;
-            for (int i = 0; i < 12; ++i) {
+            for (int i = 0; i < 13; ++i) {
                 if (x < w[i]) {
                     kind = i;
                     break;
@@ -230,6 +231,28 @@ void Endless::extend(LevelDef& d, Battle& b) {
                 gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, z + 12.0f, a, kGateAdd, 1, a + 2 + a / 2);
                 gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, z + 12.0f, -c, kGateAdd, 1, maxv<i32>(1, c / 3));
                 z += 26.0f;
+                ++since_;
+                break;
+            }
+            case 12: {  // a hazard: hammers, a pit, the narrows, the tide or mud (the campaign's own, src/gen)
+                const int hz = kStripMud + int(r.next() % 5u);
+                const float side = left ? -1.0f : 1.0f;
+                if (d.stripCount + 2 > kMaxStrips) {
+                    z += 6.0f;
+                } else if (hz == kStripHammer) {
+                    const int n = 1 + int(r.next() % 2u);
+                    for (int i = 0; i < n; ++i)
+                        d.strips[d.stripCount++] = {z + 8.0f + 10.0f * float(i), z + 8.2f + 10.0f * float(i), u8(kStripHammer), uni(r, 0.0f, kHammerPeriod)};
+                    z += 14.0f + 10.0f * float(n);
+                } else if (hz == kStripPit) {
+                    const float len = uni(r, 5.0f, 9.0f);
+                    d.strips[d.stripCount++] = {z + 6.0f, z + 6.0f + len, u8(kStripPit), side * uni(r, 3.0f, 5.0f)};
+                    z += len + 14.0f;
+                } else {
+                    const float len = hz == kStripNarrow ? uni(r, 10.0f, 16.0f) : uni(r, 14.0f, 20.0f);
+                    d.strips[d.stripCount++] = {z + 4.0f, z + 4.0f + len, u8(hz), hz == kStripTide ? side : 0.0f};
+                    z += len + 10.0f;
+                }
                 ++since_;
                 break;
             }

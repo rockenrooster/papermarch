@@ -185,17 +185,27 @@ every 50 soldiers (was 8), the mortar lobs at the nearest enemy in reach. Checks
 the flow test 27/27 on the PC and in the browser (ENDLESS starts a run), the layout lint, level 1 won by touch in the
 browser.
 
+## 2026-11-27: 0.15.0, the road's hazards
+
+The content pass's hazards that waited for art are built without it (GAME_DESIGN 5): hammers from 34 (a wrecking
+ball from a gantry, the boulder's sprite on a chain), pits from 43, the narrows from 47, the tide from 51, mud from 69,
+each with its hint, two or three times as many on a gauntlet, world favourites three times as likely, and in endless
+from stage 3. The bot keeps to the tide's dry half and a pit's far side and times the hammer. Hard levels still keep
+about 1% (0.3-1.5%); levels run 0:23 at 1 to 14:03 at 100; the endless bot falls on stage 3-14, about 7 (as before).
+Hints are counted past 64 (`hints2` in the save). Checks: unit tests 31/31, the table 100/100, the flow test 27/27 on
+the PC and in the browser, the layout lint, level 1 won by touch in the browser. The last stand is left out.
+
 ## Status
 
 | Part | Status |
 |---|---|
-| The battle (rules, bot, generator, 100 baked levels) | Done; the bot wins every level with the squad the bake recorded |
-| The view (road, squad, gates, barrels, hordes, boss, effects) | Done on the PC and in the browser; not yet seen on a phone |
-| Screens, flow, LEVELS, save, updater pill | Done; flow test 23/23; layout lint clean on 8 screens at 4 sizes |
-| Audio | New battle sounds and cues; offline renders measured (below); the owner's ears pending |
-| Android | The dev APK builds (4.9 MB); GitHub releases from `build-6` on (0.2.0, signed) are the shooter; the icon is a paper soldier on the road |
-| Browser | Builds (index.wasm 2.8 MB); headless Chrome: the flow test 23/23, level 1 won by a touch sweeping the squad, NEXT, the save kept and read back, a notch's insets, 56 frames a second while the bot plays level 30 |
-| Netlify | Not deployed: once, when the owner says the game is finished |
+| The battle (rules, bot, generator, 100 baked levels, endless) | Done; the bot wins every level with the squad the bake recorded; the content pass is built but for the last stand |
+| The view (road, squad, gates, barrels, hordes, boss, hazards, effects) | Done on the PC and in the browser; not yet seen on a phone |
+| Screens, flow, LEVELS, ENDLESS, save, updater pill | Done; flow test 27/27; layout lint clean on every screen at 4 sizes |
+| Audio | Battle sounds and cues; offline renders measured (below); the owner's ears pending |
+| Android | Signed releases on GitHub from every push that changes the game (`build-N`); not yet installed on a phone here (none attached) |
+| Browser | Builds (index.wasm 1.7 MB); headless Chrome: the flow test 27/27, level 1 won by touch, NEXT, the save; served on the LAN at port 8092 |
+| Netlify | Not deployed: the owner said "just local for now" (2026-11-27) |
 
 ## Measured (this PC, 2026-11-26)
 
@@ -228,8 +238,9 @@ captures, haptics, the updater on a real install) wait for a device.
 
 ## Open questions for the owner
 
-- Is this the game from the advertisement now? What should change first?
+- Play notes and the rebalance: what feels too hard, too easy or too samey (levels run 0:26 at level 1 to about 14
+  minutes at 100; hard levels keep about 1%)?
 - Steering: too fast or too slow (`--set steer=`)? Camera: more road ahead (`camPitch`, `camHeight`)?
-- Difficulty and length (20-40 s a level): right?
 - Sound: shots, explosions and the march on your phone.
-- Netlify: say when it is finished and it goes live once.
+- A phone to check speed, memory and heat on (none attached since 2026-11-26).
+- Netlify: say when, and it goes live once.

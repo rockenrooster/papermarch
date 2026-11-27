@@ -13,7 +13,7 @@ struct SaveData {
     bool sound = true, music = true, haptics = true, fast = false, reduceEffects = false;
     bool finished = false;      // all the levels were won once (the end screen was seen)
     bool refresh60 = false;     // the one-way 60 Hz fallback (TECH_SPEC 5.10)
-    u64 hints = 0;              // bit per hint line shown (sim::hintText; 64 of them)
+    u64 hints = 0, hints2 = 0;  // bit per hint line shown (sim::hintText): 0-63, 64-127
     int endlessBest = 0;        // endless: the furthest stage reached, and the longest distance marched
     int endlessDistance = 0;
     int totalStars() const;

@@ -138,19 +138,20 @@ bool cratePower(u8 p) { return !medalPower(p) || p == kRapid || p == kPowerShot 
 enum Fav : u32 {
     kFavMoving = 1, kFavRollers = 2, kFavFlips = 4, kFavMystery = 8, kFavIce = 16, kFavWind = 32, kFavMines = 64, kFavArchers = 128,
     kFavCatapults = 256, kFavShields = 512, kFavBombers = 1024, kFavDrums = 2048, kFavGiants = 4096, kFavCages = 8192, kFavWalls = 16384,
-    kFavFog = 32768, kFavNight = 65536
+    kFavFog = 32768, kFavNight = 65536, kFavTide = 1u << 17, kFavNarrows = 1u << 18, kFavPits = 1u << 19, kFavHammers = 1u << 20,
+    kFavMud = 1u << 21
 };
 const u32 kWorldFav[10] = {
-    kFavMoving | kFavMines | kFavCages,                    // 1 Greenmeadow
-    kFavArchers | kFavCatapults | kFavWind | kFavWalls,    // 2 Sunbaked
-    kFavIce | kFavShields | kFavFog,                       // 3 Frostvale
-    kFavBombers | kFavRollers | kFavDrums,                 // 4 Emberfall
-    kFavRollers | kFavFlips | kFavMoving,                  // 5 Tidereach
-    kFavMystery | kFavFlips | kFavCages,                   // 6 Bloomgrove
-    kFavFog | kFavBombers | kFavGiants,                    // 7 Mirefen
-    kFavWind | kFavArchers | kFavRollers,                  // 8 Skyhold
-    kFavNight | kFavMines | kFavGiants | kFavWalls,        // 9 Cinderpeak
-    kFavFlips | kFavMystery | kFavMoving | kFavRollers,    // 10 Lanternfair
+    kFavMoving | kFavMines | kFavCages | kFavPits,                       // 1 Greenmeadow
+    kFavArchers | kFavCatapults | kFavWind | kFavWalls,                  // 2 Sunbaked
+    kFavIce | kFavShields | kFavFog,                                     // 3 Frostvale
+    kFavBombers | kFavRollers | kFavDrums,                               // 4 Emberfall
+    kFavRollers | kFavFlips | kFavMoving | kFavTide | kFavNarrows,       // 5 Tidereach
+    kFavMystery | kFavFlips | kFavCages,                                 // 6 Bloomgrove
+    kFavFog | kFavBombers | kFavGiants | kFavPits | kFavMud,             // 7 Mirefen
+    kFavWind | kFavArchers | kFavRollers | kFavNarrows | kFavPits | kFavHammers,  // 8 Skyhold
+    kFavNight | kFavMines | kFavGiants | kFavWalls | kFavTide,           // 9 Cinderpeak
+    kFavFlips | kFavMystery | kFavMoving | kFavRollers | kFavHammers,    // 10 Lanternfair
 };
 
 }  // namespace
@@ -339,6 +340,15 @@ void build(int n, u64 seed, Shape& out) {
     if (n == 39) d.hint = 53;
     if (n == 56) d.hint = 54;
     if (n == 62) d.hint = 55;
+    // The road's hazards (docs/CONTENT_PASS.md H2, H4, H5, H10, H11, without new art): hammers from 34, pits from 43, the
+    // narrows from 47, the tide from 51, mud from 69.
+    const bool hammers = n >= 34, pits = n >= 43, narrows = n >= 47, tides = n >= 51, muds = n >= 69;
+    const bool hazardIntro = n == 34 || n == 43 || n == 47 || n == 51 || n == 69;
+    if (n == 34) d.hint = 64;
+    if (n == 43) d.hint = 65;
+    if (n == 47) d.hint = 66;
+    if (n == 51) d.hint = 67;
+    if (n == 69) d.hint = 68;
     if (!d.hint && kThemeHint[theme]) d.hint = kThemeHint[theme];  // a special level's banner (an introduction's comes first)
     const bool cavalry = theme == kThemeCavalry && n >= 7, bruteSquad = theme == kThemeBrutes;
     const u32 favs = kWorldFav[(d.world - 1) % 10];
@@ -448,7 +458,8 @@ void build(int n, u64 seed, Shape& out) {
         else if (section == 1 && (n == 31 || n == 62)) kind = 13;  // the first ice, the first wind
         else if (section == 1 && n == 39) kind = 11;                 // the first flip gate
         else if (section == 1 && n == 56) kind = 12;                 // the first mystery gates
-        else if (section == (n == 27 || n == 31 || n == 39 || n == 56 || n == 62 ? 2 : 1) && offer > 0) kind = 6;
+        else if (section == 1 && hazardIntro) kind = 15;             // the first hammer, pit, narrows, tide, mud
+        else if (section == (n == 27 || n == 31 || n == 39 || n == 56 || n == 62 || hazardIntro ? 2 : 1) && offer > 0) kind = 6;
         else if (section == 1 && n == 19) kind = 7;  // the first moving gate
         // A horde after every two or three other sections: never on a gold rush, a rush or a gauntlet (their roads are
         // hazards and gates; the end fight is their only horde).
@@ -459,13 +470,16 @@ void build(int n, u64 seed, Shape& out) {
         else {
             // Gold rush: gates, barrels, medallions; rescue: few gates; gauntlet: rollers and minefields, gates as bait.
             const float gk = rescue ? 0.4f : gauntlet ? 0.5f : 1.0f;
-            float w[14] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
+            const bool favHazard = (hammers && fav(kFavHammers)) || (pits && fav(kFavPits)) || (narrows && fav(kFavNarrows)) ||
+                                   (tides && fav(kFavTide)) || (muds && fav(kFavMud));
+            float w[15] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
                            triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) * (fav(kFavMoving) ? 2.0f : 1.0f) : 0.0f,
                            gold && powersKnown > 0 ? 1.2f : 0.0f,
                            rollers && !gold ? (gauntlet ? 3.0f : rush ? 1.5f : 0.6f) * (fav(kFavRollers) ? 2.0f : 1.0f) : 0.0f,
                            gauntlet || (rush && mines) ? 1.4f : (mines && fav(kFavMines) && !gold ? 0.5f : 0.0f),
                            flips ? 0.8f * gk * (fav(kFavFlips) ? 2.0f : 1.0f) : 0.0f, mysteries ? 0.7f * gk * (fav(kFavMystery) ? 2.0f : 1.0f) : 0.0f,
-                           (ice && fav(kFavIce)) || (wind && fav(kFavWind)) ? 1.4f : ice || wind ? 0.7f : 0.0f};
+                           (ice && fav(kFavIce)) || (wind && fav(kFavWind)) ? 1.4f : ice || wind ? 0.7f : 0.0f,
+                           hammers && !gold ? (gauntlet ? 2.5f : rush ? 0.8f : favHazard ? 1.0f : 0.45f) : 0.0f};
             // The theme's lean: three times as many of its sections (multiplier madness: rows of x2 and x3).
             if (theme == kThemeColumns) w[0] *= 3.0f;
             if (theme == kThemeChoices) w[1] *= 2.5f, w[5] *= 2.0f;
@@ -474,13 +488,14 @@ void build(int n, u64 seed, Shape& out) {
             if (theme == kThemeMultiply) w[1] *= 2.0f, w[5] = triple || n >= 8 ? 2.5f * gk : w[5];
             if (theme == kThemeSprint) w[0] *= 1.5f, w[7] *= 2.0f;
             if (last >= 0 && last < 14) w[last] *= 0.12f;
+            if (last == 15) w[14] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
             float x = r.f01() * sum;
             kind = 0;
-            for (int k = 0; k < 14; ++k) {
+            for (int k = 0; k < 15; ++k) {
                 if (x < w[k]) {
-                    kind = k;
+                    kind = k == 14 ? 15 : k;  // 14 is the weapon on offer (above)
                     break;
                 }
                 x -= w[k];
@@ -607,6 +622,72 @@ void build(int n, u64 seed, Shape& out) {
                     d.gates[d.gateCount - 1].moves = u8(1 + r.next() % 255u);
                 }
                 z += 8.0f + 7.0f * float(k);
+                ++sinceWave;
+                break;
+            }
+            case 15: {  // a hazard on the road: a hammer (or two or three on a gauntlet), a pit, the narrows, the tide, mud
+                // What this level knows, a world's favourites three times as likely; an introduction lays its own.
+                int kinds[5], m = 0;
+                float kw[5], sum = 0;
+                auto offerKind = [&](bool known, int kind, u32 f) {
+                    if (!known) return;
+                    kinds[m] = kind;
+                    kw[m] = fav(f) ? 3.0f : 1.0f;
+                    sum += kw[m++];
+                };
+                offerKind(hammers, kStripHammer, kFavHammers);
+                offerKind(pits, kStripPit, kFavPits);
+                offerKind(narrows, kStripNarrow, kFavNarrows);
+                offerKind(tides, kStripTide, kFavTide);
+                offerKind(muds, kStripMud, kFavMud);
+                int hz = n == 34 ? kStripHammer : n == 43 ? kStripPit : n == 47 ? kStripNarrow : n == 51 ? kStripTide : n == 69 ? kStripMud : 0;
+                if (!hz && m > 0) {
+                    float x = r.f01() * sum;
+                    hz = kinds[m - 1];
+                    for (int i = 0; i < m; ++i) {
+                        if (x < kw[i]) {
+                            hz = kinds[i];
+                            break;
+                        }
+                        x -= kw[i];
+                    }
+                }
+                const float side = r.f01() < 0.5f ? -1.0f : 1.0f;
+                auto strip = [&](float z0, float z1, int kind, float push) {
+                    if (d.stripCount < kMaxStrips) d.strips[d.stripCount++] = {z0, z1, u8(kind), push};
+                };
+                if (hz == kStripHammer) {  // hammers 10 apart, each swinging at its own phase
+                    const int k = n == 34 && section <= 2 ? 1 : gauntlet ? 2 + int(r.next() % 2u) : 1 + int(r.next() % 2u);
+                    for (int i = 0; i < k; ++i) strip(z + 8.0f + 10.0f * float(i), z + 8.2f + 10.0f * float(i), kStripHammer, uni(r, 0.0f, kHammerPeriod));
+                    z += 14.0f + 10.0f * float(k);
+                } else if (hz == kStripPit) {  // 3 to 5 of the road gone on one side for 5 to 9; on a gauntlet a second on the other
+                    const int k = gauntlet ? 2 : 1;
+                    float zz = z + 6.0f;
+                    for (int i = 0; i < k; ++i) {
+                        const float len = uni(r, 5.0f, 9.0f), w = n == 43 ? 3.0f : uni(r, 3.0f, 5.0f);
+                        strip(zz, zz + len, kStripPit, (i % 2 ? -side : side) * w);
+                        zz += len + 6.0f;
+                    }
+                    z = zz + 4.0f;
+                } else if (hz == kStripNarrow) {  // a bridge 4.4 wide for 10 to 16
+                    const float len = uni(r, 10.0f, 16.0f);
+                    strip(z + 4.0f, z + 4.0f + len, kStripNarrow, 0.0f);
+                    z += len + 10.0f;
+                } else if (hz == kStripTide) {  // one half floods by turns for 14 to 20
+                    const float len = uni(r, 14.0f, 20.0f);
+                    strip(z + 4.0f, z + 4.0f + len, kStripTide, side);
+                    z += len + 8.0f;
+                } else if (hz == kStripMud) {  // 16 to 22 of mud, a pair of gates in it
+                    const float len = uni(r, 16.0f, 22.0f);
+                    strip(z + 2.0f, z + 2.0f + len, kStripMud, 0.0f);
+                    const bool left = r.f01() < 0.5f;
+                    const i32 a = friendly(maxv(3.0f, E * uni(r, 0.3f, 0.7f) / over)), c = friendly(maxv(2.0f, E * uni(r, 0.15f, 0.35f)));
+                    gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, z + 2.0f + len * 0.6f, a, kGateAdd, 1, a + 2 + a / 2);
+                    gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, z + 2.0f + len * 0.6f, -c, kGateAdd, 1, maxv<i32>(1, c / 3));
+                    z += len + 6.0f;
+                } else {
+                    z += 6.0f;
+                }
                 ++sinceWave;
                 break;
             }

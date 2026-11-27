@@ -158,6 +158,20 @@ third as quickly; **wind** (from 62) pushes it sideways at 2.5-3.5 units a secon
 across); the bot leans into it. **Fog** (from 67, now and then) veils what lies further than about 18 units and
 **night** (from 81) darkens all but the squad's own few units (the view only).
 
+**Road hazards** (docs/CONTENT_PASS.md H2, H4, H5, H10, H11; strips in the level data, drawn without new art), each
+brought in on its level with a hint and laid by a section of their own (two to three times as many on a gauntlet):
+**hammers** (34, "MIND THE HAMMER"): a wrecking ball on a chain swings across the road from a gantry
+(`x = 3.8 sin(2 pi t / 2.4)`, its path marked in red); passing under it costs whoever stands under the ball (a share
+of the squad, at most a quarter; GIANTS walk through). **Pits** (43, "STAY ON THE ROAD"): 3-5 of the road gone on one
+side for 5-9 units (water, clouds, lava or a gorge below, warning posts); whoever is over it falls, the squad's share
+over it by the time it has crossed (at most a fifth), and enemies walking over it fall too. **The narrows** (47, "THE
+BRIDGE IS NARROW"): a bridge 4.4 wide for 10-16 units with railings; the squad squeezes onto it (stretched along the
+road) and fires at 0.6 times its rate; the horde funnels in. **The tide** (51, "MIND THE TIDE"): one half of the road
+floods 3 s in every 6 after a second's red shimmer (lava on Cinderpeak), taking a fifth a second of whoever stands in
+it and sweeping away the enemies in it. **Mud** (69, "MUD SLOWS THE MARCH"): 16-22 units where the march is half as
+fast, a pair of gates in it. The bot keeps to the tide's dry half and the pit's far side, and stands where the hammer
+will not be when it passes under it. Left out of CONTENT_PASS: the last stand (endless covers holding on).
+
 **Modes** (docs/CONTENT_PASS.md 3.3), by their place in each block of ten, each from the level that brings it in (a
 march before): 1 and 6 a march; 2 an **arsenal** from 22 (the squad starts with a weapon); 3 a **rescue** from 34 (the
 squad starts with 3, every horde guards a cage; on slot 4 from 24 to 33); 4 a **gauntlet** from 34 (rollers and
@@ -193,9 +207,11 @@ text form's grid (tenths) before the bot plays it, so what it measures is what t
 
 **Each world's favourites** (docs/CONTENT_PASS.md 4.3) come twice as often once the level knows them: 1 Greenmeadow
 moving gates, mines, cages; 2 Sunbaked archers, catapults, wind, fort walls (before some hordes on any road); 3 Frostvale
-ice, shield bearers, fog; 4 Emberfall bombers, rollers, drummers; 5 Tidereach rollers, flip and moving gates; 6
-Bloomgrove mystery and flip gates, cages; 7 Mirefen fog, bombers, giants; 8 Skyhold wind, archers, rollers; 9 Cinderpeak
-night, mines, giants, walls; 10 Lanternfair flip, mystery and moving gates, rollers. A hard level on a siege's or a
+ice, shield bearers, fog; 4 Emberfall bombers, rollers, drummers; 5 Tidereach rollers, flip and moving gates, the tide,
+the narrows; 6 Bloomgrove mystery and flip gates, cages; 7 Mirefen fog, bombers, giants, pits, mud; 8 Skyhold wind,
+archers, rollers, the narrows, pits, hammers; 9 Cinderpeak night, mines, giants, walls, the tide (lava); 10 Lanternfair
+flip, mystery and moving gates, rollers, hammers (1 Greenmeadow also favours pits). A world's favourite hazard is three
+times as likely as the others. A hard level on a siege's or a
 giants' road's place keeps that mode. A long road offers another weapon about every two minutes (a weapon gate beside a
 second weapon or a modest sum) and holds up to 2 + 1 per 45 s of the level's power-ups.
 
@@ -263,9 +279,9 @@ has then: the campaign's generator needs the bot and runs only in the tools, so 
 against a horde costs the same share of any squad past 50). Stage k: world `(k-1) % 10 + 1`, march 4.8 + 0.2(k-1) (at
 most 7.5), horde pace 1 + 0.04(k-1) (at most 1.45), 55 + 5(k-1) seconds of road (at most 110), hordes of 110 + 30(k-1)
 foot scaled to the squad, every enemy 4% tougher a stage, riders from 2, brutes and archers from 3, shieldmen 4, bombers
-5, drummers 6, fog or night now and then from 5. Every third stage ends with the boss, sized to 3-7 seconds of the
-squad's fire; the others with a last stand. The bot falls somewhere about stage 8 to 15 (`papermarch_headless
---endless`). The run ends on a card: RUN OVER (NEW BEST!), the stage and the paces marched, the best, AGAIN, LEVELS.
+5, drummers 6, fog or night now and then from 5, the road hazards from 3. Every third stage ends with the boss, sized to
+3-7 seconds of the squad's fire; the others with a last stand. The bot falls between stages 3 and 14, about 7 on
+average (`papermarch_headless --endless`, 14 seeds). The run ends on a card: RUN OVER (NEW BEST!), the stage and the paces marched, the best, AGAIN, LEVELS.
 
 ## 8. Screens
 

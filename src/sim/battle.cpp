@@ -50,12 +50,12 @@ u32 Battle::rand() {
 
 float Battle::radius() const { return minv(4.4f, 0.55f + 0.30f * std::sqrt(float(maxv<i32>(squad, 1)))); }
 void Battle::footprint(float& lo, float& hi) const {
-    const float r = radius();
-    lo = maxv(-kRoadHalf + 0.3f, x - r);
-    hi = minv(kRoadHalf - 0.3f, x + r);
+    const float r = radius(), half = roadHalfAt(z);
+    lo = maxv(-half + 0.3f, x - r);
+    hi = minv(half - 0.3f, x + r);
     if (hi < lo + 0.2f) lo = hi = x;
 }
-float Battle::fireRate() const { return 5.0f + 2.4f * float(minv<i32>(squad, 50)); }
+float Battle::fireRate() const { return (5.0f + 2.4f * float(minv<i32>(squad, 50))) * (roadHalfAt(z) < kRoadHalf ? 0.6f : 1.0f); }
 i32 Battle::damage() const { return maxv<i32>(kHp, squad * kHp / 50); }  // one musket ball, more past 50 soldiers
 float Battle::progress() const { return def ? clampv(z / maxv(1.0f, def->length - 8.0f), 0.0f, 1.0f) : 0.0f; }
 
@@ -69,7 +69,7 @@ void Battle::init(const LevelDef& d) {
     gatesInit_ = barrelsInit_ = rollersInit_ = wallsInit_ = 0;
     sync();
     nextWave = 0;
-    bossDrain = bossRate = 0;
+    bossDrain = bossRate = hazardDebt = 0;
     bossSwing = kBossBlow * 0.5f;  // the first blow comes half a swing after it reaches the squad
     bossContact = false;
     for (i32& l : waveLost) l = 0;
@@ -341,6 +341,11 @@ i32 Battle::gateNow(int g, float t) const {
     return gates[g].value;
 }
 
+float Battle::roadHalfAt(float zz) const {
+    const StripDef* s = stripAt(zz);
+    return s && s->kind == kStripNarrow ? kNarrowHalf : kRoadHalf;
+}
+
 const StripDef* Battle::stripAt(float zz) const {
     for (int k = 0; k < def->stripCount; ++k)
         if (zz >= def->strips[k].z0 && zz < def->strips[k].z1) return &def->strips[k];
@@ -559,6 +564,44 @@ float Battle::share(float a, float b) const {
     float lo, hi;
     footprint(lo, hi);
     return clampv((minv(hi, b) - maxv(lo, a)) / maxv(0.2f, hi - lo), 0.0f, 1.0f);
+}
+
+void Battle::hazards(float zPrev, BattleEvents& ev) {
+    for (int k = 0; k < def->stripCount; ++k) {
+        const StripDef& s = def->strips[k];
+        if (s.kind == kStripHammer) {  // the squad passes under it this step: whoever stands under its head (not GIANTS)
+            if (s.z0 <= zPrev || s.z0 > z || powered(kGiants)) continue;
+            const float hx = hammerX(s, time), sh = share(hx - kHammerHead, hx + kHammerHead);
+            if (sh <= 0.0f) continue;
+            const i32 n = minv(squad, maxv<i32>(1, i32(float(squad) * minv(0.25f, sh) + 0.5f)));
+            lose(n, ev);
+            ev.blow = true;
+            ev.blowX = hx;
+            ev.blowZ = s.z0;
+            ev.blowLost = n;
+            continue;
+        }
+        if ((s.kind != kStripTide && s.kind != kStripPit) || s.z1 < z - 8.0f || s.z0 > z + kWake) continue;
+        if (s.kind == kStripTide && !tideIn(s, time)) continue;
+        // The stretch across the road that takes whoever stands in it: the tide's half, the pit.
+        const float w = s.kind == kStripTide ? kRoadHalf + 1.0f : std::fabs(s.push);
+        const float a = s.push < 0.0f ? -kRoadHalf - 1.0f : kRoadHalf - w, b = s.push < 0.0f ? -kRoadHalf + w : kRoadHalf + 1.0f;
+        for (int i = 0; i < enemyCount; ++i) {  // enemies in it are swept away (or fall)
+            const Enemy& e = enemies[i];
+            if (e.alive && e.kind != kBoss && e.kind != kGiant && e.z >= s.z0 && e.z < s.z1 && e.x > a && e.x < b) kill(i, ev);
+        }
+        if (z < s.z0 || z >= s.z1) continue;
+        // The squad: in the tide a fifth a second of its share in it; over a pit its share (at most a fifth) by the time it
+        // has crossed it.
+        const float sh = share(a, b);
+        if (s.kind == kStripTide) hazardDebt += float(squad) * sh * 0.2f * kDt;
+        else hazardDebt += float(squad) * minv(sh, 0.2f) * (z - zPrev) / maxv(1.0f, s.z1 - s.z0);
+    }
+    if (hazardDebt >= 1.0f) {
+        const i32 n = minv(squad, i32(hazardDebt));
+        hazardDebt -= float(n);
+        lose(n, ev);
+    }
 }
 
 void Battle::strike(const Strike& s, BattleEvents& ev) {
@@ -995,6 +1038,12 @@ void Battle::moveEnemies(BattleEvents& ev) {
         }
     const bool giants = powered(kGiants);  // GIANTS: what touches the squad is trampled and takes nothing
     bossContact = false;
+    float nz0[4], nz1[4];  // the narrows near enough to matter: the enemies keep to their planks
+    int nn = 0;
+    for (int k = 0; k < def->stripCount && nn < 4; ++k) {
+        const StripDef& s = def->strips[k];
+        if (s.kind == kStripNarrow && s.z1 > z - 10.0f && s.z0 < z + kWake + 40.0f) nz0[nn] = s.z0, nz1[nn++] = s.z1;
+    }
     const int wa = wallAhead();
     const float wallZ = wa >= 0 ? def->walls[wa].z : -1e9f;  // the horde waits behind it
     for (int i = 0; i < enemyCount; ++i) {
@@ -1048,6 +1097,8 @@ void Battle::moveEnemies(BattleEvents& ev) {
             e.z -= enemySpeed(e) * kDt;
             if (e.z + enemyStats(e.kind).speed * kDt > wallZ && e.z < wallZ + 0.8f) e.z = wallZ + 0.8f;
             if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * def->pace * k * kDt;
+            for (int j = 0; j < nn; ++j)
+                if (e.z >= nz0[j] - 1.0f && e.z < nz1[j]) e.x = clampv(e.x, -kNarrowHalf + 0.3f, kNarrowHalf - 0.3f);
         }
         if (d < r * 0.6f + st.radius && e.x > lo - st.radius && e.x < hi + st.radius) {
             if (!giants) lose(toll(st.strength), ev, e.wave);
@@ -1090,13 +1141,15 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     time += kDt;
     // Steer: the squad follows the finger, fast but not at once (half again as quick on QUICK MARCH).
     const float r = radius();
-    const float lim = kRoadHalf - minv(r * 0.5f, 1.6f);
+    // Inside the road, squeezing in a little before the narrows (and held inside them).
+    const float lim = maxv(0.0f, minv(roadHalfAt(z), roadHalfAt(z + 2.5f)) - minv(r * 0.5f, 1.6f));
     const float tx = clampv(steerX, -lim, lim);
     const float quick = powered(kQuick) ? 1.5f : 1.0f;
     const StripDef* strip = stripAt(z);
     const float grip = strip && strip->kind == kStripIce ? 1.0f / 3.0f : 1.0f;  // on ice it steers a third as quickly
     vx = clampv((tx - x) * 12.0f * grip * quick, -18.0f * grip * quick, 18.0f * grip * quick);
     x += vx * kDt;
+    if (strip && strip->kind == kStripNarrow) x = clampv(x, -lim, lim);
     if (strip && strip->kind == kStripWind) x = clampv(x + strip->push * kDt, -lim, lim);  // the wind pushes it
     // March. It marches through the hordes and stops only when one is almost on it (the owner, 2026-11-27: "add the squad
     // pause again, but this time it should only stop when the enemies are very close"): an enemy that walks (not an archer
@@ -1112,7 +1165,8 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     }
     // A fort wall stops it until it falls.
     if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z < 2.0f + r * 0.5f) halted = true;
-    if (!bossNear && !halted && !(def->bossHp == 0 && z >= def->length)) z += def->speed * (powered(kQuick) ? 1.6f : 1.0f) * kDt;
+    const float mud = strip && strip->kind == kStripMud ? 0.5f : 1.0f;  // mud halves the march
+    if (!bossNear && !halted && !(def->bossHp == 0 && z >= def->length)) z += def->speed * (powered(kQuick) ? 1.6f : 1.0f) * mud * kDt;
     while (nextWave < def->waveCount && def->waves[nextWave].z - z < kWake) spawnWave(nextWave++, ev);
     if (def->bossHp > 0 && boss_ < 0 && !won && def->length - z < kWake && enemyCount < kMaxEnemies) {
         bool any = false;
@@ -1226,6 +1280,7 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
             explode(m, ev);
         }
     }
+    hazards(zPrev, ev);
     fire(ev);
     moveBullets(ev);
     moveEnemies(ev);
