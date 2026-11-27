@@ -32,6 +32,11 @@ const char* const kHints[kHintCount] = {
     "SHOOT CRATES OPEN",                 // 13: the first weapon crate
     "THE LANCE GOES THROUGH",            // 14
     "ROCKETS BLAST CROWDS",              // 15
+    "TOUCH MEDALS FOR POWER",            // 16: the first medallion (rapid fire)
+    "THE SHIELD SAVES SOLDIERS",         // 17
+    "CALL THE AIRSTRIKE",                // 18: the first supply crate
+    "POWER SHOT: DOUBLE DAMAGE",         // 19
+    "FREEZE THE HORDE",                  // 20
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -164,6 +169,16 @@ bool decodeLevel(const char* text, LevelDef& out) {
                 out.barrels[out.barrelCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, i32(v[2]), 0, u8(v[3])};
                 break;
             }
+            case 's': {  // a supply crate: x, z, hit points, power-up
+                if (out.barrelCount >= kMaxBarrels || !nums(p, v, 4) || v[3] < 1 || v[3] >= kPowerCount) return false;
+                out.barrels[out.barrelCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, i32(v[2]), 0, 0, u8(v[3])};
+                break;
+            }
+            case 'm': {  // a medallion: x, z, power-up
+                if (out.medalCount >= kMaxMedals || !nums(p, v, 3) || v[2] < 1 || v[2] >= kPowerCount) return false;
+                out.medals[out.medalCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, u8(v[2])};
+                break;
+            }
             case 'w': {
                 if (out.waveCount >= kMaxWaves || !nums(p, v, 5)) return false;
                 out.waves[out.waveCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4])};
@@ -205,8 +220,10 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     for (int i = 0; i < d.barrelCount; ++i) {
         const BarrelDef& b = d.barrels[i];
         if (b.weapon > 0) put(" c%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.weapon);
+        else if (b.power > 0) put(" s%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.power);
         else put(" b%d,%d,%d,%d", t10(b.x), t10(b.z), b.hp, b.reward);
     }
+    for (int i = 0; i < d.medalCount; ++i) put(" m%d,%d,%d", t10(d.medals[i].x), t10(d.medals[i].z), d.medals[i].power);
     for (int i = 0; i < d.waveCount; ++i) {
         const WaveDef& w = d.waves[i];
         put(" w%d,%d,%d,%d,%d", t10(w.z), t10(w.x0), t10(w.x1), w.count, w.kind);

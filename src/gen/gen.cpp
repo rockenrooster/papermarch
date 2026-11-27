@@ -76,6 +76,12 @@ float hordeCost(const LevelDef& d, float zEnd, int firstWave) {
 // the lance on 22, rockets on 28).
 int weaponsKnown(int n) { return n >= 28 ? 4 : n >= 22 ? 3 : n >= 14 ? 2 : n >= 9 ? 1 : 0; }
 
+// The power-ups in the order they come in, and the levels that bring them (docs/CONTENT_PASS.md 4.2); which can be a
+// medallion (the others come in supply crates only).
+const u8 kPowerOrder[5] = {kRapid, kShield, kAirstrike, kPowerShot, kFreeze};
+const int kPowerIntro[5] = {11, 18, 23, 29, 32};
+bool medalPower(u8 p) { return p == kRapid || p == kPowerShot || p == kShield; }
+
 }  // namespace
 
 int weaponOffer(int n) {
@@ -144,8 +150,20 @@ void build(int n, u64 seed, Shape& out) {
         case 14: d.hint = 13; break;  // the first weapon crate
         case 22: d.hint = 14; break;
         case 28: d.hint = 15; break;
+        case 11: d.hint = 16; break;  // the first medallion (rapid fire)
+        case 18: d.hint = 17; break;
+        case 23: d.hint = 18; break;  // the first supply crate (the airstrike)
+        case 29: d.hint = 19; break;
+        case 32: d.hint = 20; break;
         default: break;
     }
+    // Power-ups: the one this level brings in (on its first horde), else now and then one of those known, before a horde.
+    int powersKnown = 0, introPower = 0;
+    for (int k = 0; k < 5; ++k) {
+        if (n >= kPowerIntro[k]) powersKnown = k + 1;
+        if (n == kPowerIntro[k]) introPower = kPowerOrder[k];
+    }
+    int pickups = 0;
     // A weapon on offer (the same for every seed of this level): a crate now and then once crates are known, else a gate
     // beside a sum or, with two weapons known, beside another weapon.
     const int offer = weaponOffer(n);
@@ -165,7 +183,7 @@ void build(int n, u64 seed, Shape& out) {
     int sinceWave = 0;
     int section = 0, last = -1;
     while (z < end) {
-        const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount;
+        const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount;
         // What comes next: a horde after every two or three other sections; else a mix of what this level knows, never
         // the same twice running. The first section is always gates.
         int kind;
@@ -279,6 +297,17 @@ void build(int n, u64 seed, Shape& out) {
                 break;
             }
             default: {  // a horde, as big as it must be to cost the bot about `bite` of its squad (measured)
+                // A power-up on the way in: the level's new one on its first horde, else now and then one already known.
+                if (powersKnown > 0 && pickups < 2 && (introPower > 0 ? pickups == 0 : r.f01() < 0.45f)) {
+                    const u8 p = introPower > 0 ? u8(introPower) : kPowerOrder[r.next() % u32(powersKnown)];
+                    const float px = uni(r, -3.0f, 3.0f), pz = z + 3.0f;
+                    if (medalPower(p) && (p == introPower || r.f01() < 0.65f)) {
+                        if (d.medalCount < kMaxMedals) d.medals[d.medalCount++] = {px, pz, p};
+                    } else if (d.barrelCount < kMaxBarrels) {
+                        d.barrels[d.barrelCount++] = {px, pz, maxv<i32>(4, i32(dps(E) * uni(r, 0.3f, 0.7f))), 0, 0, p};
+                    }
+                    ++pickups;
+                }
                 const bool full = r.f01() < 0.6f;
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
@@ -324,6 +353,7 @@ void build(int n, u64 seed, Shape& out) {
             d.gateCount = gatesBefore;
             d.barrelCount = barrelsBefore;
             d.waveCount = wavesBefore;
+            d.medalCount = medalsBefore;
         }
     }
     // The end: the boss, or a last stand of the horde across the road; finish() sizes it.

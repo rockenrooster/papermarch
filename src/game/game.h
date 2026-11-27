@@ -82,7 +82,8 @@ private:
         kUiStarFull, kUiStarEmpty, kUiShako, kUiBossHead, kUiSkull, kUiHand, kUiTrophy, kUiLogo, kUiRays,
         kUiRibbonL, kUiRibbonM, kUiRibbonR, kUiRedL, kUiRedM, kUiRedR, kUiGoldL, kUiGoldM, kUiGoldR,
         kUiWeapon,  // the weapons' icons, by sim::WeaponKind from here
-        kUiArtCount = kUiWeapon + sim::kWeaponCount
+        kUiPower = kUiWeapon + sim::kWeaponCount,  // the power-ups' icons, by sim::PowerKind from here (0 unused)
+        kUiArtCount = kUiPower + sim::kPowerCount
     };
     void findUiArt();
     bool uiArt(int which, float x, float y, float hDp, Rgba tint = {255, 255, 255, 255}, float angle = 0, float hue = 0);

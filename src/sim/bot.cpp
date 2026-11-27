@@ -91,6 +91,12 @@ float botSteer(const Battle& b) {
         sumX += e.x * w;
         sumW += w;
     }
+    // A medallion within reach, unless the horde is upon the squad.
+    for (int m = 0; m < d.medalCount && nearestEnemy > 6.0f; ++m) {
+        const MedalDef& md = d.medals[m];
+        const float dz = md.z - b.z;
+        if (!b.medalTaken[m] && dz > -0.5f && dz < 22.0f) return md.x;
+    }
     for (int k = 0; k < d.barrelCount; ++k) {
         const BarrelDef& bd = d.barrels[k];
         if (b.barrels[k].broken) continue;

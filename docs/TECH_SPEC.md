@@ -35,7 +35,9 @@ parallel jobs everywhere.
 5. Gates whose z the squad's centre crossed this step: the one containing `x` applies (`+value` or `×value`, clamped to
    0..99,999; a weapon gate hands over weapon `value`), the others become `passed`.
 6. Barrels within reach of the squad's front and footprint: run into, they burst and cost max(1, hp/2) (a weapon crate
-   still hands over its weapon).
+   still hands over its weapon; a supply crate costs nothing and gives its power-up). Medallions the footprint touches
+   (±0.6) give theirs (`take`: timers in `powerLeft`/`powerFull`, the shield's `shieldPool`, an airstrike's three
+   `bombs`). Every loss goes through `lose`, where a running shield absorbs first.
 7. Fire: the squad carries one weapon (`weapon`, `WeaponStats`, docs/CONTENT_PASS.md 1; the level's `gun` at the start).
    Hit points are counted in tenths (`kHp`); a musket ball does `damage() = max(10, squad/5)` tenths and the musket
    fires `fireRate()` shots a second; the weapon multiplies both. `rate·fireRate·dt` shots accumulate; each starts at a
@@ -58,7 +60,10 @@ parallel jobs everywhere.
    `waveLost`); the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
    `drain`, 22), so a boss fight lasts seconds, not a minute, whatever the squad. The horde moves at its kind's speed
    times the level's `pace`. Dead enemies are compacted away now and then.
-10. Squad ≤ 0: lost. A boss-less level at its length: won. The boss's death: won.
+10. Power-ups: rapid fire doubles the shots, power shot the damage; under freeze the horde within 45 units does not
+   move (the boss not for the first half); the clocks run down (`powers`) and bombs land (`blast`, radius 3, 12 musket
+   balls' damage).
+11. Squad ≤ 0: lost. A boss-less level at its length: won. The boss's death: won.
 
 `BattleEvents` reports what the step did (shots, hits, kills with their places, the gate passed with before and after,
 a barrel broken or run into, a wave woken, the boss hit or down, won, lost). The rules use floats: the same build on the
@@ -70,7 +75,8 @@ only moves stars, so nothing depends on cross-platform equality.
 The text form, one string per level: `S<start> L<length×10> V<speed×100> B<bossHp> W<world> X<boss> T<hint> E<seed>
 A<star2> C<star3> R<botEnd>`, optional `K<spike> Y<pace×100> D<drain×10> P<planLook×10> Q<plan,...> G<gun>`, then
 `g<x0>,<x1>,<z>,<value>,<kind>,<grows>,<cap>` (x and z ×10; kind 2 is a weapon gate, its value the weapon),
-`b<x>,<z>,<hp>,<reward>`, `c<x>,<z>,<hp>,<weapon>` (a weapon crate, in the barrels' list), `w<z>,<x0>,<x1>,<count>,<kind>`. `generate` returns a level that has been through this form, so the bake plays exactly
+`b<x>,<z>,<hp>,<reward>`, `c<x>,<z>,<hp>,<weapon>` (a weapon crate, in the barrels' list), `s<x>,<z>,<hp>,<power>` (a
+supply crate, also there), `w<z>,<x0>,<x1>,<count>,<kind>`, `m<x>,<z>,<power>` (a medallion). `generate` returns a level that has been through this form, so the bake plays exactly
 what the table will hold. `levelCount()`/`level(n)` decode `kBaked[]` once; a fallback level exists if the table is empty.
 
 ## 5. The view (`src/game/field.*`)

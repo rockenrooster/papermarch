@@ -142,6 +142,23 @@ void UiBatch::star5(float cx, float cy, float r, Rgba fill, Rgba stroke, float s
     quad(a, b, c, d);
 }
 
+void UiBatch::ring(float cx, float cy, float r, float thick, float frac, Rgba fill) {
+    if (frac <= 0.0f) return;
+    const float m = r + thick * 0.5f + 2.0f;
+    UiVertex base{};
+    std::memcpy(base.fill, &fill, 4);
+    base.p0[0] = 5.0f;
+    base.p1[0] = r;
+    base.p1[1] = thick * 0.5f;
+    base.p1[2] = minv(frac, 1.0f);
+    UiVertex a = base, b = base, c = base, d = base;
+    a.x = cx - m; a.y = cy - m; a.u = -m; a.v = -m;
+    b.x = cx + m; b.y = cy - m; b.u = m;  b.v = -m;
+    c.x = cx - m; c.y = cy + m; c.u = -m; c.v = m;
+    d.x = cx + m; d.y = cy + m; d.u = m;  d.v = m;
+    quad(a, b, c, d);
+}
+
 float UiBatch::textWidth(const char* s, float size) {
     float w = 0;
     while (*s) {

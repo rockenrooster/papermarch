@@ -4,7 +4,7 @@
 # Browser: scripts/build-web.ps1 (Emscripten: WebAssembly and WebGL 2, the page from web/shell.html).
 
 cmake_minimum_required(VERSION 3.22)
-project(papermarch VERSION 0.5.0 LANGUAGES C CXX)  # (android/app/build.gradle versionName is kept the same)
+project(papermarch VERSION 0.6.0 LANGUAGES C CXX)  # (android/app/build.gradle versionName is kept the same)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

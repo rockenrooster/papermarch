@@ -59,6 +59,10 @@ background objects on the sides".
   bring each in with a hint. Hit points are now counted in tenths, and a musket ball's damage grows with every soldier
   past 50. Each weapon has its gun on the soldiers, its projectile, muzzle flash and sound; rockets smoke and burst;
   the lance's bolts flash through what they pierce; the HUD shows the weapon carried.
+- **0.6.0, step 2 (power-ups):** rapid fire, power shot, shield, freeze and airstrike on gold medallions and supply
+  crates (GAME_DESIGN 4), brought in on levels 11, 18, 23, 29 and 32, then placed before hordes now and then. The
+  shield is a dome that cracks as it absorbs; frozen enemies stand tinted with ice at their feet; bombs fall with
+  growing shadows; the HUD shows running power-ups in draining rings.
 
 ## Status
 

@@ -23,6 +23,11 @@ enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kWeaponCount 
 // An add gate below zero is a red barricade; a weapon gate's value is the WeaponKind it hands over.
 enum GateKind : u8 { kGateAdd, kGateMul, kGateWeapon };
 constexpr i32 kHp = 10;  // hit points are counted in tenths (a twin rifle's ball does 0.6 of a musket ball)
+// Power-ups (docs/CONTENT_PASS.md 2): rapid fire (rate x2, 6 s), power shot (damage x2, 6 s), a shield (absorbs the next
+// max(10, 30% of the squad) losses, 8 s), freeze (the horde within 45 stops for 3 s, the boss for half that), an airstrike
+// (three bombs 12, 20 and 28 ahead, 0.6 s apart, each 12x a musket ball's damage within 3).
+enum PowerKind : u8 { kPowerNone, kRapid, kPowerShot, kShield, kFreeze, kAirstrike, kPowerCount };
+constexpr int kMaxMedals = 16, kMaxBombs = 6;
 
 // What a weapon does, times the musket's: its shots a second and damage a ball; how far and fast its balls fly; balls a
 // shot (two streams `spread` apart, or a fan of half angle `spread` radians); enemies a ball passes through; a blast
@@ -48,6 +53,11 @@ struct BarrelDef {
     i32 hp = 10;      // musket balls it takes to break
     i32 reward = 10;  // recruits it frees
     u8 weapon = 0;    // > 0: a weapon crate, which hands over that weapon instead of recruits
+    u8 power = 0;     // > 0: a supply crate, which gives that power-up (and costs nothing run into)
+};
+struct MedalDef {     // a gold medallion over the road: the squad's footprint touching it takes its power-up
+    float x = 0, z = 40;
+    u8 power = kRapid;
 };
 struct WaveDef {
     float z = 40;     // its front row
@@ -75,10 +85,11 @@ struct LevelDef {
     u8 rowCount = 0, planCount = 0;
     float rowZ[kMaxRows] = {};
     i8 plan[kMaxRows] = {};
-    int gateCount = 0, barrelCount = 0, waveCount = 0;
+    int gateCount = 0, barrelCount = 0, waveCount = 0, medalCount = 0;
     GateDef gates[kMaxGates];
     BarrelDef barrels[kMaxBarrels];
     WaveDef waves[kMaxWaves];
+    MedalDef medals[kMaxMedals];
 };
 // Finds the rows of two or more gates side by side (rowZ, rowCount). The decoder and the generator call it.
 void indexRows(LevelDef& d);
@@ -130,12 +141,16 @@ struct BattleEvents {
     int crashed = -1;       // a barrel run into
     int wave = -1;          // a wave woken
     int weapon = -1;        // a weapon taken (from a gate or a crate)
+    int power = -1;         // a power-up taken (from a medallion or a supply crate),
+    int medal = -1;         // the medallion it came from
+    i32 absorbed = 0;       // soldiers the shield saved this step
+    bool shieldGone = false;
     bool bossHit = false, bossDown = false, won = false, lostAll = false;
     static constexpr int kMaxKills = 24;
     float killX[kMaxKills] = {}, killZ[kMaxKills] = {};
     u8 killKind[kMaxKills] = {};
     int killN = 0;
-    // Where a rocket burst (what 0) or a lance bolt went through an enemy (what 1).
+    // Where a rocket burst (what 0), a lance bolt went through an enemy (what 1), an airstrike's bomb landed (what 2).
     static constexpr int kMaxSpots = 16;
     float spotX[kMaxSpots] = {}, spotZ[kMaxSpots] = {};
     u8 spotWhat[kMaxSpots] = {};
@@ -180,6 +195,17 @@ public:
     int nextWave = 0;
     float bossDrain = 0, bossRate = 0;  // the boss's crushing: its debt in soldiers; its rate, set when it reaches the squad
     i32 waveLost[kMaxWaves] = {};  // soldiers each wave's enemies took when they reached the squad (the generator's measure)
+    // Power-ups running: seconds left and their full time (the HUD's rings); what the shield will still absorb; the
+    // medallions taken; an airstrike's bombs on their way down (they land at x, z in t seconds).
+    float powerLeft[kPowerCount] = {}, powerFull[kPowerCount] = {};
+    i32 shieldPool = 0;
+    u8 medalTaken[kMaxMedals] = {};
+    struct Bomb {
+        float x, z, t;
+    };
+    Bomb bombs[kMaxBombs] = {};
+    int bombCount = 0;
+    bool powered(u8 p) const { return p < kPowerCount && powerLeft[p] > 0.0f; }
 
 private:
     void spawnWave(int w, BattleEvents& ev);
@@ -191,8 +217,12 @@ private:
     void moveEnemies(BattleEvents& ev);
     void kill(int i, BattleEvents& ev);
     void hurt(int i, i32 dmg, BattleEvents& ev);              // an enemy takes damage (and dies at none left)
-    void blast(float bx, float bz, i32 dmg, int spare, BattleEvents& ev);  // a rocket's burst: all near but `spare`
-    void breakBarrel(int k, BattleEvents& ev);                // shot open: its recruits or its weapon
+    // A burst at (bx, bz): every enemy within `reach` but `spare` takes dmg; `what` tells the view (BattleEvents::spot).
+    void blast(float bx, float bz, float reach, i32 dmg, int spare, u8 what, BattleEvents& ev);
+    void breakBarrel(int k, BattleEvents& ev);                // shot open: its recruits, its weapon or its power-up
+    void take(u8 power, BattleEvents& ev);                    // a power-up taken
+    void lose(i32 n, BattleEvents& ev, int wave = -1);        // soldiers lost (the shield takes them first)
+    void powers(BattleEvents& ev);                            // the power-ups' clocks and the bombs falling
     u32 rand();
     float fireAcc_ = 0;
     u32 rng_ = 1;

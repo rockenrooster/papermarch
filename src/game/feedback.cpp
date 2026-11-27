@@ -62,6 +62,22 @@ void Feedback::cue(const CueEvent& c, double now) {
             haptic(kHapticMedium, now);
             break;
         case kCueBlast: play(kSndBoom, 0.55f, c.pan, jitter * 1.3f); break;
+        case kCuePower:  // a power-up: a bright chime, each its own colour
+            play(kSndGlock, 0.8f, c.pan, c.step == sim::kFreeze ? 2.6f : (c.step == sim::kShield ? 1.5f : 2.0f));
+            if (c.step == sim::kRapid) play(kSndSnare, 0.5f, c.pan, 1.3f, 0.05f);
+            else if (c.step == sim::kPowerShot) play(kSndDeepDrum, 0.8f, c.pan, 1.0f, 0.03f);
+            else if (c.step == sim::kAirstrike) play(kSndSwish, 0.8f, c.pan, 0.6f, 0.1f);
+            else play(kSndGlock, 0.6f, c.pan, c.step == sim::kFreeze ? 3.1f : 1.9f, 0.08f);
+            haptic(kHapticMedium, now);
+            break;
+        case kCueShield:  // a dull tonk as it absorbs; a crash when it breaks
+            if (c.step) play(kSndCrash, 0.55f, c.pan, 1.4f);
+            else play(kSndKnock, 0.4f, c.pan, jitter * 1.6f);
+            break;
+        case kCueBomb:
+            play(kSndBoom, 0.95f, c.pan, jitter * 0.8f);
+            haptic(kHapticStrong, now);
+            break;
         case kCueHit: play(kSndThwack, 0.45f, c.pan, jitter * 1.2f); break;
         case kCueKill:
             play(c.step == sim::kBrute ? kSndClash : kSndFlip, c.step == sim::kBrute ? 0.7f : 0.5f, c.pan, jitter);

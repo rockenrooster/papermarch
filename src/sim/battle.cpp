@@ -58,6 +58,10 @@ void Battle::init(const LevelDef& d) {
     nextWave = 0;
     bossDrain = bossRate = 0;
     for (i32& l : waveLost) l = 0;
+    for (int p = 0; p < kPowerCount; ++p) powerLeft[p] = powerFull[p] = 0;
+    shieldPool = 0;
+    for (u8& m : medalTaken) m = 0;
+    bombCount = 0;
     fireAcc_ = 0;
     rng_ = d.seed * 2654435761u + 12345u;
     if (!rng_) rng_ = 1;
@@ -142,9 +146,8 @@ void Battle::hurt(int i, i32 dmg, BattleEvents& ev) {
     if (e.hp <= 0) kill(i, ev);
 }
 
-void Battle::blast(float bx, float bz, i32 dmg, int spare, BattleEvents& ev) {
-    const float reach = weaponStats(kRockets).splash;
-    ev.spot(bx, bz, 0);
+void Battle::blast(float bx, float bz, float reach, i32 dmg, int spare, u8 what, BattleEvents& ev) {
+    ev.spot(bx, bz, what);
     const int c0 = maxv(0, int(bz - z - reach)), c1 = minv(kCells - 1, int(bz - z + reach + 4.0f));
     for (int c = c0; c <= c1; ++c)
         for (int i = cellHead_[c]; i >= 0; i = next_[i]) {
@@ -162,10 +165,74 @@ void Battle::breakBarrel(int k, BattleEvents& ev) {
     if (bd.weapon > 0 && bd.weapon < kWeaponCount) {
         weapon = bd.weapon;
         ev.weapon = weapon;
+    } else if (bd.power > 0 && bd.power < kPowerCount) {
+        take(bd.power, ev);
     } else {
         squad = minv(squad + bd.reward, kSquadCap);
         ev.barrelReward = bd.reward;
     }
+}
+
+void Battle::take(u8 p, BattleEvents& ev) {
+    if (p == kPowerNone || p >= kPowerCount) return;
+    ev.power = p;
+    static const float kLasts[kPowerCount] = {0.0f, 6.0f, 6.0f, 8.0f, 3.0f, 0.0f};
+    powerLeft[p] = powerFull[p] = kLasts[p];
+    if (p == kShield) shieldPool = maxv<i32>(10, squad * 3 / 10);
+    if (p == kAirstrike) {  // three bombs up the road, each on the thickest of the horde where it falls (else the squad's x)
+        for (int k = 0; k < 3 && bombCount < kMaxBombs; ++k) {
+            const float bz = z + 12.0f + 8.0f * float(k);
+            float sx = 0, n = 0;
+            for (int i = 0; i < enemyCount; ++i) {
+                const Enemy& e = enemies[i];
+                if (e.alive && e.kind != kBoss && std::fabs(e.z - bz) < 5.0f) {
+                    sx += e.x;
+                    n += 1.0f;
+                }
+            }
+            bombs[bombCount++] = {n > 0 ? clampv(sx / n, -3.0f, 3.0f) : x, bz, 0.5f + 0.6f * float(k)};
+        }
+    }
+}
+
+void Battle::lose(i32 n, BattleEvents& ev, int wave) {
+    if (n <= 0) return;
+    if (powered(kShield) && shieldPool > 0) {
+        const i32 a = minv(n, shieldPool);
+        shieldPool -= a;
+        n -= a;
+        ev.absorbed += a;
+        if (shieldPool <= 0) {
+            powerLeft[kShield] = 0;
+            ev.shieldGone = true;
+        }
+    }
+    squad -= n;
+    ev.lost += n;
+    if (wave >= 0 && wave < kMaxWaves) waveLost[wave] += n;
+}
+
+void Battle::powers(BattleEvents& ev) {
+    for (int p = 0; p < kPowerCount; ++p)
+        if (powerLeft[p] > 0.0f) {
+            powerLeft[p] = maxv(0.0f, powerLeft[p] - kDt);
+            if (p == kShield && powerLeft[p] <= 0.0f) {
+                shieldPool = 0;
+                ev.shieldGone = true;
+            }
+        }
+    int o = 0;
+    for (int k = 0; k < bombCount; ++k) {
+        Bomb bm = bombs[k];
+        bm.t -= kDt;
+        if (bm.t <= 0.0f) {
+            bucket();
+            blast(bm.x, bm.z, 3.0f, damage() * 12, -1, 2, ev);
+        } else {
+            bombs[o++] = bm;
+        }
+    }
+    bombCount = o;
 }
 
 void Battle::kill(int i, BattleEvents& ev) {
@@ -188,7 +255,7 @@ void Battle::kill(int i, BattleEvents& ev) {
 
 void Battle::fire(BattleEvents& ev) {
     const WeaponStats& w = weaponStats(weapon);
-    fireAcc_ += fireRate() * w.rate * kDt;
+    fireAcc_ += fireRate() * w.rate * (powered(kRapid) ? 2.0f : 1.0f) * kDt;
     const float r = radius();
     float lo, hi;
     footprint(lo, hi);
@@ -198,7 +265,7 @@ void Battle::fire(BattleEvents& ev) {
     // stands before it (the owner, 2026-11-27). With no enemy in range a shot flies straight up the road. Twin rifles
     // fire a pair side by side; the scattergun a fan, its middle pellet aimed.
     bucket();
-    const i32 dmg = maxv<i32>(1, i32(float(damage()) * w.damage + 0.5f));
+    const i32 dmg = maxv<i32>(1, i32(float(damage()) * w.damage * (powered(kPowerShot) ? 2.0f : 1.0f) + 0.5f));
     while (fireAcc_ >= 1.0f) {
         fireAcc_ -= 1.0f;
         if (bulletCount + w.balls > kMaxBullets) continue;
@@ -305,7 +372,7 @@ void Battle::moveBullets(BattleEvents& ev) {
             const float ex = enemies[hit].x, ez = enemies[hit].z;
             hurt(hit, b.dmg, ev);
             if (w.splash > 0.0f) {
-                blast(b.x, bestZ, i32(float(b.dmg) * w.splashDamage / w.damage + 0.5f), hit, ev);
+                blast(b.x, bestZ, w.splash, i32(float(b.dmg) * w.splashDamage / w.damage + 0.5f), hit, 0, ev);
                 stopped = true;
             } else if (b.pierce > 0 && !boss) {
                 ev.spot(ex, ez, 1);
@@ -331,7 +398,7 @@ void Battle::moveBullets(BattleEvents& ev) {
                 ++ev.hits;
                 if (bs.hp <= 0) breakBarrel(which, ev);
             }
-            if (w.splash > 0.0f) blast(b.x, wallZ, i32(float(b.dmg) * w.splashDamage / w.damage + 0.5f), -1, ev);
+            if (w.splash > 0.0f) blast(b.x, wallZ, w.splash, i32(float(b.dmg) * w.splashDamage / w.damage + 0.5f), -1, 0, ev);
             continue;
         }
         b.z = zn;
@@ -352,6 +419,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
         e.hit += kDt;
         const float d = e.z - z;
         if (e.kind == kBoss) {
+            if (powerLeft[kFreeze] > powerFull[kFreeze] * 0.5f) continue;  // frozen (half as long as the horde)
             if (d - st.radius <= r * 0.6f) {  // it reaches the squad: it stops and crushes soldiers until it falls
                 // It crushes a ninth of the squad it meets every second (at least the level's `drain`), whatever its size:
                 // the fight lasts seconds.
@@ -359,8 +427,7 @@ void Battle::moveEnemies(BattleEvents& ev) {
                 bossDrain += bossRate * kDt;
                 while (bossDrain >= 1.0f && squad > 0) {
                     bossDrain -= 1.0f;
-                    --squad;
-                    ++ev.lost;
+                    lose(1, ev);
                 }
             } else {
                 e.z -= st.speed * kDt;
@@ -368,12 +435,12 @@ void Battle::moveEnemies(BattleEvents& ev) {
             }
             continue;
         }
-        e.z -= st.speed * def->pace * kDt;
-        if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * def->pace * kDt;
+        if (!(powered(kFreeze) && d < 45.0f)) {  // frozen within 45 units: it stands where it is
+            e.z -= st.speed * def->pace * kDt;
+            if (d < 14.0f) e.x += clampv(x - e.x, -1.0f, 1.0f) * (e.kind == kRider ? 2.4f : 1.6f) * def->pace * kDt;
+        }
         if (d < r * 0.6f + st.radius && e.x > lo - st.radius && e.x < hi + st.radius) {
-            squad -= st.strength;
-            ev.lost += st.strength;
-            if (e.wave >= 0 && e.wave < kMaxWaves) waveLost[e.wave] += st.strength;
+            lose(st.strength, ev, e.wave);
             e.alive = 0;
             --alive_;
         } else if (d < -8.0f) {
@@ -464,10 +531,13 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
         BarrelState& bs = barrels[k];
         if (bs.broken || bd.z > z + r * 0.5f + 0.6f || bd.z < z - 1.0f) continue;
         if (std::fabs(bd.x - (lo + hi) * 0.5f) < 0.9f + (hi - lo) * 0.3f) {
-            const i32 cost = maxv<i32>(1, (bs.hp + kHp - 1) / kHp / 2);
-            squad -= cost;
-            ev.lost += cost;
             bs.broken = 1;
+            if (bd.power > 0) {  // a supply crate is a gift: run into, it opens at no cost
+                ev.barrel = k;
+                take(bd.power, ev);
+                continue;
+            }
+            lose(maxv<i32>(1, (bs.hp + kHp - 1) / kHp / 2), ev);
             ev.crashed = k;
             if (bd.weapon > 0 && bd.weapon < kWeaponCount) {  // a crate run into still hands over its weapon
                 weapon = bd.weapon;
@@ -475,9 +545,20 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
             }
         }
     }
+    // Medallions the footprint touches.
+    for (int m = 0; m < def->medalCount; ++m) {
+        const MedalDef& md = def->medals[m];
+        if (medalTaken[m] || md.z > z + r * 0.6f + 0.6f || md.z < z - r * 0.6f - 0.6f) continue;
+        if (md.x > lo - 0.6f && md.x < hi + 0.6f) {
+            medalTaken[m] = 1;
+            ev.medal = m;
+            take(md.power, ev);
+        }
+    }
     fire(ev);
     moveBullets(ev);
     moveEnemies(ev);
+    powers(ev);
     for (int g = 0; g < def->gateCount; ++g) gates[g].hit += kDt;
     for (int k = 0; k < def->barrelCount; ++k) barrels[k].hit += kDt;
     if (squad <= 0) {

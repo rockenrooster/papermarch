@@ -41,7 +41,8 @@ void Game::findUiArt() {
     static const char* const names[] = {
         "ui.star_full", "ui.star_empty", "ui.shako", "ui.boss_head", "ui.skull", "ui.hand", "ui.trophy", "ui.logo", "ui.rays",
         "ui.ribbon_l", "ui.ribbon_m", "ui.ribbon_r", "ui.ribbon_red_l", "ui.ribbon_red_m", "ui.ribbon_red_r", "ui.ribbon_gold_l",
-        "ui.ribbon_gold_m", "ui.ribbon_gold_r", "ui.wpn_musket", "ui.wpn_twin", "ui.wpn_scatter", "ui.wpn_lance", "ui.wpn_rocket"};
+        "ui.ribbon_gold_m", "ui.ribbon_gold_r", "ui.wpn_musket", "ui.wpn_twin", "ui.wpn_scatter", "ui.wpn_lance", "ui.wpn_rocket",
+        "ui.pow_none", "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike"};
     static_assert(sizeof names / sizeof names[0] == kUiArtCount, "a name for every UI sprite");
     for (int i = 0; i < kUiArtCount; ++i) uiArt_[i] = art_.ready() ? art_.findKind(names[i]) : -1;
 }
@@ -253,12 +254,23 @@ void Game::drawHud() {
         if (!uiArt(kUiShako, x0 + barW * p, barY - L.px(10) - bob, 40))
             uiBatch_.rect(x0 + barW * p, barY, L.px(18), L.px(18), L.px(9), rgba(col::kWhite), rgba(kSquadBlue), L.px(3));
     }
-    // A level's hint line under the bar (a red pill on a hard level).
+    // Under the bar: the power-ups running, each its icon on a cream disc in a cobalt ring draining clockwise.
+    int run[sim::kPowerCount] = {}, nRun = 0;
+    for (int p = sim::kRapid; p < sim::kPowerCount; ++p)
+        if (battle_.powered(u8(p)) && battle_.powerFull[p] > 0.0f) run[nRun++] = p;
+    for (int i = 0; i < nRun; ++i) {
+        const int p = run[i];
+        const float cx = W * 0.5f + (float(i) - 0.5f * float(nRun - 1)) * L.px(46), cy = barY + L.px(40);
+        uiBatch_.rect(cx, cy, L.px(36), L.px(36), L.px(18), rgba(ui::kCard), rgba(ui::kInk), L.px(2));
+        uiBatch_.ring(cx, cy, L.px(21), L.px(4.5f), battle_.powerLeft[p] / battle_.powerFull[p], rgba(ui::kCobalt));
+        uiArt(kUiPower + p, cx, cy, 24);
+    }
+    // A level's hint line under the bar (a red pill on a hard level), under the power-ups if any.
     if (hintLineTime_ > 0 && hintShownFor_ > 0) {
         const float a = minv(1.0f, hintLineTime_ / 0.4f);
         const char* s = sim::hintText(hintShownFor_);
         const bool red = hintShownFor_ == sim::kHintHard;
-        const float y = barY + L.px(44);
+        const float y = barY + L.px(nRun > 0 ? 88 : 44);
         const float w = UiBatch::textWidth(s, L.px(15)) + L.px(32);
         uiBatch_.rect(W * 0.5f, y, w, L.px(34), L.px(17), red ? rgba(ui::kRed, u8(240 * a)) : rgba(ui::kInk, u8(224 * a)),
                       rgba(col::kWhite, u8((red ? 160 : 64) * a)), L.px(1.5f));

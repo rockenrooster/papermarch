@@ -58,6 +58,21 @@ A gold barrel stands on the road with hit points and a reward (`+N`, shown over 
 Each bullet does the squad's damage; at zero it bursts and the reward joins the squad. A barrel the squad runs into
 bursts too and costs max(1, hp / 2) soldiers.
 
+**Power-ups** (docs/CONTENT_PASS.md 2) come on a gold **medallion** spinning over the road (the squad's footprint
+touching it takes it) or in a **supply crate** (gold star bands: shot open, or run into at no cost). They stack with
+the weapon and each other; taking one again restarts its clock. The HUD shows each running one as its icon in a
+draining ring under the progress road.
+
+| Power-up | From level | Carrier | Effect |
+|---|---|---|---|
+| Rapid fire | 11 | medallion, crate | twice the shots for 6 s (orange-hot tracers) |
+| Shield | 18 | medallion | a dome over the squad for 8 s absorbs the next max(10, 30% of the squad) losses |
+| Airstrike | 23 | crate | three bombs 12, 20 and 28 units ahead, 0.6 s apart, each 12 musket balls' damage within 3 |
+| Power shot | 29 | medallion, crate | twice the damage for 6 s (bigger shots, glowing guns) |
+| Freeze | 32 | crate | every enemy within 45 units stands still for 3 s (the boss for 1.5 s), tinted ice blue |
+
+A power-up stands a few units before a horde (its first horde on the level that brings it in, else now and then).
+
 ## 5. The horde
 
 Waves wake when the squad is 62 units from their front row; they march down the road toward the squad and, within 14

@@ -14,7 +14,10 @@ enum Cue : u8 {
     kCueShot, kCueHit, kCueKill, kCueGate, kCueGateBad, kCueGrow, kCueBarrelHit, kCueBarrel, kCueCrash, kCueWave, kCueBoss,
     kCueBossHit, kCueBossDown, kCueLoss, kCueWin, kCueLose, kCueStart,
     kCueWeapon,  // a weapon taken (step: its kind)
-    kCueBlast    // a rocket's burst
+    kCueBlast,   // a rocket's burst
+    kCuePower,   // a power-up taken (step: its kind)
+    kCueShield,  // the shield absorbs a hit (step 1: it breaks)
+    kCueBomb     // an airstrike's bomb lands
 };
 struct CueEvent {
     u8 cue = 0;
@@ -83,6 +86,11 @@ private:
         int shotFx[sim::kWeaponCount] = {-1, -1, -1, -1, -1};  // what each weapon's balls look like in flight
         int gatePostWpn = -1, crateWpn = -1, crateBreak = -1;
         int muzzleWide = -1, muzzleRing = -1, puffSmall = -1, hitCyan = -1, pierce = -1, smoke = -1;
+        // Power-ups (ART_DIRECTION 16): carriers, icons and effects.
+        int medal = -1, lightColumn = -1, crateSupply = -1, pickupFx = -1;
+        int powIcon[sim::kPowerCount] = {-1, -1, -1, -1, -1, -1};
+        int tracerHot = -1, gunGlow = -1, shieldDome = -1, shieldCrack = -1, shieldBreak = -1, frostRing = -1, frostOverlay = -1,
+            bomb = -1, shadowGrow = -1;
         int confettiCount = 0;
     };
     // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation. Between
@@ -111,6 +119,7 @@ private:
     void drawBoss(const sim::Enemy& e, float z, UiBatch& labels);
     void drawGates(const sim::Battle& b, UiBatch& labels);
     void drawBarrels(const sim::Battle& b, UiBatch& labels);
+    void drawPowers(const sim::Battle& b, UiBatch& labels);  // medallions, the shield's dome, bombs falling
     void drawParticles();
     void label(UiBatch& b, const char* s, float x, float y, float size, u32 fill, u32 stroke);
     void burst(float x, float z, float y, int n, u32 c0, u32 c1, float speed, float size, u8 kind);
@@ -187,8 +196,10 @@ private:
     static constexpr int kCues = 64;
     CueEvent cues_[kCues];
     int cueN_ = 0;
-    float cueClock_[20] = {};      // per cue: when it last sounded (rate limits)
+    float cueClock_[24] = {};      // per cue: when it last sounded (rate limits)
     u8 weaponNow_ = 0;             // the squad's weapon as of the last step (its shots and its look)
+    bool frozenNow_ = false;       // FREEZE is on (this frame), the squad at squadZ_
+    float squadZ_ = 0;
     float smokeClock_ = 0;         // rockets drop a puff of smoke every 0.05 s
 };
 

@@ -9,6 +9,15 @@ uniform float uSpread;    // atlas px
 uniform float uOpacity;
 layout(location = 0) out vec4 oColor;
 void main() {
+    if (vP0.x > 4.5) {  // a ring's arc: radius vP1.x, half band vP1.y, clockwise from twelve o'clock for vP1.z of a turn
+        float d = vP1.y - abs(length(vUV) - vP1.x);
+        float a = atan(vUV.x, -vUV.y);  // 0 at twelve o'clock, growing clockwise (y is down)
+        if (a < 0.0) a += 6.2831853;
+        if (a > vP1.z * 6.2831853) d = min(d, -0.6);
+        float k = clamp(d + 0.5, 0.0, 1.0) * vFill.a;
+        oColor = vec4(vFill.rgb * k, k) * uOpacity;
+        return;
+    }
     if (vP0.x > 3.5) {  // a sprite: tinted by fill (its alpha the opacity), its hue turned by vP1.y
         vec4 t = texture(uSprites, vec3(vUV, vP1.x));
         vec3 c = t.rgb;
