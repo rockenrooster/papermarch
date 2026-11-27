@@ -423,7 +423,7 @@ const LevelDef& level(int n);
 bool decodeLevel(const char* text, LevelDef& out);
 int encodeLevel(const LevelDef& d, char* out, int cap);
 const char* hintText(int hint);
-constexpr int kHintCount = 58;
+constexpr int kHintCount = 64;
 constexpr int kHintHard = 11;  // shown on every hard level
 int starsFor(const LevelDef& d, i32 squadLeft);
 

@@ -2370,7 +2370,7 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
     if (flameT_ > 0.0f && ids_.flame >= 0 && weaponNow_ == sim::kFlame && !b.lost && !b.won) {  // the jet over its cone
         const float R = b.radius(), z0 = viewZ_ + R * 0.45f;
         float ax, ay, as, bx, by, bs;
-        if (cam_.project(viewX_, z0, 0.4f, ax, ay, as) && cam_.project(viewX_, z0 + 9.0f, 0.4f, bx, by, bs))
+        if (cam_.project(viewX_, z0, 0.4f, ax, ay, as) && cam_.project(viewX_, z0 + sim::weaponStats(sim::kFlame).range, 0.4f, bx, by, bs))
             streak(ids_.flame, z0 + 4.0f, ax, ay, bx, by, 0.5f * (as + bs) * (2.8f + R * 0.4f), time, minv(1.0f, flameT_ / 0.15f));
     }
     drawParticles();

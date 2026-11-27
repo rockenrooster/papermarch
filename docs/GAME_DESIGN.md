@@ -30,14 +30,14 @@ Nothing moves until the player touches the road ("DRAG TO MARCH"). Then:
 |---|---|---|---|---|
 | Musket | 1× | 1× | 48 | - |
 | Twin rifles (from level 9) | 1× pairs | 0.6× each | 48 | two streams 0.5 apart: 1.2× in all, the best gate grower |
-| Scattergun (14) | 0.8× | 5 pellets of 0.45× in a 28° fan | 14 | murderous up close, useless far; only the middle pellet grows a gate |
+| Scattergun (14) | 0.8× | 5 pellets of 0.45× in a 28° fan | 30 | murderous up close, spread thin far; only the middle pellet grows a gate |
 | Long lance (22) | 0.5× | 1.2× | 60 | the bolt passes through six enemies (stops at the boss, gates, barrels) |
 | Rockets (28) | 0.25× | 3× | 45 | slow; bursts on impact: 1.5× to everything within 1.8 |
 | Frost blaster (32) | 1× | 0.5× | 36 | what it hits goes at half speed for 2 s (the boss three quarters) |
-| Mortar (36) | 0.2× | 2.5× | 18 | a shell lobbed over everything to land 18 ahead 1.1 s later: 2.5× to everything within 2.6 |
-| Flamethrower (41) | 10 ticks a second | 0.6× a tick | 9 | no projectiles: everything in a cone 9 long, widening 18° each side, burns; mines in it go off |
+| Mortar (36) | 0.2× | 2.5× | 28 | a shell lobbed over everything to land 28 ahead 1.1 s later: 2.5× to everything within 2.6 |
+| Flamethrower (41) | 10 ticks a second | 0.6× a tick | 13 | no projectiles: everything in a cone 13 long, widening 18° each side, burns; mines in it go off |
 | Cannon (48) | 0.12× (at least one a second) | 8× | 50 | a ball 1.2 wide rolls through everything on its line: brutes and giants knocked back, barrels and cages opened, mines set off, gates grown |
-| Storm coil (53) | 0.6× | 0.8× | 22 | lightning: the nearest in a lane 3 wide, then four jumps of 3 to the next, 0.7× each |
+| Storm coil (53) | 0.6× | 0.8× | 34 | lightning: the nearest in a lane 3 wide, then four jumps of 3 to the next, 0.7× each |
 
 A shield bearer's shield takes the musket's, twin's, scattergun's, rockets' and frost blaster's balls from the front; the
 lance, flame, coil, mortar, cannon and every blast get past it.
@@ -104,9 +104,10 @@ A power-up stands a few units before a horde (its first horde on the level that 
 ## 5. The horde
 
 Waves wake when the squad is 62 units from their front row; they march down the road at their own speed (times the
-level's pace) and, within 14 units, close in on its x. **The squad marches through the hordes**; it stops only for the
-big ones: before the boss, where a giant stands on it, and at a fort wall (the owner, 2026-11-27: "I thought we were only
-causing the march [to stop] for the big bosses"; for a day in 0.8.0-0.11.0 it stood for every horde). An enemy that
+level's pace) and, within 14 units, close in on its x. **The squad marches through the hordes** and stops only when
+one is almost on it: an enemy that walks within 2.5 of its front (the owner, 2026-11-27: "it should only stop when the
+enemies are very close"), and before the boss, where a giant stands on it, and at a fort wall (in 0.8.0-0.11.0 it stood
+for every horde from 25 away; in 0.12 only for the big ones). An enemy that
 touches the squad's footprint is gone and takes its strength in soldiers with it, times squad / 50 past 50 soldiers
 (`Battle::toll`: a horde takes the same share of any squad, as the squad's balls grow past 50); arrows and mines too.
 Enemies that slip 8 units past are gone. Soldiers lost are knocked flying from the squad's front, a few more flash red,
@@ -216,9 +217,19 @@ judges each level by the bot's own run of it, the one every horde was sized agai
 gates or another weapon meets hordes sized for a different squad, and on a 15-minute road one of them ends it; the
 planner, `planLevel`, is kept for `--sweep`). The share of its peak squad that run keeps must be near the level's target
 `0.02 + 0.6·e^(−n/22)` (between 0.6 and 1.5 times it; levels 1-10 keep 45-90%): about 60% at the start, 18% at level
-20, 7% at 50 and 2% at 100, where the run ends with a handful of soldiers out of thousands. Boss levels ask for 0.8 times their neighbours'. One level in about nine after level 14
-(`isSpike`, never two running) is a hard level: a third of the target (at least 1.2%), a boss, bigger bites; `--sim
-table` marks them "(hard)".
+20, 7% at 50 and 2% at 100, where the run ends with a handful of soldiers out of thousands. Boss levels ask for 0.8
+times their neighbours'. **Hard levels** (the owner: "every 5-10 levels is a hard one (allows 0%-1% margin of error)",
+"even in the low levels"): from level 6, the next 5 to 10 levels on (`isSpike`; never a boss's tenth or a gold rush's
+fifth): the run keeps about 1% of its peak (0.2-1.5%), a boss, bigger bites, 8% faster; `--sim table` marks them.
+
+**Themes** (the owner: "Every level should feel somewhat different than the last", "sprinkle in special levels every now
+and then like fast ones"): every level leans on one theme, never the same as the level before (`themeOf`): columns of +1
+(longer), rows of choices, barrels, hordes (one after every one or two sections, smaller), barricades, or a special one
+about every third level, never the last special again, with its banner when no introduction takes the hint line:
+**SPRINT** (1.45 times as fast, a short road, few hordes), **MULTIPLIER MADNESS** (rows of x2 and x3, past the ceiling
+too), **SWARM** (rare hordes 1.7 times as big, a slower march), **CAVALRY CHARGE** (hordes of riders, a faster march),
+**BRUTE SQUAD** (half the foot, three times the brutes, slower). Each level's pace also varies by up to 7% either way.
+The road stops being laid once the bot's run of it reaches the level's time (0.6 of it for a rush or a sprint).
 
 **Speed** rises with the level too (the owner: "Are you scaling the speed of the levels too?"): the squad marches at
 4.6 units a second on level 1 and 7.0 on level 100 (linear), the horde's pace (its own speed, `Y` in the text form)

@@ -191,15 +191,22 @@ int weaponOffer(int n) {
 
 float levelSeconds(int n) { return 30.0f * std::pow(30.0f, float(clampv(n, 1, kLevels) - 1) / float(kLevels - 1)); }
 
+// The hard levels (the owner, 2026-11-27: "every 5-10 levels is a hard one (allows 0%-1% margin of error)", "even in the
+// low levels"): from level 6, the next 5 to 10 levels on, never on a boss's tenth or a gold rush's fifth.
 bool isSpike(int n) {
-    auto hard = [](int k) { return k >= 15 && hash64(u64(k) * 7919ULL + 17ULL) % 9ULL == 0; };
-    return hard(n) && !hard(n - 1);
+    int k = 6;
+    for (;;) {
+        while (k % 10 == 0 || (k % 10 == 5 && k >= 15)) ++k;
+        if (k == n) return true;
+        if (k > n) return false;
+        k += 5 + int(hash64(u64(k) * 7919ULL + 17ULL) % 6ULL);
+    }
 }
 
 float marginTarget(int n) {
     float t = 0.02f + 0.6f * std::exp(-float(n) / 22.0f);  // about 60% early, under 3% by the last levels
     if (n % 10 == 0) t *= 0.8f;          // a boss's level, a little harder
-    if (isSpike(n)) t = maxv(0.012f, t * 0.3f);
+    if (isSpike(n)) t = 0.01f;  // a perfect run keeps about 1% of its soldiers
     return t;
 }
 
@@ -207,6 +214,46 @@ float marginTarget(int n) {
 float bite(int n) {
     const float b = 0.05f + 0.3f * minv(1.0f, float(n - 1) / 66.0f);
     return isSpike(n) ? b * 1.4f : b;
+}
+
+// A level's theme (the owner, 2026-11-27: "Every level should feel somewhat different than the last", "sprinkle in
+// special levels every now and then like fast ones"): what its road leans on, its pace and how often its hordes come.
+// Never the same two levels running; a special one (with its banner) about every third level once they are known.
+enum Theme : u8 {
+    kThemeMixed, kThemeColumns, kThemeChoices, kThemeBarrels, kThemeHordes, kThemeBarricades,
+    kThemeSprint, kThemeMultiply, kThemeSwarm, kThemeCavalry, kThemeBrutes, kThemeCount
+};
+const int kThemeFrom[kThemeCount] = {1, 1, 2, 4, 2, 6, 4, 5, 5, 7, 12};
+const u8 kThemeHint[kThemeCount] = {0, 0, 0, 0, 0, 0, 58, 59, 60, 61, 62};  // the specials' banners (src/sim/levels.cpp)
+int themeOf(int n) {
+    int prev = -1, sinceSpecial = 9, lastSpecial = -1;
+    for (int k = 1; k <= n; ++k) {
+        if (levelMode(k) == kModeGold) {  // a bonus road has no theme; the sequence goes on around it
+            if (k == n) return kThemeMixed;
+            continue;
+        }
+        int cand[kThemeCount], m = 0, specials = 0;
+        for (int t = 0; t < kThemeCount; ++t) {
+            if (k < kThemeFrom[t] || t == prev || (t == kThemeMixed && k > 3)) continue;  // past the first three, always a lean
+            if (t == kThemeSprint && levelMode(k) == kModeRush) continue;  // a rush is already fast
+            const bool sp = t >= kThemeSprint;
+            if (sp && (sinceSpecial < 2 || t == lastSpecial)) continue;  // not two specials close together, nor the last again
+            cand[m++] = t;
+            specials += sp;
+        }
+        const u64 h = hash64(u64(k) * 0x9E3779B97F4A7C15ULL + 41ULL);
+        int pick = cand[h % u64(m)];
+        if (specials > 0 && sinceSpecial >= 3 && (h >> 20) % 10ULL < 7ULL) {  // due a special: most often it is one
+            int j = int((h >> 32) % u64(specials));
+            for (int i = 0; i < m; ++i)
+                if (cand[i] >= kThemeSprint && j-- == 0) pick = cand[i];
+        }
+        sinceSpecial = pick >= kThemeSprint ? 0 : sinceSpecial + 1;
+        if (pick >= kThemeSprint) lastSpecial = pick;
+        if (k == n) return pick;
+        prev = pick;
+    }
+    return kThemeMixed;
 }
 
 void build(int n, u64 seed, Shape& out) {
@@ -221,9 +268,15 @@ void build(int n, u64 seed, Shape& out) {
     // level faster still. Each level is longer than the one before, from half a minute to about fifteen at level 100
     // (the owner, 2026-11-27): the road is the time at the march's speed, less a tenth spent fighting.
     const float late = float(n - 1) / float(kLevels - 1);
-    d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f) * (levelMode(n) == kModeRush ? 1.5f : 1.0f);
+    // Each level's pace: its theme's (a sprint half again as fast, a cavalry charge a little faster, a swarm or the brutes
+    // slower) and a little of its own either way.
+    const int theme = levelMode(n) == kModeGold ? int(kThemeMixed) : themeOf(n);
+    const float themePace = theme == kThemeSprint ? 1.45f : theme == kThemeCavalry ? 1.12f : theme == kThemeSwarm || theme == kThemeBrutes ? 0.9f : 1.0f;
+    const float ownPace = 0.93f + 0.14f * float(hash64(u64(n) * 1234567ULL + 89ULL) % 1000ULL) / 1000.0f;
+    d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f) * (levelMode(n) == kModeRush ? 1.5f : 1.0f) * themePace * ownPace;
     d.pace = (1.0f + 0.35f * late) * (isSpike(n) ? 1.1f : 1.0f);
-    d.length = levelSeconds(n) * d.speed * (levelMode(n) == kModeRush ? 0.5f : 0.9f) + (d.boss ? 24.0f : 0.0f);  // a rush is short
+    d.length = levelSeconds(n) * d.speed * (levelMode(n) == kModeRush ? 0.5f : theme == kThemeSprint ? 0.55f : 0.9f) +
+               (d.boss ? 24.0f : 0.0f);  // a rush and a sprint are short
     d.start = n <= 5 ? 3 : 3 + int(r.next() % 4u);
     switch (n) {  // introductions: their hint lines (src/sim/levels.cpp)
         case 1: d.hint = 1; break;
@@ -286,6 +339,8 @@ void build(int n, u64 seed, Shape& out) {
     if (n == 39) d.hint = 53;
     if (n == 56) d.hint = 54;
     if (n == 62) d.hint = 55;
+    if (!d.hint && kThemeHint[theme]) d.hint = kThemeHint[theme];  // a special level's banner (an introduction's comes first)
+    const bool cavalry = theme == kThemeCavalry && n >= 7, bruteSquad = theme == kThemeBrutes;
     const u32 favs = kWorldFav[(d.world - 1) % 10];
     auto fav = [&](u32 f) { return (favs & f) != 0; };
     auto odds = [&](u32 f, float p) { return fav(f) ? minv(0.85f, p * 2.0f) : p; };  // a world's favourite: twice as likely
@@ -362,7 +417,10 @@ void build(int n, u64 seed, Shape& out) {
     runner().init(d);
     runner().clearWins = false;  // the road is not all laid: no end yet
     float z = 14.0f;
-    const float end = d.length - 24.0f;
+    float end = d.length - 24.0f;
+    // The road also ends once the bot's run of it reaches the level's time (its fights take what they take): what it has
+    // run, and the march to the road's end from there.
+    const float timeGoal = levelSeconds(n) * (rush || theme == kThemeSprint ? 0.6f : 1.0f) * 0.92f;
     int sinceWave = 0;
     int section = 0, last = -1;
     // A long road offers another weapon about every two minutes, and holds a power-up for about every 45 s of it.
@@ -371,6 +429,11 @@ void build(int n, u64 seed, Shape& out) {
     int lastOffered = offer;
     const int maxPickups = 2 + int(levelSeconds(n) / 45.0f);
     while (z < end) {
+        if (runner().time + maxv(0.0f, z - runner().z) / maxv(1.0f, d.speed) >= timeGoal) {
+            end = z;
+            d.length = end + 24.0f;
+            break;
+        }
         const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount,
                   minesBefore = d.mineCount, cagesBefore = d.cageCount, rollersBefore = d.rollerCount, wallsBefore = d.wallCount,
                   stripsBefore = d.stripCount;
@@ -389,7 +452,9 @@ void build(int n, u64 seed, Shape& out) {
         else if (section == 1 && n == 19) kind = 7;  // the first moving gate
         // A horde after every two or three other sections: never on a gold rush, a rush or a gauntlet (their roads are
         // hazards and gates; the end fight is their only horde).
-        else if (!gold && !rush && !gauntlet && sinceWave >= 2 + int(r.next() % 2u)) kind = 4;
+        else if (!gold && !rush && !gauntlet &&
+                 sinceWave >= (theme == kThemeHordes ? 1 : theme == kThemeSwarm || theme == kThemeSprint ? 3 : 2) + int(r.next() % 2u))
+            kind = 4;
         else if (!gold && !arsenal && weaponsKnown(n) >= 1 && section > 2 && z >= nextWeaponZ) kind = 14;
         else {
             // Gold rush: gates, barrels, medallions; rescue: few gates; gauntlet: rollers and minefields, gates as bait.
@@ -401,6 +466,13 @@ void build(int n, u64 seed, Shape& out) {
                            gauntlet || (rush && mines) ? 1.4f : (mines && fav(kFavMines) && !gold ? 0.5f : 0.0f),
                            flips ? 0.8f * gk * (fav(kFavFlips) ? 2.0f : 1.0f) : 0.0f, mysteries ? 0.7f * gk * (fav(kFavMystery) ? 2.0f : 1.0f) : 0.0f,
                            (ice && fav(kFavIce)) || (wind && fav(kFavWind)) ? 1.4f : ice || wind ? 0.7f : 0.0f};
+            // The theme's lean: three times as many of its sections (multiplier madness: rows of x2 and x3).
+            if (theme == kThemeColumns) w[0] *= 3.0f;
+            if (theme == kThemeChoices) w[1] *= 2.5f, w[5] *= 2.0f;
+            if (theme == kThemeBarrels) w[2] *= 3.0f;
+            if (theme == kThemeBarricades) w[3] *= 3.0f;
+            if (theme == kThemeMultiply) w[1] *= 2.0f, w[5] = triple || n >= 8 ? 2.5f * gk : w[5];
+            if (theme == kThemeSprint) w[0] *= 1.5f, w[7] *= 2.0f;
             if (last >= 0 && last < 14) w[last] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
@@ -418,7 +490,7 @@ void build(int n, u64 seed, Shape& out) {
         ++section;
         switch (kind) {
             case 0: {  // a column of +1 panels down one side
-                const int k = r.rangei(8, 16 + minv(n, 40) / 4);
+                const int k = r.rangei(8, 16 + minv(n, 40) / 4) + (theme == kThemeColumns ? 6 : 0);
                 const bool left = r.f01() < 0.5f;
                 for (int i = 0; i < k; ++i) gate(d, left ? -4.8f : 2.4f, left ? -2.4f : 4.8f, z + 1.3f * float(i), 1, kGateAdd, 1, 3);
                 z += 1.3f * float(k) + 6.0f;
@@ -430,7 +502,7 @@ void build(int n, u64 seed, Shape& out) {
                 i32 a = friendly(maxv(2.0f, E * uni(r, 0.25f, 0.9f) / over)), b = friendly(maxv(2.0f, E * uni(r, 0.2f, 0.7f) / over));
                 u8 ka = kGateAdd, kb = kGateAdd;
                 const float y = r.f01();
-                if (mul && grow && y < 0.4f) {  // x2 against a fair sum
+                if (mul && (grow || theme == kThemeMultiply) && y < (theme == kThemeMultiply ? 0.85f : 0.4f)) {  // x2 against a fair sum
                     kb = kGateMul;
                     b = 2;
                     a = friendly(maxv(2.0f, E * uni(r, 0.6f, 1.3f)));
@@ -630,7 +702,7 @@ void build(int n, u64 seed, Shape& out) {
                 const bool full = r.f01() < 0.6f;
                 const float cx = full ? 0.0f : (r.f01() < 0.5f ? -2.2f : 2.2f);
                 const float half = full ? 4.3f : 2.4f;
-                const bool withRiders = riders && r.f01() < 0.4f, withBrutes = brutes && r.f01() < 0.35f;
+                const bool withRiders = riders && !cavalry && r.f01() < 0.4f, withBrutes = (brutes || bruteSquad) && (bruteSquad || r.f01() < 0.35f);
                 const bool withArchers = archers && (siege || (n == 17 ? archerRanks == 0 : r.f01() < odds(kFavArchers, 0.3f)));
                 if (withArchers) ++archerRanks;
                 // A catapult at the road's side beyond it; a giant at its head (with three seconds of the squad's fire in
@@ -661,7 +733,10 @@ void build(int n, u64 seed, Shape& out) {
                     d.waveCount = wavesBefore;
                     const i32 foot = clampv<i32>(i32(count), 3, out.hordeMax);
                     const float k = 1.0f;
-                    d.waves[d.waveCount++] = {zw + 10.0f, cx - half, cx + half, foot, kFoot, tough(kFoot, k)};
+                    // A cavalry charge is riders; a brute squad half the foot and three times the brutes.
+                    if (cavalry) d.waves[d.waveCount++] = {zw + 10.0f, cx - half, cx + half, maxv<i32>(3, foot / 2), kRider, tough(kRider, k)};
+                    else d.waves[d.waveCount++] = {zw + 10.0f, cx - half, cx + half, bruteSquad ? maxv<i32>(3, foot / 2) : foot, kFoot, tough(kFoot, k)};
+                    if (bruteSquad) d.waves[d.waveCount++] = {zw + 15.0f, -3.0f, 3.0f, minv(maxv<i32>(2, foot / 5), 320), kBrute, tough(kBrute, k)};
                     if (withRiders) d.waves[d.waveCount++] = {zw + 14.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider, tough(kRider, k)};
                     if (withBrutes) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(maxv<i32>(1, foot / 12), 320), kBrute, tough(kBrute, k)};
                     // Archers behind it all, standing in their ranks.
@@ -683,7 +758,8 @@ void build(int n, u64 seed, Shape& out) {
                 // still get through: the end fight, not the hordes on the way, sets how close the level runs. On the first
                 // three, against the squad the level starts with and two more: whoever steers anywhere gets through.
                 const float weak = 0.5f + 0.35f * late;
-                const float goal = weak * E * minv(0.7f, bite(n) * uni(r, 0.6f, 1.4f) * minv(over, 2.0f));
+                const float themeBite = theme == kThemeHordes ? 0.7f : theme == kThemeSwarm ? 1.7f : theme == kThemeSprint ? 0.8f : 1.0f;
+                const float goal = weak * E * minv(0.7f, bite(n) * themeBite * uni(r, 0.6f, 1.4f) * minv(over, 2.0f));
                 float lo = 2.0f, hi = float(out.hordeMax), pick = lo;
                 static const bool trace = std::getenv("PM_GEN_TRACE") != nullptr;
                 bool met = false;  // a size whose cost is near the goal; else the goal is on a cliff (none, then all)
@@ -776,9 +852,10 @@ Baked bakeLevel(int n, int maxSeeds) {
     // falls from about 60% to under 3% by level 100; the hard levels thrown in ask for a third of their neighbours'.
     const float target = marginTarget(n);
     const bool gold = levelMode(n) == kModeGold;  // a bonus road has no end fight: any win will do
-    const float lo = gold ? 0.0f : (n <= 10 ? 0.45f : target * 0.6f);
+    const bool spike = isSpike(n);
+    const float lo = gold ? 0.0f : spike ? 0.002f : (n <= 10 ? 0.45f : target * 0.6f);
     // The first ten keep half their squad or more, but their end fight always costs something.
-    const float hi = gold ? 1.0f : n <= 10 ? 0.9f : minv(1.0f, target * 1.5f);
+    const float hi = gold ? 1.0f : spike ? 0.015f : n <= 10 ? 0.9f : minv(1.0f, target * 1.5f);
     best.target = target;
     float bestErr = 1e9f;
     thread_local Shape* sp = nullptr;  // large: one per thread

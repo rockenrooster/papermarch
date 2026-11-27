@@ -76,6 +76,11 @@ const char* const kHints[kHintCount] = {
     "LEAN INTO THE WIND",                // 55: wind (62)
     "FOG HIDES THE ROAD",                // 56: fog (67)
     "FIGHT IN THE DARK",                 // 57: night (81)
+    "SPRINT! RUN THE ROAD",              // 58: a sprint (a level's theme: src/gen/gen.cpp)
+    "MULTIPLIER MADNESS!",               // 59
+    "SWARM INCOMING!",                   // 60
+    "CAVALRY CHARGE!",                   // 61
+    "BRUTE SQUAD!",                      // 62
 };
 
 // Until the first bake: one small level, so the app always has something to play.

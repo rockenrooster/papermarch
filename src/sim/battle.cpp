@@ -24,13 +24,13 @@ const EnemyStats kStats[kEnemyKindCount] = {
 const WeaponStats kWeapons[kWeaponCount] = {
     {1.0f, 1.0f, 48.0f, 42.0f, 1, 0.0f, 0, 0.0f, 0.0f},      // musket
     {1.0f, 0.6f, 48.0f, 48.0f, 2, 0.5f, 0, 0.0f, 0.0f},      // twin rifles: two streams 0.5 apart
-    {0.8f, 0.45f, 14.0f, 36.0f, 5, 0.244f, 0, 0.0f, 0.0f},   // scattergun: a 28 degree fan
+    {0.8f, 0.45f, 30.0f, 36.0f, 5, 0.244f, 0, 0.0f, 0.0f},   // scattergun: a 28 degree fan (30 long: the owner found 14 too short)
     {0.5f, 1.2f, 60.0f, 75.0f, 1, 0.0f, 6, 0.0f, 0.0f},      // long lance: through six
     {0.25f, 3.0f, 45.0f, 22.0f, 1, 0.0f, 0, 1.8f, 1.5f},     // rockets: a burst where they strike
-    {1.0f, 0.6f, 9.0f, 0.0f, 0, 0.325f, 0, 0.0f, 0.0f},      // flamethrower: 10 ticks a second on a cone 9 long, 18 degrees
+    {1.0f, 0.6f, 13.0f, 0.0f, 0, 0.325f, 0, 0.0f, 0.0f},     // flamethrower: 10 ticks a second on a cone 13 long, 18 degrees
     {0.12f, 8.0f, 50.0f, 26.0f, 1, 0.6f, 255, 0.0f, 0.0f},   // cannon: a ball 1.2 wide through everything on its line
-    {0.6f, 0.8f, 22.0f, 0.0f, 0, 1.5f, 4, 3.0f, 0.7f},       // storm coil: its lane 3 wide, 4 jumps of 3 at 0.7 each
-    {0.2f, 2.5f, 18.0f, 0.0f, 0, 0.0f, 0, 2.6f, 1.0f},       // mortar: a shell 18 ahead after 1.1 s, a blast of 2.6
+    {0.6f, 0.8f, 34.0f, 0.0f, 0, 1.5f, 4, 3.0f, 0.7f},       // storm coil: its lane 3 wide and 34 long, 4 jumps of 3 at 0.7 each
+    {0.2f, 2.5f, 28.0f, 0.0f, 0, 0.0f, 0, 2.6f, 1.0f},       // mortar: a shell 28 ahead after 1.1 s, a blast of 2.6
     {1.0f, 0.5f, 36.0f, 40.0f, 1, 0.0f, 0, 0.0f, 0.0f},      // frost blaster: what it hits goes at half speed for 2 s
 };
 // Bullets from the front a shield takes (the lance, flame, coil, mortar, cannon and every blast get past it).
@@ -257,7 +257,7 @@ void Battle::lightning(float x0, float z0, i32 dmg, BattleEvents& ev) {
 }
 
 void Battle::scorch(i32 dmg, BattleEvents& ev) {
-    // Every enemy in the cone from the squad's front (9 long, widening 18 degrees each side) burns; mines in it go off.
+    // Every enemy in the cone from the squad's front (13 long, widening 18 degrees each side) burns; mines in it go off.
     const WeaponStats& w = weaponStats(kFlame);
     float lo, hi;
     footprint(lo, hi);
@@ -1081,14 +1081,17 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     vx = clampv((tx - x) * 12.0f * grip * quick, -18.0f * grip * quick, 18.0f * grip * quick);
     x += vx * kDt;
     if (strip && strip->kind == kStripWind) x = clampv(x + strip->push * kDt, -lim, lim);  // the wind pushes it
-    // March. It marches through the hordes and halts only for the big ones (the owner, 2026-11-27: "only causing the
-    // march [to stop] for the big bosses"): before the boss, and where a giant stands on it.
+    // March. It marches through the hordes and stops only when one is almost on it (the owner, 2026-11-27: "add the squad
+    // pause again, but this time it should only stop when the enemies are very close"): an enemy that walks (not an archer
+    // or a catapult) within 2.5 of its front; before the boss (8 away); where a giant stands on it.
     const float zPrev = z;
     const bool bossNear = boss_ >= 0 && enemies[boss_].z - z < 8.0f;
     halted = false;
     for (int i = 0; i < enemyCount && !halted; ++i) {
         const Enemy& e = enemies[i];
-        halted = e.alive && e.kind == kGiant && e.z - z > 0.0f && e.z - z < r * 0.6f + enemyStats(kGiant).radius + 0.2f;
+        if (!e.alive || e.kind == kBoss || e.kind == kArcher || e.kind == kCatapult) continue;
+        const float d = e.z - z;
+        halted = d > 0.0f && d < r * 0.6f + enemyStats(e.kind).radius + (e.kind == kGiant ? 0.2f : 2.5f);
     }
     // A fort wall stops it until it falls.
     if (const int wa = wallAhead(); wa >= 0 && def->walls[wa].z - z < 2.0f + r * 0.5f) halted = true;

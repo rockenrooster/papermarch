@@ -163,6 +163,18 @@ past 50 soldiers (each ball does more instead), and bullets were added last, so 
 tracers; bullets added before the horde; the sticker budget doubled to 12,000. Level 20's boss approach with a squad of
 1,100: 385 figures, 2,428 stickers, the view 0.33 ms a frame (P95) on the PC, no allocations. Not yet measured on a phone.
 
+## 2026-11-27: 0.13.0, a pause when they are close, hard levels from 6, themes
+
+The owner: "add the squad pause again, but this time it should only stop when the enemies are very close", "the scatter
+gun bullet distance is too low", "we need hard levels sprinkled in, even in the low levels. Like every 5-10 levels",
+"Pace of levels feels pretty much the same across the first 20 levels ... Every level should feel somewhat different than
+the last", "sprinkle in special levels every now and then like fast ones and such be creative". The squad stops when an
+enemy walks within 2.5 of its front. Ranges: scattergun 14 to 30, flamethrower 9 to 13, storm coil 22 to 34, mortar 18 to
+28 (the musket and twin rifles 48, the lance 60, rockets 45, the cannon 50, the frost blaster 36 unchanged). Hard levels
+at 6, 12, 22, 29, 39, 46, 51, 59, 64, 73, 79, 86, 96, each ending with 0.3-1.4% of its peak. Level themes and five
+special ones (GAME_DESIGN 6); roads stop at the level's time (level 100 runs 14:03). Checks: unit tests 31/31, the table
+100/100, the flow test 23/23 on the PC and in the browser, level 1 won by touch.
+
 ## Status
 
 | Part | Status |

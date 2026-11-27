@@ -41,6 +41,8 @@ constexpr int kLevels = 100;
 float levelSeconds(int n);
 float marginTarget(int n);
 bool isSpike(int n);
+// The level's theme (src/gen/gen.cpp: what its road leans on, its pace; never the same two levels running).
+int themeOf(int n);
 // The weapon level n offers (a sim::WeaponKind, 0 none): its introduction on the level that brings it in, then one of
 // those known on most levels, never the one the level before offered (docs/CONTENT_PASS.md 4.1 rule 4).
 int weaponOffer(int n);
