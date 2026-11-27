@@ -27,60 +27,104 @@ i32 friendly(float v) {
 // Shots a second times damage: what a squad of `s` deals (the rules' own numbers).
 float dps(float s) { return (5.0f + 2.4f * minv(s, 50.0f)) * maxv(1.0f, s / 50.0f); }
 
+// Each enemy's hit points (musket balls) in a horde: three times its kind's (times k: an end fight past 900 is tougher,
+// not bigger). The squad stands while a horde runs at it (the owner, 2026-11-27); its fire (at most 125 musket balls a
+// second, Battle::against) holds back a horde that falls to one ball each, so it never arrives; at three a horde closes
+// in about five seconds and its size sets what it costs. 0: the kind's own (the text form leaves it out).
+constexpr float kTough = 3.0f;
+i32 tough(u8 kind, float k = 1.0f) {
+    const i32 base = enemyStats(kind).hp;
+    const i32 hp = i32(float(base) * kTough * k + 0.5f);
+    return hp > base ? hp : 0;
+}
+
+// The squad a level is built around (the owner, 2026-11-27: levels up to 15 minutes): past it the road offers no x2 or x3
+// and smaller sums, and the hordes bite harder, so a long road does not snowball to the cap.
+float ceilingOf(int n) { return 100.0f + 25.0f * float(n); }
+
+// The text form keeps places in tenths (the speeds in hundredths): every number the generator lays is put on that grid
+// before the bot plays it, so what it measures is what the table will hold (a horde's cost can turn on a tenth).
+float r10(float f) { return float(int(f * 10.0f + (f >= 0 ? 0.5f : -0.5f))) / 10.0f; }
+float r100(float f) { return float(int(f * 100.0f + 0.5f)) / 100.0f; }
+void snap(LevelDef& d) {
+    d.length = r10(d.length);
+    d.speed = r100(d.speed);
+    d.pace = r100(d.pace);
+    for (int i = 0; i < d.gateCount; ++i) {
+        GateDef& g = d.gates[i];
+        g.x0 = r10(g.x0);
+        g.x1 = r10(g.x1);
+        g.z = r10(g.z);
+    }
+    for (int i = 0; i < d.barrelCount; ++i) d.barrels[i].x = r10(d.barrels[i].x), d.barrels[i].z = r10(d.barrels[i].z);
+    for (int i = 0; i < d.medalCount; ++i) d.medals[i].x = r10(d.medals[i].x), d.medals[i].z = r10(d.medals[i].z);
+    for (int i = 0; i < d.mineCount; ++i) d.mines[i].x = r10(d.mines[i].x), d.mines[i].z = r10(d.mines[i].z);
+    for (int i = 0; i < d.cageCount; ++i) d.cages[i].x = r10(d.cages[i].x), d.cages[i].z = r10(d.cages[i].z);
+    for (int i = 0; i < d.waveCount; ++i) {
+        WaveDef& w = d.waves[i];
+        w.z = r10(w.z);
+        w.x0 = r10(w.x0);
+        w.x1 = r10(w.x1);
+    }
+}
+
 void gate(LevelDef& d, float x0, float x1, float z, i32 v, u8 kind, u8 grows, i32 cap) {
     if (d.gateCount < kMaxGates) d.gates[d.gateCount++] = {x0, x1, z, v, kind, grows, cap};
 }
 
-// The squad the bot has at `zEnd` on the road built so far (no boss; the level ends there): what the next section is
-// sized from. 0 if the bot does not get there.
-float squadAt(const LevelDef& d, float zEnd) {
-    thread_local LevelDef* tp = nullptr;  // large: one per thread
-    if (!tp) tp = new LevelDef();
-    LevelDef& t = *tp;
-    t = d;
-    t.length = zEnd;
-    t.bossHp = 0;
-    t.planLook = 0;
-    t.planCount = 0;
-    indexRows(t);
-    const PlayResult r = playLevel(t, 150);
-    return r.won ? float(r.left) : 0.0f;
+// The bot's run of the road as the generator lays it (TECH_SPEC 4). It is kept 64 units behind the road's end, so
+// nothing laid later can change what it did there (waves wake 62 units ahead, the bot looks at most 42 ahead); a
+// measurement copies it and plays only the new stretch, exactly as a run of the road so far would.
+Battle& runner() {
+    thread_local Battle* b = nullptr;
+    if (!b) b = new Battle();
+    return *b;
+}
+Battle& scratch() {
+    thread_local Battle* b = nullptr;
+    if (!b) b = new Battle();
+    return *b;
 }
 
-// What the waves from `firstWave` on cost the bot (soldiers their enemies took on reaching it) on the road built so far,
-// played to zEnd; -1 if the bot does not get there. Only their own toll: how the bot steers around them changes what
-// else it gains or loses, which is not theirs.
-float hordeCost(const LevelDef& d, float zEnd, int firstWave) {
-    thread_local LevelDef* tp = nullptr;
-    if (!tp) tp = new LevelDef();
-    thread_local Battle* bp = nullptr;
-    if (!bp) bp = new Battle();
-    LevelDef& t = *tp;
-    t = d;
-    t.length = zEnd;
-    t.bossHp = 0;
-    t.planLook = 0;
-    t.planCount = 0;
-    indexRows(t);
-    Battle& b = *bp;
-    b.init(t);
-    BattleEvents ev;
-    for (int s = 0; s < 150 * 60 && !b.won && !b.lost; ++s) b.tick(botSteer(b), true, ev);
-    if (!b.won) return -1.0f;
+// The squad the bot has at `zEnd` on the road built so far: what the next section is sized from. 0 if it does not get
+// there.
+float squadAt(float zEnd) {
+    Battle& b = scratch();
+    b = runner();
+    return playTo(b, zEnd) ? float(b.squad) : 0.0f;
+}
+
+// What the waves from `firstWave` on cost a weaker player (soldiers their enemies took on reaching it), played to zEnd;
+// -1 if it does not get there. The bot plays to `zMeet` (just before the horde wakes), then keeps `weak` of its
+// soldiers. Only their own toll: how the bot steers around them changes what else it gains or loses, which is not theirs.
+float hordeCost(float zEnd, int firstWave, float zMeet, float weak) {
+    Battle& b = scratch();
+    b = runner();
+    if (b.z < zMeet && !playTo(b, zMeet)) return -1.0f;
+    b.squad = maxv<i32>(1, i32(float(b.squad) * weak + 0.5f));
+    if (!playTo(b, zEnd)) return -1.0f;
     i32 sum = 0;
-    for (int w = maxv(0, firstWave); w < t.waveCount && w < kMaxWaves; ++w) sum += b.waveLost[w];
+    for (int w = maxv(0, firstWave); w < b.def->waveCount && w < kMaxWaves; ++w) sum += b.waveLost[w];
     return float(sum);
 }
 
-// How many weapons beyond the musket level n knows (docs/CONTENT_PASS.md 4.2: twin rifles on 9, the scattergun on 14,
-// the lance on 22, rockets on 28).
-int weaponsKnown(int n) { return n >= 28 ? 4 : n >= 22 ? 3 : n >= 14 ? 2 : n >= 9 ? 1 : 0; }
+// The weapons in the order they come in, and the levels that bring them (docs/CONTENT_PASS.md 4.2).
+const u8 kWeaponOrder[9] = {kTwin, kScatter, kLance, kRockets, kFrost, kMortar, kFlame, kCannon, kCoil};
+const int kWeaponIntro[9] = {9, 14, 22, 28, 32, 36, 41, 48, 53};
+int weaponsKnown(int n) {
+    int k = 0;
+    while (k < 9 && n >= kWeaponIntro[k]) ++k;
+    return k;
+}
 
 // The power-ups in the order they come in, and the levels that bring them (docs/CONTENT_PASS.md 4.2); which can be a
 // medallion (the others come in supply crates only).
-const u8 kPowerOrder[5] = {kRapid, kShield, kAirstrike, kPowerShot, kFreeze};
-const int kPowerIntro[5] = {11, 18, 23, 29, 32};
-bool medalPower(u8 p) { return p == kRapid || p == kPowerShot || p == kShield; }
+const u8 kPowerOrder[12] = {kRapid, kShield, kAirstrike, kPowerShot, kFreeze, kQuick, kMagnet, kReinforce, kGiants, kHourglass, kDouble, kFieldGun};
+const int kPowerIntro[12] = {11, 18, 23, 29, 32, 38, 44, 46, 49, 54, 58, 64};
+bool medalPower(u8 p) {
+    return p == kRapid || p == kPowerShot || p == kShield || p == kMagnet || p == kGiants || p == kQuick || p == kHourglass || p == kDouble;
+}
+bool cratePower(u8 p) { return !medalPower(p) || p == kRapid || p == kPowerShot || p == kHourglass; }
 
 }  // namespace
 
@@ -98,14 +142,13 @@ int weaponOffer(int n) {
     int prev = 0;
     for (int k = 9; k <= n; ++k) {
         int w = 0;
-        if (k == 9) w = kTwin;
-        else if (k == 14) w = kScatter;
-        else if (k == 22) w = kLance;
-        else if (k == 28) w = kRockets;
-        else if (hash64(u64(k) * 31337ULL + 5ULL) % 10ULL < 7ULL) {
+        for (int i = 0; i < 9; ++i)
+            if (k == kWeaponIntro[i]) w = kWeaponOrder[i];  // its introduction
+        if (w == 0 && hash64(u64(k) * 31337ULL + 5ULL) % 10ULL < 7ULL) {
             const int m = weaponsKnown(k);
-            w = 1 + int(hash64(u64(k) * 7777ULL + 3ULL) % u64(m));
-            if (w == prev) w = m > 1 ? w % m + 1 : 0;
+            int i = int(hash64(u64(k) * 7777ULL + 3ULL) % u64(m));
+            if (kWeaponOrder[i] == prev) i = m > 1 ? (i + 1) % m : -1;
+            w = i >= 0 ? kWeaponOrder[i] : 0;
         }
         if (k == n) return w;
         prev = w;
@@ -113,13 +156,15 @@ int weaponOffer(int n) {
     return 0;
 }
 
+float levelSeconds(int n) { return 30.0f * std::pow(30.0f, float(clampv(n, 1, kLevels) - 1) / float(kLevels - 1)); }
+
 bool isSpike(int n) {
     auto hard = [](int k) { return k >= 15 && hash64(u64(k) * 7919ULL + 17ULL) % 9ULL == 0; };
     return hard(n) && !hard(n - 1);
 }
 
 float marginTarget(int n) {
-    float t = 0.02f + 0.6f * std::exp(-float(n) / 65.0f);
+    float t = 0.02f + 0.6f * std::exp(-float(n) / 22.0f);  // about 60% early, under 3% by the last levels
     if (n % 10 == 0) t *= 0.8f;          // a boss's level, a little harder
     if (isSpike(n)) t = maxv(0.012f, t * 0.3f);
     return t;
@@ -127,23 +172,25 @@ float marginTarget(int n) {
 
 // The share of its squad each horde on the way costs the bot: a nibble early on, a third late, more on the hard levels.
 float bite(int n) {
-    const float b = 0.05f + 0.3f * minv(1.0f, float(n - 1) / 199.0f);
+    const float b = 0.05f + 0.3f * minv(1.0f, float(n - 1) / 66.0f);
     return isSpike(n) ? b * 1.4f : b;
 }
 
 void build(int n, u64 seed, Shape& out) {
     Rng r(seed, u64(n) * 2 + 1);
     out = Shape{};
+    out.hordeMax = n <= 3 ? 20 : 900;
     LevelDef& d = out.d;
     d.seed = u32(seed);
     d.world = u8((n - 1) / 10 % 10 + 1);
     d.boss = n % 10 == 0;
     // Faster as the game goes on: the march from 4.6 to 7.0 units a second, the horde's pace up to 1.35 times; a hard
-    // level faster still. Longer roads keep a level near half a minute.
-    const float late = float(n - 1) / 299.0f;
+    // level faster still. Each level is longer than the one before, from half a minute to about fifteen at level 100
+    // (the owner, 2026-11-27): the road is the time at the march's speed, less the third spent standing for hordes.
+    const float late = float(n - 1) / float(kLevels - 1);
     d.speed = (4.6f + 2.4f * late) * (isSpike(n) ? 1.08f : 1.0f);
     d.pace = (1.0f + 0.35f * late) * (isSpike(n) ? 1.1f : 1.0f);
-    d.length = 96.0f + float(minv(n, 150)) * 0.7f + float(maxv(0, n - 150)) * 0.25f + (d.boss ? 24.0f : 0.0f);
+    d.length = levelSeconds(n) * d.speed * 0.68f + (d.boss ? 24.0f : 0.0f);
     d.start = n <= 5 ? 3 : 3 + int(r.next() % 4u);
     switch (n) {  // introductions: their hint lines (src/sim/levels.cpp)
         case 1: d.hint = 1; break;
@@ -168,6 +215,20 @@ void build(int n, u64 seed, Shape& out) {
         case 13: d.hint = 21; break;  // mines
         case 17: d.hint = 23; break;  // archers
         case 19: d.hint = 24; break;  // moving gates
+        case 26: d.hint = 33; break;  // shield bearers
+        case 36: d.hint = 34; break;  // the mortar
+        case 37: d.hint = 35; break;  // bombers
+        case 38: d.hint = 36; break;  // quick march
+        case 41: d.hint = 37; break;  // the flamethrower
+        case 42: d.hint = 38; break;  // drummers
+        case 44: d.hint = 39; break;  // the magnet
+        case 46: d.hint = 40; break;  // reinforcements
+        case 48: d.hint = 41; break;  // the cannon
+        case 49: d.hint = 42; break;  // giants (the power-up)
+        case 53: d.hint = 43; break;  // the storm coil
+        case 54: d.hint = 44; break;  // the hourglass
+        case 58: d.hint = 45; break;  // double gates
+        case 64: d.hint = 46; break;  // the field gun
         default: break;
     }
     d.mode = levelMode(n);
@@ -179,8 +240,10 @@ void build(int n, u64 seed, Shape& out) {
     }
     if (arsenal) d.hint = 26;
     // What this level knows (docs/CONTENT_PASS.md 4.2): mines from 13, archers from 17, moving gates from 19, catapults
-    // from 21, cages from 24, giants from 29; each is brought in on its first level.
+    // from 21, cages from 24, shield bearers from 26, giants from 29, bombers from 37, drummers from 42; each is brought
+    // in on its first level.
     const bool mines = n >= 13, archers = n >= 17, moving = n >= 19, catapults = n >= 21, cages = n >= 24, giants = n >= 29;
+    const bool shieldmen = n >= 26, bombers = n >= 37, drummers = n >= 42;
     if (n == 21) d.hint = 27;
     if (n == 29) d.hint = 28;
     // The boss's attacks: the world's own (docs/CONTENT_PASS.md 4.3), each once it has come in (the club on 30, boulders on
@@ -208,32 +271,39 @@ void build(int n, u64 seed, Shape& out) {
     }
     // Power-ups: the one this level brings in (on its first horde), else now and then one of those known, before a horde.
     int powersKnown = 0, introPower = 0;
-    for (int k = 0; k < 5; ++k) {
+    for (int k = 0; k < 12; ++k) {
         if (n >= kPowerIntro[k]) powersKnown = k + 1;
         if (n == kPowerIntro[k]) introPower = kPowerOrder[k];
     }
-    int pickups = 0, minefields = 0, archerRanks = 0;
+    int pickups = 0, minefields = 0, archerRanks = 0, shieldLines = 0, bomberRuns = 0, drumBands = 0;
     // A weapon on offer (the same for every seed of this level): a crate now and then once crates are known, else a gate
-    // beside a sum or, with two weapons known, beside another weapon.
+    // beside a sum or, with two weapons known, beside another weapon; the weapons' introductions stand alone.
+    bool introWeapon = false;
+    for (int i = 0; i < 9; ++i) introWeapon = introWeapon || n == kWeaponIntro[i];
     int offer = weaponOffer(n);
     if (arsenal) {  // the weapon is in hand from the start; nothing more on offer
-        d.gun = u8(offer > 0 ? offer : 1 + int(r.next() % u32(weaponsKnown(n))));
+        d.gun = u8(offer > 0 ? offer : kWeaponOrder[r.next() % u32(weaponsKnown(n))]);
         offer = 0;
     }
     if (gold) offer = 0;
-    const bool crate = offer > 0 && (n == 14 || (n > 14 && n != 22 && n != 28 && r.f01() < 0.4f));
+    const bool crate = offer > 0 && (n == 14 || (n > 14 && !introWeapon && r.f01() < 0.4f));
     int rival = 0;
-    if (offer > 0 && !crate && weaponsKnown(n) >= 2 && n != 9 && n != 22 && n != 28 && r.f01() < 0.3f) {
-        rival = 1 + int(r.next() % u32(weaponsKnown(n)));
-        if (rival == offer) rival = rival % weaponsKnown(n) + 1;
+    if (offer > 0 && !crate && weaponsKnown(n) >= 2 && !introWeapon && r.f01() < 0.3f) {
+        rival = kWeaponOrder[r.next() % u32(weaponsKnown(n))];
+        if (rival == offer) rival = kWeaponOrder[(r.next() % u32(weaponsKnown(n)))];
+        if (rival == offer) rival = 0;
     }
     const bool pairs = n >= 2, barrels = n >= 4, mul = n >= 5, blocks = n >= 6, riders = n >= 7, brutes = n >= 12, triple = n >= 20;
-    const bool bossHere = !gold && (d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 100 ? 0.6f : 0.45f)));
+    const bool bossHere = !gold && (d.boss || n == 8 || isSpike(n) || (n > 8 && r.f01() < (n > 40 ? 0.6f : 0.45f)));
     if (!bossHere) d.bossAttacks = 0;
     int catapultsLaid = 0, giantsLaid = 0;
     // E: the squad the bot really has where the next section starts, measured by playing the road built so far, so
-    // every section is sized against it (gates worth taking, barrels worth shooting, hordes that bite).
+    // every section is sized against it (gates worth taking, barrels worth shooting, hordes that bite). The bot's run of
+    // it (runner) starts here and follows the road as it is laid.
     float E = float(d.start);
+    snap(d);
+    runner().init(d);
+    runner().clearWins = false;  // the road is not all laid: no end yet
     float z = 14.0f;
     const float end = d.length - 24.0f;
     int sinceWave = 0;
@@ -241,6 +311,9 @@ void build(int n, u64 seed, Shape& out) {
     while (z < end) {
         const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount,
                   minesBefore = d.mineCount, cagesBefore = d.cageCount;
+        // Above the level's ceiling: gains shrink by `over`, multipliers are left out.
+        const float over = maxv(1.0f, E / ceilingOf(n));
+        const bool grow = over <= 1.0f;
         // What comes next: a horde after every two or three other sections (never on a gold rush); else a mix of what
         // this level knows, never the same twice running. The first section is always gates.
         int kind;
@@ -252,7 +325,7 @@ void build(int n, u64 seed, Shape& out) {
             // Gold rush: gates, barrels, medallions; rescue: few gates.
             const float gk = rescue ? 0.4f : 1.0f;
             float w[9] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
-                          triple ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f};
+                          triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f};
             if (last >= 0 && last < 9) w[last] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
@@ -279,10 +352,10 @@ void build(int n, u64 seed, Shape& out) {
             }
             case 1: {  // two gates side by side
                 const bool left = r.f01() < 0.5f;
-                i32 a = friendly(maxv(2.0f, E * uni(r, 0.25f, 0.9f))), b = friendly(maxv(2.0f, E * uni(r, 0.2f, 0.7f)));
+                i32 a = friendly(maxv(2.0f, E * uni(r, 0.25f, 0.9f) / over)), b = friendly(maxv(2.0f, E * uni(r, 0.2f, 0.7f) / over));
                 u8 ka = kGateAdd, kb = kGateAdd;
                 const float y = r.f01();
-                if (mul && y < 0.4f) {  // x2 against a fair sum
+                if (mul && grow && y < 0.4f) {  // x2 against a fair sum
                     kb = kGateMul;
                     b = 2;
                     a = friendly(maxv(2.0f, E * uni(r, 0.6f, 1.3f)));
@@ -302,7 +375,7 @@ void build(int n, u64 seed, Shape& out) {
                 for (int i = 0; i < k; ++i) {
                     const float bx = k == 2 ? (i == 0 ? -2.8f : 2.8f) : -3.2f + 3.2f * float(i);
                     const i32 hp = maxv<i32>(4, i32(dps(E) * uni(r, 0.5f, 1.4f)));
-                    const i32 reward = friendly(maxv(4.0f, E * uni(r, 0.25f, 0.6f)));
+                    const i32 reward = friendly(maxv(4.0f, E * uni(r, 0.25f, 0.6f) / over));
                     if (d.barrelCount < kMaxBarrels) d.barrels[d.barrelCount++] = {bx, zx + uni(r, -1.0f, 1.0f), hp, reward};
                 }
                 z += 14.0f;
@@ -340,7 +413,7 @@ void build(int n, u64 seed, Shape& out) {
                     const i32 hp = maxv<i32>(4, i32(dps(E) * uni(r, 0.6f, 1.2f)));
                     if (d.barrelCount < kMaxBarrels) d.barrels[d.barrelCount++] = {uni(r, -2.6f, 2.6f), zx + 2.0f, hp, 0, u8(offer)};
                     z += 14.0f;
-                } else if (n == 9 || n == 22 || n == 28) {  // its introduction: alone in the middle of the road
+                } else if (introWeapon) {  // its introduction: alone in the middle of the road
                     gate(d, -2.2f, 2.2f, zx, offer, kGateWeapon, 0, 0);
                     z += 12.0f;
                 } else {
@@ -361,7 +434,7 @@ void build(int n, u64 seed, Shape& out) {
                 const int k = gold ? 2 : 1;
                 for (int i = 0; i < k; ++i) {
                     const float gx = uni(r, -2.0f, 2.0f);
-                    const i32 a = friendly(maxv(3.0f, E * uni(r, 0.4f, 0.9f)));
+                    const i32 a = friendly(maxv(3.0f, E * uni(r, 0.4f, 0.9f) / over));
                     gate(d, gx - 1.3f, gx + 1.3f, z + 4.0f + 7.0f * float(i), a, kGateAdd, 1, a + 2 + a / 2);
                     d.gates[d.gateCount - 1].moves = u8(1 + r.next() % 255u);
                 }
@@ -371,9 +444,11 @@ void build(int n, u64 seed, Shape& out) {
             }
             case 8: {  // a gold rush's medallions, one or two across the road
                 const int k = 1 + int(r.next() % 2u);
-                for (int i = 0; i < k && d.medalCount < kMaxMedals; ++i)
-                    d.medals[d.medalCount++] = {k == 1 ? uni(r, -2.5f, 2.5f) : (i == 0 ? -2.6f : 2.6f), z + 4.0f,
-                                                kPowerOrder[r.next() % u32(powersKnown)]};
+                for (int i = 0; i < k && d.medalCount < kMaxMedals; ++i) {
+                    u8 p = kPowerOrder[r.next() % u32(powersKnown)];
+                    if (!medalPower(p)) p = kRapid;
+                    d.medals[d.medalCount++] = {k == 1 ? uni(r, -2.5f, 2.5f) : (i == 0 ? -2.6f : 2.6f), z + 4.0f, p};
+                }
                 z += 10.0f;
                 ++sinceWave;
                 break;
@@ -389,12 +464,12 @@ void build(int n, u64 seed, Shape& out) {
                 // Prisoners in a cage among it: every horde on a rescue, now and then elsewhere once cages are known.
                 if ((rescue || (cages && r.f01() < 0.2f)) && d.cageCount < kMaxCages)
                     d.cages[d.cageCount++] = {uni(r, -3.0f, 3.0f), z + 12.0f,
-                                              friendly(maxv(rescue ? 10.0f : 5.0f, E * (rescue ? uni(r, 0.8f, 1.6f) : uni(r, 0.3f, 0.6f))))};
+                                              friendly(maxv(rescue ? 10.0f : 5.0f, E * (rescue ? uni(r, 0.8f, 1.6f) : uni(r, 0.3f, 0.6f)) / over))};
                 // A power-up on the way in: the level's new one on its first horde, else now and then one already known.
                 if (powersKnown > 0 && pickups < 2 && (introPower > 0 ? pickups == 0 : r.f01() < 0.45f)) {
                     const u8 p = introPower > 0 ? u8(introPower) : kPowerOrder[r.next() % u32(powersKnown)];
                     const float px = uni(r, -3.0f, 3.0f), pz = z + 3.0f;
-                    if (medalPower(p) && (p == introPower || r.f01() < 0.65f)) {
+                    if (medalPower(p) && (!cratePower(p) || p == introPower || r.f01() < 0.65f)) {
                         if (d.medalCount < kMaxMedals) d.medals[d.medalCount++] = {px, pz, p};
                     } else if (d.barrelCount < kMaxBarrels) {
                         d.barrels[d.barrelCount++] = {px, pz, maxv<i32>(4, i32(dps(E) * uni(r, 0.3f, 0.7f))), 0, 0, p};
@@ -415,27 +490,50 @@ void build(int n, u64 seed, Shape& out) {
                 if (withGiant) ++giantsLaid;
                 const float catX = r.f01() < 0.5f ? -3.6f : 3.6f;
                 const i32 giantHp = maxv<i32>(30, i32(dps(E) * 3.0f));
+                // Shield bearers in its front rank, bombers among it, a drummer or two in it, each brought in on its own
+                // level.
+                const bool withShields = shieldmen && (n == 26 ? shieldLines == 0 : r.f01() < 0.25f);
+                const bool withBombers = bombers && (n == 37 ? bomberRuns == 0 : r.f01() < 0.25f);
+                const bool withDrums = drummers && (n == 42 ? drumBands == 0 : r.f01() < 0.2f);
+                if (withShields) ++shieldLines;
+                if (withBombers) ++bomberRuns;
+                if (withDrums) ++drumBands;
                 const float zw = z;
-                auto lay = [&](float count) {  // this section's waves for `count` foot; past 900 the rest are brutes
+                // This section's waves for a horde of `count` foot (and those that come with them).
+                auto lay = [&](float count) {
                     d.waveCount = wavesBefore;
-                    const i32 foot = maxv<i32>(3, i32(count));
-                    d.waves[d.waveCount++] = {zw + 10.0f, cx - half, cx + half, minv(foot, 900), kFoot};
-                    if (withRiders) d.waves[d.waveCount++] = {zw + 14.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider};
-                    const i32 heavy = (withBrutes ? maxv<i32>(1, foot / 12) : 0) + maxv<i32>(0, foot - 900) / 8;
-                    if (heavy > 0) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(heavy, 320), kBrute};
+                    const i32 foot = clampv<i32>(i32(count), 3, out.hordeMax);
+                    const float k = 1.0f;
+                    d.waves[d.waveCount++] = {zw + 10.0f, cx - half, cx + half, foot, kFoot, tough(kFoot, k)};
+                    if (withRiders) d.waves[d.waveCount++] = {zw + 14.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider, tough(kRider, k)};
+                    if (withBrutes) d.waves[d.waveCount++] = {zw + 18.0f, -3.0f, 3.0f, minv(maxv<i32>(1, foot / 12), 320), kBrute, tough(kBrute, k)};
                     // Archers behind it all, standing in their ranks.
-                    if (withArchers) d.waves[d.waveCount++] = {zw + 21.0f, -4.2f, 4.2f, minv(maxv<i32>(3, foot / 5), 80), kArcher};
+                    if (withArchers)
+                        d.waves[d.waveCount++] = {zw + 21.0f, -4.2f, 4.2f, minv(maxv<i32>(3, foot / 5), 80), kArcher, tough(kArcher)};
                     if (withCatapult) d.waves[d.waveCount++] = {zw + 26.0f, catX, catX, 1, kCatapult};
                     if (withGiant) d.waves[d.waveCount++] = {zw + 9.0f, -0.6f, 0.6f, 1, kGiant, giantHp};
+                    if (withShields)
+                        d.waves[d.waveCount++] = {zw + 8.5f, cx - half, cx + half, minv(maxv<i32>(3, foot / 8), 60), kShieldman, tough(kShieldman, k)};
+                    if (withBombers)
+                        d.waves[d.waveCount++] = {zw + 12.0f, cx - half, cx + half, minv(maxv<i32>(2, foot / 15), 40), kBomber, tough(kBomber, k)};
+                    if (withDrums)
+                        d.waves[d.waveCount++] = {zw + 13.0f, cx - 1.0f, cx + 1.0f, minv(maxv<i32>(1, foot / 60), 3), kDrummer, tough(kDrummer, k)};
                 };
                 // Its cost: the soldiers its own enemies take (played to past its end).
-                const float goal = bite(n) * uni(r, 0.6f, 1.4f) * E;
-                float lo = 2.0f, hi = maxv(60.0f, E * 14.0f), pick = lo;
+                // Above the ceiling it bites harder (up to twice), never more than 70% of the squad.
+                // Sized against a player with fewer soldiers than the bot (half on level 4, 85% on the last), who must
+                // still get through: the end fight, not the hordes on the way, sets how close the level runs. On the first
+                // three, against the squad the level starts with and two more: whoever steers anywhere gets through.
+                const float weak = 0.5f + 0.35f * late;
+                const float goal = weak * E * minv(0.7f, bite(n) * uni(r, 0.6f, 1.4f) * minv(over, 2.0f));
+                float lo = 2.0f, hi = float(out.hordeMax), pick = lo;
                 static const bool trace = std::getenv("PM_GEN_TRACE") != nullptr;
-                for (int it = 0; it < 8 && d.waveCount + 6 <= kMaxWaves; ++it) {
+                bool met = false;  // a size whose cost is near the goal; else the goal is on a cliff (none, then all)
+                for (int it = 0; it < 8 && d.waveCount + 9 <= kMaxWaves; ++it) {
                     const float mid = std::sqrt(lo * hi);
                     lay(mid);
-                    const float cost = hordeCost(d, zw + 47.0f, wavesBefore);
+                    snap(d);
+                    const float cost = hordeCost(zw + 47.0f, wavesBefore, zw - 54.0f, weak);
                     if (trace)
                         std::fprintf(stderr, "  horde at %.0f: squad %.0f wants -%.0f; %.0f foot cost %.0f\n", double(zw), double(E), double(goal),
                                      double(mid), double(cost));
@@ -443,19 +541,24 @@ void build(int n, u64 seed, Shape& out) {
                         hi = mid;
                     } else {
                         lo = pick = mid;
-                        if (cost >= goal * 0.8f) break;
+                        met = cost >= goal * 0.8f;
+                        if (met) break;
                     }
                 }
-                if (d.waveCount + 6 <= kMaxWaves) lay(pick);
+                // On a cliff the size that cost nothing sits just short of one that wipes the squad out: a little smaller,
+                // so a run that came another way (the planner's, a player's) is not wiped out by it.
+                if (d.waveCount + 9 <= kMaxWaves) lay(met ? pick : maxv(2.0f, pick * 0.85f));
                 z += withArchers ? 26.0f : 22.0f;
                 sinceWave = 0;
                 break;
             }
         }
         // What the bot has after this section (a horde fought to its end); a section it cannot get through is dropped.
-        const float after = squadAt(d, z + (d.waveCount > wavesBefore ? 25.0f : 2.0f));
+        snap(d);
+        const float after = squadAt(z + (d.waveCount > wavesBefore ? 25.0f : 2.0f));
         if (after >= 1.0f) {
             E = after;
+            playTo(runner(), z - 64.0f);  // the run follows, 64 units behind the road's new end
         } else {
             d.gateCount = gatesBefore;
             d.barrelCount = barrelsBefore;
@@ -483,15 +586,19 @@ void finish(const Shape& s, float m, LevelDef& out) {
     } else if (s.boss) {  // as many hit points as the squad at the end deals in m seconds (it crushes a ninth of whatever
                           // squad meets it every second: Battle::moveEnemies)
         d.bossHp = maxv<i32>(20, i32(dps(s.endSquad) * m));
-    } else if (d.waveCount + 3 <= kMaxWaves) {  // m times the squad's number, foot and riders and brutes
-        const i32 foot = maxv<i32>(5, i32(s.endSquad * m));
-        d.waves[d.waveCount++] = {s.lastZ, -4.3f, 4.3f, minv(foot, 900), kFoot};
-        if (s.lastRiders) d.waves[d.waveCount++] = {s.lastZ + 5.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider};
-        const i32 heavy = (s.lastBrutes ? maxv<i32>(1, foot / 10) : 0) + maxv<i32>(0, foot - 900) / 8;
-        if (heavy > 0) d.waves[d.waveCount++] = {s.lastZ + 9.0f, -3.5f, 3.5f, minv(heavy, 320), kBrute};
+    } else if (d.waveCount + 3 <= kMaxWaves) {  // m times the squad's number, foot and riders and brutes (tougher past 900)
+        // 50 beyond the road's last section: it wakes (62 ahead) only once the squad is past everything else, runs at it,
+        // and the level is won when it is beaten (Battle::tick); the finish line stays beyond it.
+        const float E = s.endSquad, count = minv(maxv(5.0f, E * m), float(s.hordeMax) * 4.0f), k = maxv(1.0f, count / 900.0f);
+        const float z = s.lastZ + 50.0f;
+        const i32 foot = minv(i32(count), s.hordeMax);
+        d.waves[d.waveCount++] = {z, -4.3f, 4.3f, foot, kFoot, tough(kFoot, k)};
+        if (s.lastRiders) d.waves[d.waveCount++] = {z + 5.0f, -4.0f, 4.0f, minv(maxv<i32>(3, foot / 4), 300), kRider, tough(kRider, k)};
+        if (s.lastBrutes) d.waves[d.waveCount++] = {z + 9.0f, -3.5f, 3.5f, minv(maxv<i32>(1, foot / 10), 320), kBrute, tough(kBrute, k)};
+        d.length = maxv(d.length, z + 26.0f);
     }
     // Through the text form, so the bot plays exactly what the table will hold.
-    static thread_local char buf[16384];
+    static thread_local char buf[262144];  // a 15-minute level's road runs to tens of thousands of characters
     if (!encodeLevel(d, buf, sizeof buf) || !decodeLevel(buf, out)) out = d;
 }
 
@@ -505,39 +612,94 @@ void generate(int n, u64 seed, float m, LevelDef& out) {
 Baked bakeLevel(int n, int maxSeeds) {
     Baked best;
     // The margin the best run (the planner's) must win by: the share of its peak squad still standing at the end. It
-    // falls from about 60% to under 3% at level 300; the hard levels thrown in ask for a third of their neighbours'.
+    // falls from about 60% to under 3% by level 100; the hard levels thrown in ask for a third of their neighbours'.
     const float target = marginTarget(n);
     const bool gold = levelMode(n) == kModeGold;  // a bonus road has no end fight: any win will do
     const float lo = gold ? 0.0f : (n <= 10 ? 0.45f : target * 0.6f);
-    const float hi = gold || n <= 10 ? 1.0f : minv(1.0f, target * 1.5f);
+    // The first ten keep half their squad or more, but their end fight always costs something.
+    const float hi = gold ? 1.0f : n <= 10 ? 0.9f : minv(1.0f, target * 1.5f);
     best.target = target;
     float bestErr = 1e9f;
     thread_local Shape* sp = nullptr;  // large: one per thread
     if (!sp) sp = new Shape();
     thread_local LevelDef* dp = nullptr;
     if (!dp) dp = new LevelDef();
+    thread_local LevelDef* pp = nullptr;
+    if (!pp) pp = new LevelDef();
+    thread_local Battle* snapP = nullptr;
+    if (!snapP) snapP = new Battle();
+    thread_local Battle* endP = nullptr;
+    if (!endP) endP = new Battle();
     for (int s = 0; s < maxSeeds; ++s) {
         const u64 seed = hash64(u64(n) * 1000003ULL + u64(s));
-        // The road once (its hordes measured against the bot), then the end fight's strength found by halving.
+        // The road once, every horde sized against the bot's own run of it: that run is the level's proof (a planned run
+        // that takes other gates or another weapon meets hordes sized for a different squad, and on a long road one of
+        // them is the end of it).
         build(n, seed, *sp);
         if (sp->endSquad < 1.0f) continue;
+        LevelDef& p = *pp;
+        finish(*sp, 1.0f, p);
+        p.waveCount = sp->d.waveCount;  // the end fight's waves come last
+        p.bossHp = 0;
+        p.spike = isSpike(n) ? 1 : 0;
+        // That run to 64 units before the end fight (its waves wake 62 ahead, the boss 36 past that): every end fight's
+        // run is that same run up to there, so each strength tried replays only the end.
+        Battle& snap = *snapP;
+        snap.init(p);
+        snap.clearWins = false;  // p holds no end fight yet
+        const bool reached = playTo(snap, sp->lastZ - 64.0f) && !snap.won;
+        static const bool trace = std::getenv("PM_BAKE_TRACE") != nullptr;
+        if (trace)
+            std::fprintf(stderr, "bake %d seed %d: road %.0f, the road's run ends with %.0f; the level's run %s at %.0f with %d (peak %d, %.0f s)\n", n, s,
+                         double(sp->lastZ), double(sp->endSquad), reached ? "gets there" : "falls", double(snap.z), int(snap.squad), int(snap.peak),
+                         double(snap.time));
+        if (!reached) continue;
         float mlo = 0.05f, mhi = 90.0f;
         for (int it = 0; it < 12; ++it) {
             const float m = std::sqrt(mlo * mhi);
             LevelDef& d = *dp;
             finish(*sp, m, d);
-            d.spike = isSpike(n) ? 1 : 0;
-            const PlayResult pr = planLevel(d);
-            const bool won = pr.won;
-            const i32 left = pr.left, peak = pr.peak;
+            d.spike = p.spike;
+            Battle& e = *endP;
+            e = snap;
+            e.def = &d;
+            e.clearWins = true;
+            playTo(e, d.length + 1.0f);  // to the win (or the fall): the road ends at d.length
+            bool won = e.won;
+            i32 left = e.squad, peak = e.peak;
+            float secs = e.time;
             ++best.plays;
+            if (won && float(left) / float(maxv<i32>(peak, 1)) >= lo) {
+                // The whole run, to be sure the table's numbers are what a run from the start gives.
+                const PlayResult pr = playLevel(d);
+                if (pr.won != won || pr.left != left || pr.peak != peak)
+                    std::fprintf(stderr, "bake: level %d seed %d: the replay (%d of %d) and the full run (%d of %d) differ\n", n, s,
+                                 int(left), int(peak), int(pr.left), int(pr.peak));
+                won = pr.won;
+                left = pr.left;
+                peak = pr.peak;
+                secs = pr.seconds;
+            }
             const float ratio = won ? float(left) / float(maxv<i32>(peak, 1)) : -1.0f;
+            // In the band, but the road alone took the margin and the end fight is next to nothing (a boss of a few hit
+            // points): kept only if no other seed does better.
+            if (won && ratio >= lo && ratio <= hi && m < 0.5f && !gold) {
+                if (bestErr > 0.001f) {
+                    bestErr = 0.001f;
+                    best.d = d;
+                    best.botEnd = left;
+                    best.botPeak = peak;
+                    best.m = m;
+                }
+                break;
+            }
             if (won && ratio >= lo && ratio <= hi) {
                 best.d = d;
                 best.ok = true;
                 best.botEnd = left;
                 best.botPeak = peak;
                 best.m = m;
+                best.seconds = secs;
                 best.d.botEnd = left;
                 best.d.star3 = maxv<i32>(1, i32(std::ceil(float(left) * 0.9f)));
                 best.d.star2 = maxv<i32>(1, i32(std::ceil(float(left) * 0.45f)));
@@ -557,11 +719,16 @@ Baked bakeLevel(int n, int maxSeeds) {
     }
     // No seed met the band: keep the closest win, said so in the report.
     if (best.botEnd > 0) {
+        const PlayResult pr = playLevel(best.d);  // the replay's numbers, from the start
+        best.botEnd = pr.won ? pr.left : 1;
+        best.botPeak = pr.peak;
+        best.seconds = pr.seconds;
         best.d.botEnd = best.botEnd;
         best.d.star3 = maxv<i32>(1, i32(std::ceil(float(best.botEnd) * 0.9f)));
         best.d.star2 = maxv<i32>(1, i32(std::ceil(float(best.botEnd) * 0.45f)));
         best.ok = true;
-        std::snprintf(best.why, sizeof best.why, "band missed by %.2f", double(bestErr));
+        if (bestErr <= 0.001f) std::snprintf(best.why, sizeof best.why, "a weak end fight");
+        else std::snprintf(best.why, sizeof best.why, "band missed by %.2f", double(bestErr));
     } else {
         std::snprintf(best.why, sizeof best.why, "the bot never won");
     }

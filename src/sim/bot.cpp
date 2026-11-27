@@ -10,7 +10,8 @@ namespace {
 i64 gateWorth(const Battle& b, const GateDef& gd, const GateState& gs) {
     if (gd.kind == kGateMul) return i64(b.squad) * gs.value;
     if (gd.kind == kGateWeapon) {
-        static const float kWorth[kWeaponCount] = {0.0f, 0.15f, 0.1f, 0.2f, 0.25f};
+        // musket, twin, scattergun, lance, rockets, flamethrower, cannon, coil, mortar, frost
+        static const float kWorth[kWeaponCount] = {0.0f, 0.15f, 0.1f, 0.2f, 0.25f, 0.2f, 0.2f, 0.2f, 0.2f, 0.1f};
         const float gain = kWorth[clampv<i32>(gs.value, 0, kWeaponCount - 1)] - kWorth[b.weapon < kWeaponCount ? b.weapon : 0];
         return i64(float(b.squad) * (1.0f + gain));
     }
@@ -157,7 +158,17 @@ PlayResult playLevel(const LevelDef& d, int maxSeconds) {
     r.left = bp->squad;
     r.peak = bp->peak;
     r.progress = bp->progress();
+    r.seconds = bp->time;
     return r;
+}
+
+bool playTo(Battle& b, float zTo) {
+    BattleEvents ev;
+    // Time enough to march there and fight whatever waits (the squad stands while a horde comes to it: on a long road
+    // that is more than the march).
+    const int cap = int((maxv(0.0f, zTo - b.z) / maxv(1.0f, b.def->speed) * 2.5f + 150.0f) * 60.0f);
+    for (int s = 0; s < cap && b.z < zTo && !b.won && !b.lost; ++s) b.tick(botSteer(b), true, ev);
+    return !b.lost && (b.won || b.z >= zTo - 0.01f);
 }
 
 bool botPlay(const LevelDef& d, i32* left, i32* peak, int maxSeconds) {
@@ -200,21 +211,37 @@ PlayResult planLevel(LevelDef& d) {
         }
     }
     w.planLook = bestLook;
-    // Each row of choices in turn, the rows before it as chosen, the ones after left to the bot.
+    // Each row of choices in turn, up the road: the run with the rows before it as chosen is taken to 64 units before
+    // the row (nothing there depends on the row: the bot looks at most 42 ahead), then each gate of the row is played to
+    // 70 units past it, and the one that leaves the most soldiers there is kept (rows are chosen one at a time: a level
+    // of 15 minutes has a hundred rows and more).
+    thread_local Battle* runP = nullptr;
+    thread_local Battle* tryP = nullptr;
+    if (!runP) runP = new Battle();
+    if (!tryP) tryP = new Battle();
+    Battle& run = *runP;
+    run.init(w);
     for (int ri = 0; ri < w.rowCount; ++ri) {
+        const float rz = w.rowZ[ri];
+        if (!playTo(run, rz - 64.0f) || run.won) break;  // the squad fell (or the level ended) before this row
         int k = 0;
-        for (int g = 0; g < w.gateCount; ++g) k += std::fabs(w.gates[g].z - w.rowZ[ri]) < 0.05f;
+        for (int g = 0; g < w.gateCount; ++g) k += std::fabs(w.gates[g].z - rz) < 0.05f;
         int keep = -1;
+        float bestScore = -1e30f;
         for (int c = 0; c < minv(k, 8); ++c) {
             w.plan[ri] = i8(c);
-            const PlayResult r = playLevel(w);
-            if (better(r, best)) {
-                best = r;
+            Battle& t = *tryP;
+            t = run;
+            const bool ok = playTo(t, rz + 70.0f);
+            const float score = ok ? float(t.squad) : -1e9f + t.z;  // a fall scores by how far it got
+            if (score > bestScore) {
+                bestScore = score;
                 keep = c;
             }
         }
         w.plan[ri] = i8(keep);
     }
+    best = playLevel(w);
     // The other looks once more with the rows chosen.
     for (float look : kLooks) {
         if (look == bestLook) continue;
@@ -228,7 +255,7 @@ PlayResult planLevel(LevelDef& d) {
     d.planLook = bestLook;
     d.planCount = 0;
     for (int i = 0; i < w.rowCount; ++i)
-        if (w.plan[i] >= 0) d.planCount = u8(i + 1);  // the choices up to the last one made
+        if (w.plan[i] >= 0) d.planCount = u16(i + 1);  // the choices up to the last one made
     for (int i = 0; i < kMaxRows; ++i) d.plan[i] = w.plan[i];
     return best;
 }

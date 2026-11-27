@@ -42,7 +42,9 @@ void Game::findUiArt() {
         "ui.star_full", "ui.star_empty", "ui.shako", "ui.boss_head", "ui.skull", "ui.hand", "ui.trophy", "ui.logo", "ui.rays",
         "ui.ribbon_l", "ui.ribbon_m", "ui.ribbon_r", "ui.ribbon_red_l", "ui.ribbon_red_m", "ui.ribbon_red_r", "ui.ribbon_gold_l",
         "ui.ribbon_gold_m", "ui.ribbon_gold_r", "ui.wpn_musket", "ui.wpn_twin", "ui.wpn_scatter", "ui.wpn_lance", "ui.wpn_rocket",
-        "ui.pow_none", "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike",
+        "ui.wpn_flame", "ui.pow_fieldgun" /* the cannon */, "ui.wpn_coil", "ui.wpn_mortar", "ui.wpn_frost",
+        "ui.pow_none", "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike", "ui.pow_magnet",
+        "ui.pow_giants", "ui.pow_reinforce", "ui.pow_quick", "ui.pow_hourglass", "ui.pow_double", "ui.pow_fieldgun",
         "ui.mode_march", "ui.mode_boss", "ui.mode_gold", "ui.mode_rescue", "ui.mode_arsenal"};
     static_assert(sizeof names / sizeof names[0] == kUiArtCount, "a name for every UI sprite");
     for (int i = 0; i < kUiArtCount; ++i) uiArt_[i] = art_.ready() ? art_.findKind(names[i]) : -1;
@@ -537,8 +539,8 @@ void Game::drawLevels() {
         }
     }
     const float navW = (gridW - 3 * gap) / 4.0f;
-    const char* const nav[4] = {"-100", "PREV", "NEXT", "+100"};
-    const int step[4] = {-100, -page, page, 100};
+    const char* const nav[4] = {"-10", "PREV", "NEXT", "+10"};  // ten levels: a world
+    const int step[4] = {-10, -page, page, 10};
     for (int k = 0; k < 4; ++k)
         if (ui_.button(nav[k], {x0 + float(k) * (navW + gap), L.bottom() - L.px(130), navW, L.px(48)}, Ui::kSecondary, 0.85f)) {
             feedback_.uiTap();

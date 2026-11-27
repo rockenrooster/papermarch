@@ -15,6 +15,7 @@ struct Shape {
     float endSquad = 0;          // the bot's squad at the end of the road (0: it never got there)
     float lastZ = 0;
     bool lastRiders = false, lastBrutes = false;
+    i32 hordeMax = 900;          // foot in a horde at most (20 on the first three levels: whoever steers anywhere wins)
 };
 void build(int n, u64 seed, Shape& out);
 // The end fight at strength m: the boss's hit points (the end squad's fire for m seconds) or the last stand (m times the
@@ -28,11 +29,16 @@ struct Baked {
     bool ok = false;
     i32 botEnd = 0, botPeak = 0;
     float m = 1, target = 0;
+    float seconds = 0;  // the best run's length
     int plays = 0;
     char why[80] = "";
 };
 // The difficulty (GAME_DESIGN 6): the share of its peak squad the best run keeps at the end of level n, and whether n is
 // one of the hard levels thrown in among the others.
+// The game is 100 levels (the owner, 2026-11-27), each longer than the one before: about half a minute at level 1 and
+// fifteen at level 100 (levelSeconds: 30 s x 30^((n - 1) / 99)).
+constexpr int kLevels = 100;
+float levelSeconds(int n);
 float marginTarget(int n);
 bool isSpike(int n);
 // The weapon level n offers (a sim::WeaponKind, 0 none): its introduction on the level that brings it in, then one of

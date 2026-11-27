@@ -77,11 +77,48 @@ background objects on the sides".
   partial effect generators are in `tools/art/make_content.py`, not run). Steps 5-7 go on without new Blender art:
   reused and tinted sprites, effects drawn in the view, and the existing generators.
 
+## 2026-11-27: 0.8.0, 100 longer levels, the squad stands for hordes, step 5
+
+The owner: "I'm thinking we may need to change it to where the enemies come to the squad rather than the enemies and
+squad moving", chose "halt for hordes", then "the levels can be longer as the get higher too so they feel more epic",
+"Like the last level can be like 15 mins total. And the last level can be 100 instead."
+
+- **The squad stands** while a horde is within 25 units ahead and marches on once it is beaten; the horde runs at it at
+  its own pace plus the march's speed (GAME_DESIGN 5). Standing, the squad's fire held every horde back for good, so
+  three rules came with it: horde enemies have three times their kind's hit points; against the horde a ball counts as
+  one musket ball whatever the squad's size (`Battle::against`); one that arrives takes its strength times squad / 50
+  past 50 (`Battle::toll`). A horde's bite now grows smoothly with its size and is the same share of any squad.
+- **A level ends when every enemy is beaten** or at the finish line (the owner: "level should be finished when finish
+  line is crossed or all enemies are gone"); the last stand stands 50 beyond the road's last section, so it comes
+  only once everything else is passed.
+- **Hordes on the way are sized for a weaker player** (half the bot's soldiers on level 4, 85% on level 100): whoever
+  misses some gates still gets through, and the end fight sets each level's margin. Levels 1-3 hold at most 20 foot a
+  horde: three soldiers win them (the browser's touch test sweeps the squad about and wins level 1).
+- **100 levels**, each longer than the last: 0:26 at level 1, 1:03 at 20, 2:53 at 50, 7:33 at 80, 15:35 at 100 (the
+  bot's runs). Speed and difficulty curves rescaled to 100 (the margin `0.02 + 0.6·e^(−n/22)`: 2% at the end); a
+  ceiling per level stops long roads snowballing to 99,999 (GAME_DESIGN 6). The LEVELS page jumps ±10.
+- **The bake** for long roads: the generator keeps one run of the road as it lays it and measures each section from a
+  copy; it lays everything on the text form's grid first (a horde's cost can turn on a tenth); the bot's own run is each
+  level's proof (a planned run met hordes sized for another squad and fell); the end fight is replayed alone for each
+  strength tried; a seed whose end fight is next to nothing is passed over. 100 levels in 3 minutes on 4 jobs.
+- **Step 5** (CONTENT_PASS 1-3): shield bearers (26), bombers (37), drummers (42); the frost blaster (32), mortar (36),
+  flamethrower (41), cannon (48) and storm coil (53); quick march (38), magnet (44), reinforcements (46), giants (49),
+  hourglass (54), double gates (58) and the field gun (64), each with its hint line. Drawn from Fable's finished renders
+  (packed without an agent): the new figures, a shield before each bearer, a drummer's beat in rings, blasts for kegs
+  and shells, lightning bolts in pieces, the flame's jet over its cone with scorch marks, shells arcing to target rings,
+  the cannon rolling at the squad's front and the field gun at its side, the magnet's arc, quick march's lines,
+  reinforcements floating down, soldiers half again as tall under GIANTS, gold rims under gates that will count twice.
+  Soldiers stop stepping while the squad stands.
+- **Checks:** unit tests 31/31, the bot wins all 100 levels with the baked squads, the flow test 23/23, the layout lint
+  clean; the browser: the flow test 23/23, level 1 won by touch, NEXT, the save (index.wasm 1.7 MB, down from 2.8: the
+  decoded levels are allocated at start, not a static table). The browser's 32 frames a second here is the PC's: it
+  is in a Remote Desktop session at 32 Hz (the same with the art off on level 1).
+
 ## Status
 
 | Part | Status |
 |---|---|
-| The battle (rules, bot, generator, 300 baked levels) | Done; the bot wins every level with the squad the bake recorded |
+| The battle (rules, bot, generator, 100 baked levels) | Done; the bot wins every level with the squad the bake recorded |
 | The view (road, squad, gates, barrels, hordes, boss, effects) | Done on the PC and in the browser; not yet seen on a phone |
 | Screens, flow, LEVELS, save, updater pill | Done; flow test 23/23; layout lint clean on 8 screens at 4 sizes |
 | Audio | New battle sounds and cues; offline renders measured (below); the owner's ears pending |

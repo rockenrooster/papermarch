@@ -4,8 +4,8 @@ A one-thumb squad shooter for Android and the browser, with painted toy soldiers
 squad marches up a stone road firing without pause. Drag it left and right: march through the blue gates (+1, +20,
 ×2), shoot the gate you want to make it bigger, shoot gold barrels open for recruits, shoot red barricades until they
 are worth passing, and crush the red hordes coming down the road before they reach you. An ogre waits at the end.
-Grow your squad, crush the horde. 300 levels in ten worlds, getting faster and harder, with hard levels thrown in;
-the last ones can only just be won by a perfect run.
+Grow your squad, crush the horde. 100 levels in ten worlds, each longer than the last (from half a minute to about
+fifteen), getting faster and harder, with hard levels thrown in; the last ones can only just be won.
 
 - **Android:** download `papermarch.apk` from the [latest release](https://github.com/rockenrooster/papermarch/releases/latest)
   (Android 10 or later, 64-bit ARM). The game shows an UPDATE button when a newer build is out.

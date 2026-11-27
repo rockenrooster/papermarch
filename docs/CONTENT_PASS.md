@@ -5,6 +5,11 @@ variety and temporary upgrades and power-ups. With 300 levels total we have lots
 feels drastically different than the last. Once you are done with this content pass we will need to do some
 rebalancing."
 
+**Since 2026-11-27 the game is 100 levels** (the owner: "the last level can be 100", "like 15 mins total"), and the squad
+stands while a horde runs at it. The introductions below (levels 9-81) hold as written; what this design says of
+levels 101-300 (the worlds' second and third visits) no longer applies. What was built and how it plays now is
+`GAME_DESIGN.md`.
+
 This is the design. Numbers are starting values for the rebalance, written against today's rules (`GAME_DESIGN.md`
 1-6): the musket fires `R = 5 + 2.4 * min(squad, 50)` shots a second, each doing `D = max(1, squad / 50)`.
 Everything below is steered with one thumb (left and right), is deterministic, and has a one-line rule for the bot.

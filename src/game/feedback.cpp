@@ -51,6 +51,14 @@ void Feedback::cue(const CueEvent& c, double now) {
                     break;
                 case sim::kLance: play(kSndShot, v * 0.8f, pan, jitter * 1.9f); break;
                 case sim::kRockets: play(kSndSwish, v * 0.9f, pan, jitter * 0.8f); break;
+                case sim::kFlame: play(kSndSwish, v * 0.55f, pan, jitter * 0.5f); break;  // a roar of breath, not shots
+                case sim::kCannon:
+                    play(kSndBoom, v * 0.9f, pan, jitter * 1.1f);
+                    play(kSndKnock, v * 0.6f, pan, jitter * 0.6f);
+                    break;
+                case sim::kCoil: play(kSndGlock, v * 0.6f, pan, jitter * 3.2f); break;  // a crackle
+                case sim::kMortar: play(kSndDeepDrum, v * 0.7f, pan, jitter * 1.4f); break;
+                case sim::kFrost: play(kSndGlock, v * 0.5f, pan, jitter * 2.6f); break;
                 default: play(kSndShot, v, pan, jitter); break;
             }
             break;

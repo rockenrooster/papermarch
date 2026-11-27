@@ -83,14 +83,14 @@ private:
         int bigboom = -1, bigboomGlow = -1, ring = -1, dust = -1, sparkle = -1;
         int gatePass[3] = {-1, -1, -1}, gatePost[3] = {-1, -1, -1}, gateSpikes = -1;  // add, multiply, negative
         int confetti[6] = {-1, -1, -1, -1, -1, -1};
-        int wpn[sim::kWeaponCount] = {-1, -1, -1, -1, -1};  // the gun over each soldier (it is rendered without one)
-        int wpnIcon[sim::kWeaponCount] = {-1, -1, -1, -1, -1};
-        int shotFx[sim::kWeaponCount] = {-1, -1, -1, -1, -1};  // what each weapon's balls look like in flight
+        int wpn[sim::kWeaponCount] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};  // the gun over each soldier (rendered without)
+        int wpnIcon[sim::kWeaponCount] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+        int shotFx[sim::kWeaponCount] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};  // each weapon's balls in flight
         int gatePostWpn = -1, crateWpn = -1, crateBreak = -1;
         int muzzleWide = -1, muzzleRing = -1, puffSmall = -1, hitCyan = -1, pierce = -1, smoke = -1;
         // Power-ups (ART_DIRECTION 16): carriers, icons and effects.
         int medal = -1, lightColumn = -1, crateSupply = -1, pickupFx = -1;
-        int powIcon[sim::kPowerCount] = {-1, -1, -1, -1, -1, -1};
+        int powIcon[sim::kPowerCount] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
         int tracerHot = -1, gunGlow = -1, shieldDome = -1, shieldCrack = -1, shieldBreak = -1, frostRing = -1, frostOverlay = -1,
             bomb = -1, shadowGrow = -1;
         // Step 3 (ART_DIRECTION 17): archers and arrows, mines, cages, moving gates' rail and wheeled posts, coins.
@@ -101,6 +101,11 @@ private:
         int catapult = -1, catapultFire = -1, boulder = -1, warnCircle = -1, dirtBurst = -1, warnHalf = -1, waveRidge = -1,
             arrowGround = -1, giant = -1, bossSlam = -1, bossThrow = -1, bossRoar = -1, cageBack = -1;
         int addonPose[10][3] = {};  // each world's add-on in the boss's attack poses (wN.boss_addon.slam/.throw/.roar)
+        // Step 5: shield bearers and their shields, bombers, drummers; the cannon at the squad's front (and the field gun);
+        // the flamethrower's jet, the storm coil's bolts and their sparks, mortar shells and where they land; the magnet's
+        // arc, quick march's lines, reinforcements parachuting in, scorch marks, the gold rim of a gate that counts twice.
+        int shieldman = -1, shieldFront = -1, bomber = -1, drummer = -1, squadCannon = -1, flame = -1, zap = -1, lightning = -1,
+            shell = -1, targetRing = -1, magnetArc = -1, speedLines = -1, soundRing = -1, recruitFly = -1, scorch = -1, goldRim = -1;
         int confettiCount = 0;
     };
     // Where a sprite went: its sticker, the pivot on screen, screen pixels per atlas pixel, the view's elevation. Between
@@ -199,6 +204,19 @@ private:
 
     static constexpr int kParticles = 700;
     Particle parts_[kParticles];
+    // Bolts drawn from point to point on the road for a moment: the storm coil's lightning, the magnet's arc.
+    struct Bolt {
+        float x0, z0, x1, z1, life, max;
+        int anim;
+    };
+    static constexpr int kBolts = 32;
+    Bolt bolts_[kBolts] = {};
+    int boltHead_ = 0;
+    float flameT_ = 0;  // the flamethrower's jet shows while this runs (it burns something)
+    void bolt(int anim, float x0, float z0, float x1, float z1, float life);
+    void drawBolts();
+    // A sprite stretched from screen point a to b (its height along the line), `width` pixels across.
+    void streak(int anim, float key, float ax, float ay, float bx, float by, float width, float t, float alpha);
     int partCount_ = 0, partHead_ = 0;
     static constexpr int kFloaters = 24;
     Floater floaters_[kFloaters];

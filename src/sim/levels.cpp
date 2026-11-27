@@ -11,7 +11,9 @@ namespace pm::sim {
 namespace {
 #include "sim/levels_baked.h"  // kBaked[], kBakedCount
 
-LevelDef g_levels[320];
+// Decoded once at start (a LevelDef is large: a road of 15 minutes; as a static array its member defaults would sit in
+// the binary, megabytes of it).
+LevelDef* g_levels = nullptr;
 int g_count = 0;
 bool g_loaded = false;
 
@@ -49,6 +51,20 @@ const char* const kHints[kHintCount] = {
     "WATCH THE SKY",                     // 30: its boulders (50)
     "THE OGRE CALLS FOR HELP",           // 31: its war cry (60)
     "FIND THE GAP",                      // 32: its stomp (70)
+    "SHIELDS STOP BULLETS",              // 33: shield bearers (26)
+    "MORTARS FLY OVER WALLS",            // 34: the mortar (36)
+    "SHOOT BOMBERS IN THE CROWD",        // 35: bombers (37)
+    "RUN FOR IT",                        // 36: quick march (38)
+    "GET CLOSE AND BURN",                // 37: the flamethrower (41)
+    "SILENCE THE DRUMMER",               // 38: drummers (42)
+    "THE MAGNET OPENS BARRELS",          // 39: the magnet (44)
+    "HOLD THE LINE",                     // 40: reinforcements (46)
+    "LINE UP THE CANNON",                // 41: the cannon (48)
+    "GIANTS STOMP THE HORDE",            // 42: giants, the power-up (49)
+    "LIGHTNING JUMPS",                   // 43: the storm coil (53)
+    "SLOW THEM DOWN",                    // 44: the hourglass (54)
+    "NEXT GATE COUNTS TWICE",            // 45: double gates (58)
+    "A CANNON JOINS YOU",                // 46: the field gun (64)
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -70,7 +86,8 @@ void fallback(LevelDef& d) {
 void load() {
     if (g_loaded) return;
     g_loaded = true;
-    for (int i = 0; i < kBakedCount && g_count < int(sizeof g_levels / sizeof g_levels[0]); ++i)
+    g_levels = new LevelDef[kBakedCount > 0 ? kBakedCount : 1];
+    for (int i = 0; i < kBakedCount; ++i)
         if (decodeLevel(kBaked[i], g_levels[g_count])) ++g_count;
     if (g_count == 0) {
         fallback(g_levels[0]);

@@ -27,9 +27,15 @@ constexpr u32 kWhiteC = 0xFFFFFF, kSmoke = 0xF2ECE2, kSpark = 0xFFF2A0;
 constexpr u32 kOrangeC = 0xFF8A1E;  // weapons' colour (ART_DIRECTION 16)
 
 // The weapons' names: on a gate, and when taken.
-const char* const kWeaponShort[sim::kWeaponCount] = {"MUSKET", "TWIN", "SCATTER", "LANCE", "ROCKETS"};
-const char* const kWeaponName[sim::kWeaponCount] = {"MUSKET", "TWIN RIFLES", "SCATTERGUN", "LONG LANCE", "ROCKETS"};
-const char* const kPowerName[sim::kPowerCount] = {"", "RAPID FIRE", "POWER SHOT", "SHIELD", "FREEZE", "AIRSTRIKE"};
+const char* const kWeaponShort[] = {"MUSKET", "TWIN", "SCATTER", "LANCE", "ROCKETS", "FLAME", "CANNON", "COIL", "MORTAR", "FROST"};
+const char* const kWeaponName[] = {"MUSKET",       "TWIN RIFLES", "SCATTERGUN", "LONG LANCE", "ROCKETS",
+                                   "FLAMETHROWER", "CANNON",      "STORM COIL", "MORTAR",     "FROST BLASTER"};
+const char* const kPowerName[] = {"",       "RAPID FIRE", "POWER SHOT",  "SHIELD",       "FREEZE",     "AIRSTRIKE",
+                                  "MAGNET", "GIANTS",     "REINFORCEMENTS", "QUICK MARCH", "HOURGLASS", "DOUBLE GATES",
+                                  "FIELD GUN"};
+static_assert(sizeof kWeaponShort / sizeof *kWeaponShort == sim::kWeaponCount && sizeof kWeaponName / sizeof *kWeaponName == sim::kWeaponCount &&
+                  sizeof kPowerName / sizeof *kPowerName == sim::kPowerCount,
+              "a name for every weapon and power-up");
 constexpr u32 kFrostC = 0x9CD4FF;
 
 struct RoadLook {
@@ -148,8 +154,11 @@ void Field::setArt(Art* art) {
         ids_.gatePost[i] = kind(name);
     }
     ids_.gateSpikes = kind("gate.spikes");
-    const char* guns[sim::kWeaponCount] = {"musket", "twin", "scatter", "lance", "rocket"};
-    const char* shots[sim::kWeaponCount] = {"fx.tracer", "fx.tracer_twin", "fx.pellet", "fx.bolt", "fx.rocket"};
+    // Each weapon's gun over the soldiers (the cannon is one piece at the squad's front instead), icon and projectile.
+    const char* guns[] = {"musket", "twin", "scatter", "lance", "rocket", "flame", "cannon", "coil", "mortar", "frost"};
+    const char* shots[] = {"fx.tracer", "fx.tracer_twin", "fx.pellet", "fx.bolt", "fx.rocket", "fx.flame", "fx.cannonball", "fx.lightning", "fx.shell",
+                           "fx.frost_bolt"};
+    static_assert(sizeof guns / sizeof *guns == sim::kWeaponCount && sizeof shots / sizeof *shots == sim::kWeaponCount, "every weapon");
     for (int w = 0; w < sim::kWeaponCount; ++w) {
         std::snprintf(name, sizeof name, "wpn.%s", guns[w]);
         ids_.wpn[w] = kind(name);
@@ -157,6 +166,7 @@ void Field::setArt(Art* art) {
         ids_.wpnIcon[w] = kind(name);
         ids_.shotFx[w] = kind(shots[w]);
     }
+    if (ids_.wpnIcon[sim::kCannon] < 0) ids_.wpnIcon[sim::kCannon] = kind("ui.pow_fieldgun");  // the field gun's cannon
     ids_.gatePostWpn = kind("gate.post_wpn");
     ids_.crateWpn = kind("crate.wpn");
     ids_.crateBreak = kind("fx.crate_break");
@@ -170,7 +180,10 @@ void Field::setArt(Art* art) {
     ids_.lightColumn = kind("fx.light_column");
     ids_.crateSupply = kind("crate.supply");
     ids_.pickupFx = kind("fx.pickup");
-    const char* pows[sim::kPowerCount] = {nullptr, "ui.pow_rapid", "ui.pow_power", "ui.pow_shield", "ui.pow_freeze", "ui.pow_airstrike"};
+    const char* pows[] = {nullptr,          "ui.pow_rapid",  "ui.pow_power",     "ui.pow_shield", "ui.pow_freeze",
+                          "ui.pow_airstrike", "ui.pow_magnet", "ui.pow_giants",    "ui.pow_reinforce", "ui.pow_quick",
+                          "ui.pow_hourglass", "ui.pow_double", "ui.pow_fieldgun"};
+    static_assert(sizeof pows / sizeof *pows == sim::kPowerCount, "every power-up");
     for (int p = 1; p < sim::kPowerCount; ++p) ids_.powIcon[p] = kind(pows[p]);
     ids_.tracerHot = kind("fx.tracer_hot");
     ids_.gunGlow = kind("fx.gun_glow");
@@ -206,6 +219,22 @@ void Field::setArt(Art* art) {
     ids_.bossThrow = kind("boss.throw");
     ids_.bossRoar = kind("boss.roar");
     ids_.cageBack = kind("cage.back");
+    ids_.shieldman = kind("shieldman.march");
+    ids_.shieldFront = kind("shield.front");
+    ids_.bomber = kind("bomber.march");
+    ids_.drummer = kind("drummer.march");
+    ids_.squadCannon = kind("squad.cannon.march");
+    ids_.flame = kind("fx.flame");
+    ids_.zap = kind("fx.zap");
+    ids_.lightning = kind("fx.lightning");
+    ids_.shell = kind("fx.shell");
+    ids_.targetRing = kind("fx.target_ring");
+    ids_.magnetArc = kind("fx.magnet_arc");
+    ids_.speedLines = kind("fx.speed_lines");
+    ids_.soundRing = kind("fx.sound_ring");
+    ids_.recruitFly = kind("fx.recruit_fly");
+    ids_.scorch = kind("fx.char");
+    ids_.goldRim = kind("fx.gate_gold_rim");
     const char* poses[3] = {"slam", "throw", "roar"};
     for (int w = 0; w < 10; ++w)
         for (int p = 0; p < 3; ++p) {
@@ -408,6 +437,40 @@ void Field::flipbook(int anim, float x, float z, float y, float scale, float rot
     p.rot = rot;
     p.kind = 6;
     p.anim = i16(anim);
+}
+
+void Field::bolt(int anim, float x0, float z0, float x1, float z1, float life) {
+    if (anim < 0 || !art_) return;
+    bolts_[boltHead_] = {x0, z0, x1, z1, life, life, anim};
+    boltHead_ = (boltHead_ + 1) % kBolts;
+}
+
+void Field::streak(int anim, float key, float ax, float ay, float bx, float by, float width, float t, float alpha) {
+    Sticker* q = spriteAt(anim, key, ax, ay, 1.0f, t, 1.0f, alpha, 0);
+    if (!q) return;
+    const float dx = bx - ax, dy = by - ay;
+    q->x = 0.5f * (ax + bx);
+    q->y = 0.5f * (ay + by);
+    q->hh = 0.5f * std::sqrt(dx * dx + dy * dy);
+    q->hw = 0.5f * width;
+    q->rot = std::atan2(dx, -dy);
+}
+
+// Each bolt in pieces of about 2.5 units (a jagged line), a little over the road, fading as it goes.
+void Field::drawBolts() {
+    for (const Bolt& bt : bolts_) {
+        if (bt.life <= 0.0f || bt.anim < 0) continue;
+        const float dx = bt.x1 - bt.x0, dz = bt.z1 - bt.z0;
+        const int n = clampv(int(std::sqrt(dx * dx + dz * dz) / 2.5f) + 1, 1, 8);
+        const float a = minv(1.0f, bt.life / bt.max * 1.5f);
+        for (int i = 0; i < n; ++i) {
+            const float f0 = float(i) / float(n), f1 = float(i + 1) / float(n);
+            float ax, ay, as, bx, by, bs;
+            if (!cam_.project(bt.x0 + dx * f0, bt.z0 + dz * f0, 0.8f, ax, ay, as) || !cam_.project(bt.x0 + dx * f1, bt.z0 + dz * f1, 0.8f, bx, by, bs))
+                continue;
+            streak(bt.anim, bt.z0 + dz * f0, ax, ay, bx, by, maxv(4.0f, 0.5f * (as + bs) * 0.7f), time + float(i) * 0.05f, a);
+        }
+    }
 }
 
 // The world's look from the art: its ground textures, haze, sky, and the post pass's glow, grade and vignette.
@@ -685,13 +748,19 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         const u8 kind = ev.killKind[i];
         if (kind == sim::kBoss) continue;
         const float size = kind == sim::kBrute ? 1.8f : (kind == sim::kRider ? 1.25f : 1.0f);
-        const int figure = kind == sim::kBrute ? ids_.brute
-                           : kind == sim::kRider ? ids_.rider
-                           : kind == sim::kArcher && ids_.archer >= 0 ? ids_.archer
-                                                                      : ids_.foot;
+        const int figure = kind == sim::kBrute                          ? ids_.brute
+                           : kind == sim::kRider                        ? ids_.rider
+                           : kind == sim::kArcher && ids_.archer >= 0   ? ids_.archer
+                           : kind == sim::kGiant && ids_.giant >= 0     ? ids_.giant
+                           : kind == sim::kShieldman && ids_.shieldman >= 0 ? ids_.shieldman
+                           : kind == sim::kBomber && ids_.bomber >= 0   ? ids_.bomber
+                           : kind == sim::kDrummer && ids_.drummer >= 0 ? ids_.drummer
+                                                                        : ids_.foot;
         if (figure >= 0) {  // the art: knocked back 0.3, shrinks and fades into a puff of its colour
             dying(figure, ev.killX[i], ev.killZ[i], 0.3f, 0.12f);
-            flipbook(ids_.poofRed, ev.killX[i], ev.killZ[i] - 0.05f, 0.0f, kind == sim::kBrute ? 1.6f : 1.0f);
+            flipbook(ids_.poofRed, ev.killX[i], ev.killZ[i] - 0.05f, 0.0f, kind == sim::kBrute ? 1.6f : kind == sim::kGiant ? 2.6f : 1.0f);
+            // The flamethrower leaves a scorch where one burned.
+            if (weaponNow_ == sim::kFlame && ids_.scorch >= 0 && rnd() < 0.3f) flipbook(ids_.scorch, ev.killX[i], ev.killZ[i] + 0.05f, 0.01f, 2.0f);
         } else {
             figureFalls(ev.killX[i], ev.killZ[i], size, kRed, kRedDark, kRedDeep, ev.killX[i] < b.x ? -1.0f : 1.0f);
             burst(ev.killX[i], ev.killZ[i], 0.5f, kind == sim::kBrute ? 8 : 2, kRed, kRedDark, 3.5f, 0.11f, 0);
@@ -753,6 +822,21 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
             }
             shake_ = maxv(shake_, 0.3f);
             cue(kCueBlast, 0, x);
+        } else if (ev.spotWhat[i] == 4 || ev.spotWhat[i] == 5) {  // a bomber's keg, a mortar's shell: a blast and dirt
+            const float k = ev.spotWhat[i] == 4 ? 0.9f : 1.1f;
+            if (ids_.explosion >= 0) {
+                flipbook(ids_.explosionGlow, x, z - 0.12f, 0.0f, k);
+                flipbook(ids_.explosion, x, z - 0.1f, 0.0f, k);
+                flipbook(ids_.ring, x, z - 0.2f, 0.02f, k);
+                if (ids_.dirtBurst >= 0 && ev.spotWhat[i] == 5) flipbook(ids_.dirtBurst, x, z - 0.15f, 0.0f, 0.8f);
+            } else {
+                burst(x, z, 0.6f, 10, 0xFFB040, kSpark, 5.0f, 0.12f, 3);
+            }
+            shake_ = maxv(shake_, ev.spotWhat[i] == 4 ? 0.3f : 0.2f);
+            cue(kCueBlast, 0, x);
+        } else if (ev.spotWhat[i] == 6) {  // a cannonball strikes one in its way
+            if (ids_.hit >= 0) flipbook(ids_.hit, x, z - 0.05f, 0.6f, 1.4f, rnd() * 6.28f);
+            if (ids_.dust >= 0 && rnd() < 0.5f) flipbook(ids_.dust, x, z, 0.0f, 1.2f);
         } else {  // an airstrike's bomb: a big blast, half size, its glow and a ring
             if (ids_.bigboom >= 0) {
                 flipbook(ids_.bigboomGlow, x, z - 0.12f, 0.0f, 0.5f);
@@ -765,7 +849,37 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
             cue(kCueBomb, 0, x);
         }
     }
+    // The storm coil's bolts, a spark where each strikes; the flamethrower's jet while it burns something.
+    for (int i = 0; i < ev.zapN; ++i) {
+        bolt(ids_.lightning, ev.zapX0[i], ev.zapZ0[i], ev.zapX1[i], ev.zapZ1[i], 0.12f);
+        if (i < 3 && ids_.zap >= 0) flipbook(ids_.zap, ev.zapX1[i], ev.zapZ1[i] - 0.05f, 0.7f, 0.9f, rnd() * 6.28f);
+    }
+    if (weaponNow_ == sim::kFlame && ev.hits > 0) flameT_ = 0.3f;
+    if (ev.magnet >= 0) {  // the magnet pulls it open: an arc from the squad
+        const bool cage = ev.magnet >= 100;
+        const float tx = cage ? def_->cages[ev.magnet - 100].x : def_->barrels[ev.magnet].x;
+        const float tz = cage ? def_->cages[ev.magnet - 100].z : def_->barrels[ev.magnet].z;
+        bolt(ids_.magnetArc, b.x, b.z + 0.5f, tx, tz, 0.4f);
+        if (ids_.sparkle >= 0) flipbook(ids_.sparkle, tx, tz - 0.1f, 0.8f, 1.2f);
+    }
+    for (int i = 0; i < minv<i32>(ev.reinforced, 3) && ids_.recruitFly >= 0; ++i) {  // reinforcements float down on to it
+        Particle& p = parts_[partHead_];
+        partHead_ = (partHead_ + 1) % kParticles;
+        partCount_ = minv(partCount_ + 1, kParticles);
+        p = Particle{};
+        p.x = b.x + (rnd() - 0.5f) * b.radius() * 1.6f;
+        p.z = b.z + (rnd() - 0.3f) * b.radius();
+        p.y = 4.5f + rnd() * 1.5f;
+        p.vz = b.halted ? 0.0f : def_->speed;
+        p.vy = -3.0f;
+        p.max = p.life = 3.0f;
+        p.size = 1.0f;
+        p.rot = rnd() * 6.28f;
+        p.kind = 7;
+        p.anim = i16(ids_.recruitFly);
+    }
     char t[24];
+    if (ev.doubled) floater(0, 1.0f, 5.8f, "DOUBLED!", kGoldC, 0x16224F, 1.0f, true);
     if (ev.power > 0 && ev.power < sim::kPowerCount) {  // a power-up: its name, a burst of light, its sound
         std::snprintf(t, sizeof t, "%s!", kPowerName[ev.power]);
         floater(0, 1.0f, 5.2f, t, kGoldC, 0x16224F, 1.1f, true);
@@ -1020,6 +1134,8 @@ void Field::update(float dt, const sim::Battle& b) {
     bossActT_ += dt;
     edge_ = maxv(0.0f, edge_ - dt / 0.3f);
     for (float& f : flash_) f = maxv(0.0f, f - dt);
+    flameT_ = maxv(0.0f, flameT_ - dt);
+    for (Bolt& bt : bolts_) bt.life -= dt;
     for (int i = 0; i < partCount_; ++i) {
         Particle& p = parts_[i];
         if (p.life <= 0) continue;
@@ -1408,6 +1524,19 @@ void Field::drawPowers(const sim::Battle& b, UiBatch& labels) {
         float sx, sy, s;
         if (cam_.project(viewX_, viewZ_, 0, sx, sy, s)) spriteAt(ids_.shieldDome, viewZ_ - R - 1.0f, sx, sy, s, time, R, 0.85f * a);
     }
+    if (b.powered(sim::kQuick) && ids_.speedLines >= 0 && !b.halted && !b.won)  // QUICK MARCH: lines streaming past it
+        sprite(ids_.speedLines, viewX_, viewZ_ - 0.5f, 0.6f, time, 0.9f + 0.25f * std::sqrt(maxv(1.0f, shownSquad_)) / 3.0f, 0.75f);
+    if (b.powered(sim::kDouble) && ids_.goldRim >= 0)  // DOUBLE GATES: the next gates that add glow gold at their feet
+        for (int g = 0, shown = 0; g < def_->gateCount && shown < 3; ++g) {
+            const sim::GateDef& gd = def_->gates[g];
+            if (gd.kind != sim::kGateAdd || b.gates[g].used || b.gates[g].passed || b.gates[g].value <= 0 || gd.z < b.z || gd.z > zMax) continue;
+            float g0, g1;
+            b.gateSpan(g, b.time, g0, g1);
+            const Placed pl = sprite(ids_.goldRim, 0.5f * (g0 + g1), gd.z - 0.05f, 0, time, (g1 - g0) / 5.0f, 0.9f);
+            for (Sticker* q : {pl.st, pl.st2})
+                if (q) q->hh *= maxv(0.12f, std::sin(pl.elev * kPi / 180.0f));
+            ++shown;
+        }
     for (int k = 0; k < b.bombCount; ++k) {  // falling the last half second, their shadows growing under them
         const sim::Battle::Bomb& bm = b.bombs[k];
         if (bm.t > 0.5f) continue;
@@ -1474,6 +1603,14 @@ void Field::drawStrikes(const sim::Battle& b, float step) {
             }
             if (ids_.arrowGround >= 0) flat(ids_.arrowGround, s.x, b.z + 3.0f, 1.6f, 0.6f + 0.4f * pulse);
         }
+    }
+    // Mortar shells arcing to where they land (1.1 s), a ring on the road there.
+    for (int k = 0; k < b.shellCount; ++k) {
+        const sim::Shell& sh = b.shells[k];
+        const float f = clampv(1.0f - (sh.t - step) / 1.1f, 0.0f, 1.0f);
+        flat(ids_.targetRing, sh.x, sh.z, 5.2f, 0.35f + 0.45f * f);
+        const float x = sh.x0 + (sh.x - sh.x0) * f, z = sh.z0 + (sh.z - sh.z0) * f, y = 1.0f + 9.0f * f * (1.0f - f);
+        if (ids_.shell >= 0) sprite(ids_.shell, x, z, y, 0, 1.2f, 1.0f, (f - 0.5f) * 2.4f);
     }
 }
 
@@ -1569,7 +1706,10 @@ void Field::drawEnemy(const sim::Enemy& e, float z) {
                      : e.kind == sim::kBrute  ? ids_.brute
                      : giant                  ? (ids_.giant >= 0 ? ids_.giant : ids_.brute)
                      : e.kind == sim::kArcher ? (aiming ? ids_.archerShoot : (ids_.archer >= 0 ? ids_.archer : ids_.foot))
-                                              : ids_.foot;
+                     : e.kind == sim::kShieldman && ids_.shieldman >= 0 ? ids_.shieldman
+                     : e.kind == sim::kBomber && ids_.bomber >= 0       ? ids_.bomber
+                     : e.kind == sim::kDrummer && ids_.drummer >= 0     ? ids_.drummer
+                                                                        : ids_.foot;
     if (giant) {  // its health over its head
         const i32 full = e.wave >= 0 && e.wave < def_->waveCount ? maxv<i32>(1, def_->waves[e.wave].hp * sim::kHp) : 1;
         float hx, hy, hs;
@@ -1593,8 +1733,17 @@ void Field::drawEnemy(const sim::Enemy& e, float z) {
         const float t = aiming ? std::fmod(1.6f - e.cool + 5.0f / 12.0f, 1.6f)
                         : frozen ? float(e.seed & 7) * 0.083f
                                  : time + float(e.seed & 255) * 0.043f;
-        const Placed pl = sprite(anim, e.x, z, 0, t, var, 1.0f, 0, false, maxv(flash * 0.85f, shade - 1.0f), frozen ? mixc(tint, kFrostC, 0.6f) : tint);
+        // Slowed by the frost blaster: a lighter tint of ice.
+        const u32 look = frozen ? mixc(tint, kFrostC, 0.6f) : e.slow > 0.0f ? mixc(tint, kFrostC, 0.45f) : tint;
+        const Placed pl = sprite(anim, e.x, z, 0, t, var, 1.0f, 0, false, maxv(flash * 0.85f, shade - 1.0f), look);
         if (frozen && pl.st && ids_.frostOverlay >= 0) sprite(ids_.frostOverlay, e.x, z - 0.05f, 0, 0, var, 1.0f);
+        // A shield bearer's shield before it while it holds; a drummer's beat in rings.
+        if (pl.st && e.kind == sim::kShieldman && e.shield > 0 && ids_.shieldFront >= 0) sprite(ids_.shieldFront, e.x, z - 0.12f, 0, 0, var, 1.0f);
+        if (pl.st && e.kind == sim::kDrummer && ids_.soundRing >= 0) {
+            const SpriteAnim& ra = art_->anim(ids_.soundRing);
+            const float period = float(ra.frames) / maxv(1.0f, ra.fps);
+            sprite(ids_.soundRing, e.x, z - 0.02f, 1.3f, std::fmod(time + float(e.seed & 63) * 0.01f, period), 2.6f, 0.8f);
+        }
         if (pl.st) {
             const float h = giant ? 3.8f : e.kind == sim::kBrute ? 1.9f : (e.kind == sim::kRider ? 1.7f : 1.05f);
             const float r = giant ? 1.3f : e.kind == sim::kBrute ? 0.65f : (e.kind == sim::kRider ? 0.5f : 0.27f);
@@ -1726,7 +1875,9 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
     const int m = minv(kMaxShown, minv(int(tune.soldiersShown), int(shownSquad_ + 0.5f)));
     const float R = minv(4.4f, 0.55f + 0.3f * std::sqrt(maxv(1.0f, shownSquad_)));
     const bool marching = b.started && !b.won && !b.lost;
+    const bool walking = marching && !b.halted;  // the squad stands while a horde comes to it
     const bool powerShot = b.powered(sim::kPowerShot) && marching;
+    const float giantK = b.powered(sim::kGiants) ? 1.6f : 1.0f;  // GIANTS: every soldier half again as tall
     for (int i = 0; i < m; ++i) {
         const float u = std::sqrt((float(i) + 0.5f) / float(m));
         const float a = float(i) * 2.39996323f;
@@ -1745,9 +1896,9 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
             if (i >= shownBefore_) bornAt_[i] = time;
             const float age = time - bornAt_[i];
             const float pop = age >= 0.2f ? 1.0f : (age < 0.13f ? 1.15f * age / 0.13f : 1.15f - 0.15f * (age - 0.13f) / 0.07f);
-            const float var = 0.94f + 0.12f * h01(u32(i) * 31u + 7u);
+            const float var = (0.94f + 0.12f * h01(u32(i) * 31u + 7u)) * giantK;
             const bool cheering = b.won && ids_.cheer >= 0;  // hats in the air
-            const float step = marching || cheering ? time + float(i) * 0.137f : 0.0f;
+            const float step = walking || cheering ? time + float(i) * 0.137f : 0.0f;
             const Placed pl = sprite(cheering ? ids_.cheer : ids_.soldier, x, z, 0, step, var * pop, 1.0f);
             if (!pl.st) continue;
             castShadow(x, z, 1.2f * var, 0.25f);
@@ -1794,6 +1945,19 @@ void Field::drawSoldiers(const sim::Battle& b, float zs, float xs, UiBatch& labe
         ++figures_;
     }
     shownBefore_ = m;
+    // The cannon (the weapon) rolls at the squad's front; the field gun (the power-up) at its side.
+    if (ids_.squadCannon >= 0 && !b.won) {
+        const float roll = walking ? time : 0.0f;
+        if (b.weapon == sim::kCannon) {
+            const Placed pl = sprite(ids_.squadCannon, xs, zs + R * 0.55f + 0.5f, 0, roll, 1.0f, 1.0f);
+            if (pl.st) castShadow(xs, zs + R * 0.55f + 0.5f, 1.2f, 0.9f);
+        }
+        if (b.powered(sim::kFieldGun)) {
+            const float gx = clampv(xs + R + 0.8f, -sim::kRoadHalf + 0.6f, sim::kRoadHalf - 0.6f);
+            const Placed pl = sprite(ids_.squadCannon, gx, zs + 0.3f, 0, roll, 0.85f, 1.0f);
+            if (pl.st) castShadow(gx, zs + 0.3f, 1.0f, 0.8f);
+        }
+    }
     // The squad's banner, carried in its middle with the count on its cloth (ART_DIRECTION 15.3).
     if (ids_.banner >= 0) {
         const float scale = clampv(0.6f + 0.4f * R / 2.0f, 0.6f, 1.0f);  // a small squad carries a small banner
@@ -1976,10 +2140,10 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
         if (!e.alive) continue;
         if (e.kind == sim::kBoss) {
             const bool halted = e.z - b.z - sim::enemyStats(sim::kBoss).radius <= b.radius() * 0.6f;
-            drawBoss(e, halted ? e.z : e.z - sim::enemyStats(e.kind).speed * step, labels);
+            drawBoss(e, halted ? e.z : e.z - b.enemySpeed(e) * step, labels);
             continue;
         }
-        const float z = frozenNow_ && e.z - b.z < 45.0f ? e.z : e.z - sim::enemyStats(e.kind).speed * def_->pace * step;
+        const float z = e.z - b.enemySpeed(e) * step;
         if (z < zLo || z > zHi) continue;
         drawEnemy(e, z);
     }
@@ -2006,6 +2170,13 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
         if (!st) break;
         st[0] = sticker(kShEllipse, sx, sy, maxv(2.0f, 0.13f * s), maxv(5.0f, 0.5f * s), 0xFFC040, 0xFFC040, 0xFFC040, 0.35f);
         st[1] = sticker(kShEllipse, sx, sy, maxv(1.2f, 0.055f * s), maxv(3.5f, 0.34f * s), 0xFFFBE0, 0xFFFBE0, 0xFFFBE0);
+    }
+    drawBolts();
+    if (flameT_ > 0.0f && ids_.flame >= 0 && weaponNow_ == sim::kFlame && !b.lost && !b.won) {  // the jet over its cone
+        const float R = b.radius(), z0 = viewZ_ + R * 0.45f;
+        float ax, ay, as, bx, by, bs;
+        if (cam_.project(viewX_, z0, 0.4f, ax, ay, as) && cam_.project(viewX_, z0 + 9.0f, 0.4f, bx, by, bs))
+            streak(ids_.flame, z0 + 4.0f, ax, ay, bx, by, 0.5f * (as + bs) * (2.8f + R * 0.4f), time, minv(1.0f, flameT_ / 0.15f));
     }
     drawParticles();
     // Far to near, then the shadows' and the stickers' lists for the renderer.

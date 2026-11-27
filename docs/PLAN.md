@@ -47,8 +47,8 @@ spectacle (bursts, falling figures, floating numbers, explosions, shake); never 
 | Topic | Decision |
 |---|---|
 | Core | Real time, a fixed 60 Hz step (`src/sim/battle.*`). The player steers; everything else is automatic |
-| Levels | 300, generated and baked: the bake plays each candidate with a bot and scales the hordes and the boss until the bot wins by the margin the level's place asks for. The table is committed (`src/sim/levels_baked.h`) |
-| Flow | No hub, no world map. Launch plays the saved level; win: VICTORY with stars and NEXT (RETRY under three stars); defeat: RETRY and LEVELS; PAUSE: RESUME, RESTART, LEVELS, SETTINGS; after level 300 an end screen. The HUD's `LEVEL N` chip opens LEVELS (GLOWTIDE's selector) |
+| Levels | 100 (the owner, 2026-11-27: "the last level can be 100"), each longer than the last, from half a minute to about 15 minutes; generated and baked: the bake plays each candidate with a bot and scales the hordes and the boss until the bot wins by the margin the level's place asks for. The table is committed (`src/sim/levels_baked.h`) |
+| Flow | No hub, no world map. Launch plays the saved level; win: VICTORY with stars and NEXT (RETRY under three stars); defeat: RETRY and LEVELS; PAUSE: RESUME, RESTART, LEVELS, SETTINGS; after level 100 an end screen. The HUD's `LEVEL N` chip opens LEVELS (GLOWTIDE's selector) |
 | Look | Cut paper in daylight on a perspective road: stone paving, curbs, a verge with trees and banners; ten worlds (meadow, desert, snow, autumn, beach, blossom, swamp, sky, volcano, lantern fair). Nothing like GLOWTIDE's glowing night |
 | Teams | The squad blue, the horde red, barrels gold, multipliers violet; constant in every world |
 | Engine | GLOWTIDE's shell, forked by copy: C++20, SDL 3.4.20, OpenGL ES 3.0 / WebGL 2, CMake, Gradle, Emscripten |

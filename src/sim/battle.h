@@ -12,30 +12,42 @@ constexpr float kRoadHalf = 5.0f;   // the road: x in [-5, 5]; z runs up the roa
 constexpr float kDt = 1.0f / 60.0f;
 constexpr int kMaxEnemies = 1600;
 constexpr int kMaxBullets = 512;
-constexpr int kMaxGates = 160;
-constexpr int kMaxBarrels = 48;
-constexpr int kMaxWaves = 32;
-constexpr int kMaxRows = 32;        // rows of two or more gates side by side: the level's choices
+// A level's road (the last of the 100 runs about 15 minutes: thousands of units).
+constexpr int kMaxGates = 1024;
+constexpr int kMaxBarrels = 192;
+constexpr int kMaxWaves = 384;
+constexpr int kMaxRows = 384;       // rows of two or more gates side by side: the level's choices
 constexpr i32 kSquadCap = 99999;
 
 // The archer stands in its ranks and looses an arrow every 1.6 s at the squad from 18 units; the catapult stands at the
-// road's side and hurls a boulder every 3.2 s; the giant is a mini-boss that drops a medallion (docs/CONTENT_PASS.md 3.1).
-enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kArcher, kCatapult, kGiant, kEnemyKindCount };
+// road's side and hurls a boulder every 3.2 s; the giant is a mini-boss that drops a medallion; the shield bearer's
+// shield takes bullets from the front; the bomber bursts when it dies (other bombers chain); a drummer hurries the
+// enemies around it (docs/CONTENT_PASS.md 3.1).
+enum EnemyKind : u8 { kFoot, kRider, kBrute, kBoss, kArcher, kCatapult, kGiant, kShieldman, kBomber, kDrummer, kEnemyKindCount };
 // The boss's attacks (docs/CONTENT_PASS.md 3.1), as bits of LevelDef::bossAttacks.
 enum BossAttack : u8 { kAttackSlam = 1, kAttackToss = 2, kAttackCry = 4, kAttackStomp = 8 };
 // What winning a level means (docs/CONTENT_PASS.md 3.3): gold rush has no enemies and cannot be lost (a barricade never
 // takes the last 3); rescue starts with 3 and frees prisoners from cages; arsenal starts with a weapon.
 enum LevelMode : u8 { kModeMarch, kModeBoss, kModeGold, kModeRescue, kModeArsenal, kModeCount };
-enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kWeaponCount };  // docs/CONTENT_PASS.md 1
+// docs/CONTENT_PASS.md 1. The flamethrower burns a cone, the cannon rolls a ball through everything on its line, the
+// storm coil's lightning jumps, the mortar lobs shells over everything 18 ahead, the frost blaster slows what it hits.
+enum WeaponKind : u8 { kMusket, kTwin, kScatter, kLance, kRockets, kFlame, kCannon, kCoil, kMortar, kFrost, kWeaponCount };
 // An add gate below zero is a red barricade; a weapon gate's value is the WeaponKind it hands over.
 enum GateKind : u8 { kGateAdd, kGateMul, kGateWeapon };
 constexpr i32 kHp = 10;  // hit points are counted in tenths (a twin rifle's ball does 0.6 of a musket ball)
 // Power-ups (docs/CONTENT_PASS.md 2): rapid fire (rate x2, 6 s), power shot (damage x2, 6 s), a shield (absorbs the next
 // max(10, 30% of the squad) losses, 8 s), freeze (the horde within 45 stops for 3 s, the boss for half that), an airstrike
 // (three bombs 12, 20 and 28 ahead, 0.6 s apart, each 12x a musket ball's damage within 3).
-enum PowerKind : u8 { kPowerNone, kRapid, kPowerShot, kShield, kFreeze, kAirstrike, kPowerCount };
-constexpr int kMaxMedals = 16, kMaxBombs = 6;
-constexpr int kMaxMines = 32, kMaxCages = 8, kMaxArrows = 96;
+// Then: magnet (barrels, crates and cages within 25 open by themselves, 5 s), giants (the squad tramples what touches it,
+// 5 s), reinforcements (max(8, 15% of the peak) parachute in), quick march (march x1.6, 5 s), hourglass (the enemy and
+// its blows at 40%, 5 s), double gates (the next add gate counts twice, 12 s at most), field gun (a cannon at the squad's
+// side fires every second, 8 s).
+enum PowerKind : u8 {
+    kPowerNone, kRapid, kPowerShot, kShield, kFreeze, kAirstrike, kMagnet, kGiants, kReinforce, kQuick, kHourglass, kDouble,
+    kFieldGun, kPowerCount
+};
+constexpr int kMaxMedals = 64, kMaxBombs = 6;
+constexpr int kMaxMines = 192, kMaxCages = 32, kMaxArrows = 96;
 
 // What a weapon does, times the musket's: its shots a second and damage a ball; how far and fast its balls fly; balls a
 // shot (two streams `spread` apart, or a fan of half angle `spread` radians); enemies a ball passes through; a blast
@@ -101,7 +113,7 @@ struct LevelDef {
     // gates (0: its everyday 15 units) and, for each row of two or more gates, which one it takes (from the left; -1 its
     // own choice). rowZ lists those rows up the road (from the gates: indexRows).
     float planLook = 0;
-    u8 rowCount = 0, planCount = 0;
+    u16 rowCount = 0, planCount = 0;
     float rowZ[kMaxRows] = {};
     i8 plan[kMaxRows] = {};
     int gateCount = 0, barrelCount = 0, waveCount = 0, medalCount = 0, mineCount = 0, cageCount = 0;
@@ -129,12 +141,18 @@ struct Enemy {
     u8 kind = kFoot, alive = 0;
     u16 seed = 0;
     float hit = 0;      // seconds since it was last hit (the view flashes it)
-    float cool = 0;     // an archer: seconds to its next arrow
-    i8 wave = -1;
+    float cool = 0;     // an archer: seconds to its next arrow (a catapult: its next boulder)
+    i32 shield = 0;     // a shield bearer's shield, tenths: bullets from the front wear it down first
+    float slow = 0;     // seconds left slowed by the frost blaster
+    i16 wave = -1;
+};
+struct Shell {          // a mortar's shell on its way: it lands at x, z when t reaches 0
+    float x0 = 0, z0 = 0, x = 0, z = 0, t = 0;
+    i32 dmg = 0;
 };
 struct Arrow {          // an archer's arrow on its way: it lands on the squad when t reaches 0 and takes a soldier
     float x0 = 0, z0 = 0, t = 0;
-    i8 wave = -1;
+    i16 wave = -1;
 };
 // A blow shown on the road before it lands (dodge it sideways): a boulder's red circle (kind 0, radius r, at x, z), the
 // club's half of the road (kind 1, x < 0 the left half), a stomp's ridge with a gap 3 wide at x (kind 2, it reaches the
@@ -189,6 +207,21 @@ struct BattleEvents {
     float strikeX = 0, strikeZ = 0;
     bool roar = false;      // the boss's war cry; the boss throwing a boulder
     bool bossThrew = false;
+    int magnet = -1;        // a barrel (or crate) the magnet opened; a cage it opened is 100 + its index
+    i32 reinforced = 0;     // soldiers who parachuted in this step
+    bool doubled = false;   // DOUBLE GATES spent on a gate
+    // The storm coil's bolts this step, from point to point.
+    static constexpr int kMaxZaps = 16;
+    float zapX0[kMaxZaps] = {}, zapZ0[kMaxZaps] = {}, zapX1[kMaxZaps] = {}, zapZ1[kMaxZaps] = {};
+    int zapN = 0;
+    void zap(float x0, float z0, float x1, float z1) {
+        if (zapN < kMaxZaps) {
+            zapX0[zapN] = x0;
+            zapZ0[zapN] = z0;
+            zapX1[zapN] = x1;
+            zapZ1[zapN++] = z1;
+        }
+    }
     int thrown = 0;         // boulders thrown this step (catapults, the boss)
     i32 absorbed = 0;       // soldiers the shield saved this step
     bool shieldGone = false;
@@ -198,7 +231,7 @@ struct BattleEvents {
     u8 killKind[kMaxKills] = {};
     int killN = 0;
     // Where a rocket burst (what 0), a lance bolt went through an enemy (what 1), an airstrike's bomb landed (what 2), a
-    // mine went off (what 3).
+    // mine went off (what 3), a bomber burst (what 4), a mortar's shell landed (what 5), a cannonball struck (what 6).
     static constexpr int kMaxSpots = 16;
     float spotX[kMaxSpots] = {}, spotZ[kMaxSpots] = {};
     u8 spotWhat[kMaxSpots] = {};
@@ -234,6 +267,10 @@ public:
     float x = 0, z = 0, vx = 0;
     float time = 0;
     bool started = false, won = false, lost = false;
+    bool halted = false;  // standing its ground: a horde is coming (the view stops the soldiers' march)
+    // Won once every enemy is beaten, not only at the finish line (init leaves it as it is: the generator turns it off for
+    // its run of a road it is still laying, and the bake for its run to just before the end fight).
+    bool clearWins = true;
     Enemy enemies[kMaxEnemies];
     int enemyCount = 0;
     Bullet bullets[kMaxBullets];
@@ -254,6 +291,7 @@ public:
     Bomb bombs[kMaxBombs] = {};
     int bombCount = 0;
     bool powered(u8 p) const { return p < kPowerCount && powerLeft[p] > 0.0f; }
+    float enemySpeed(const Enemy& e) const;  // units a second down the road now (the view moves it between steps)
     // Mines (hit points left, gone), cages opened, the archers' arrows in flight.
     i32 mineHp[kMaxMines] = {};
     u8 mineGone[kMaxMines] = {}, cageOpen[kMaxCages] = {};
@@ -267,19 +305,38 @@ public:
     MedalDef drops[kMaxDrops] = {};
     u8 dropTaken[kMaxDrops] = {};
     int dropCount = 0;
+    // The mortar's shells in the air; the clocks of the flamethrower's ticks, the field gun, the magnet; soldiers still to
+    // parachute in (REINFORCEMENTS) and how many a second.
+    static constexpr int kMaxShells = 16;
+    Shell shells[kMaxShells] = {};
+    int shellCount = 0;
+    float flameAcc = 0, fieldGunAcc = 0, magnetT = 0, reinforceLeft = 0, reinforceRate = 0, reinforceAcc = 0;
     // Where gate g stands across the road `t` seconds into the march (a moving gate slides; the others stand still).
     void gateSpan(int g, float t, float& lo, float& hi) const;
 
 private:
     void spawnWave(int w, BattleEvents& ev);
     void bucket();                         // enemies into cells by distance ahead
-    int pickTarget(float bz, float range);  // the nearest enemy ahead still needing damage, -1 none
+    // The nearest enemy ahead still needing damage (its shield counting for a bullet from the front), a bomber or drummer
+    // a little further on first; -1 none.
+    int pickTarget(float bz, float range, bool front);
     void release(Bullet& b);               // a bullet strikes or ends: its damage no longer incoming
     void fire(BattleEvents& ev);
     void moveBullets(BattleEvents& ev);
     void moveEnemies(BattleEvents& ev);
     void kill(int i, BattleEvents& ev);
-    void hurt(int i, i32 dmg, BattleEvents& ev);              // an enemy takes damage (and dies at none left)
+    // An enemy takes damage (and dies at none left); `front`: a bullet from the front, which a shield takes first.
+    void hurt(int i, i32 dmg, BattleEvents& ev, bool front = false);
+    // What a blow of dmg (the squad's, which grows past 50 soldiers) does to e: the boss and giants take it all; to the
+    // horde it is a musket ball's worth whatever the squad's size, so a few soldiers lost do not slow its killing and a
+    // horde's bite grows with its size instead of all at once (the squad stands for hordes: the owner, 2026-11-27).
+    i32 against(const Enemy& e, i32 dmg) const;
+    // Soldiers a blow of n takes from the squad: n, or n for every 50 in a bigger squad (as its balls grow past 50), so a
+    // horde takes the same share of any squad.
+    i32 toll(i32 n) const;
+    void lightning(float x0, float z0, i32 dmg, BattleEvents& ev);  // the storm coil's bolt and its four jumps
+    void scorch(i32 dmg, BattleEvents& ev);                   // the flamethrower's cone, one tick
+    float drive(const Enemy& e) const;                        // its speed factor now (frost, drums, the hourglass)
     // A burst at (bx, bz): every enemy within `reach` but `spare` takes dmg; `what` tells the view (BattleEvents::spot).
     void blast(float bx, float bz, float reach, i32 dmg, int spare, u8 what, BattleEvents& ev);
     void breakBarrel(int k, BattleEvents& ev);                // shot open: its recruits, its weapon or its power-up
@@ -301,6 +358,11 @@ private:
     i16 cellHead_[kCells];
     i16 next_[kMaxEnemies];
     i16 remap_[kMaxEnemies];  // old index to new when the dead are compacted away (bullets' targets follow)
+    float drumX_[16] = {}, drumZ_[16] = {};  // the drummers this step (their beat hurries whoever is within 5)
+    int drumN_ = 0;
+    // Gates and barrels whose state has been set up: the generator lengthens the road while a battle plays it (sync).
+    int gatesInit_ = 0, barrelsInit_ = 0;
+    void sync();
 };
 
 // Levels (src/sim/levels.cpp): the baked table, numbered from 1, and its text form.

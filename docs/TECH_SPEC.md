@@ -40,7 +40,9 @@ parallel jobs everywhere.
    `bombs`). Every loss goes through `lose`, where a running shield absorbs first.
 7. Fire: the squad carries one weapon (`weapon`, `WeaponStats`, docs/CONTENT_PASS.md 1; the level's `gun` at the start).
    Hit points are counted in tenths (`kHp`); a musket ball does `damage() = max(10, squad/5)` tenths and the musket
-   fires `fireRate()` shots a second; the weapon multiplies both. `rate·fireRate·dt` shots accumulate; each starts at a
+   fires `fireRate()` shots a second; the weapon multiplies both. Against the horde (all but the boss and giants) a blow
+   counts as `dmg·10/damage()`: a musket ball's worth whatever the squad's size (`against`, used by `hurt` and the
+   `incoming` books). `rate·fireRate·dt` shots accumulate; each starts at a
    random point across the squad's footprint (x ± radius, squeezed inside the road: `footprint`) and goes for the nearest
    enemy within the weapon's range (by distance up the road, then across) whose hit points exceed the damage already
    flying at it (`incoming`), led to where the two meet (the owner, 2026-11-27: "generally hit the closest enemy to the
@@ -55,11 +57,13 @@ parallel jobs everywhere.
    a rocket bursts where it strikes, half its direct damage to every other enemy within 1.8 (`blast`).
    A bullet flies on until its range is spent; when it strikes, its damage no longer counts as incoming. Compacting
    the dead away remaps the bullets' targets.
-9. Enemies: march down; within 14 units close in on `x` (riders faster); one that touches the footprint
-   (`d < 0.6·r + radius`, across within the footprint ± radius) costs its strength and is gone (and is counted against its wave,
-   `waveLost`); the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
-   `drain`, 22), so a boss fight lasts seconds, not a minute, whatever the squad. The horde moves at its kind's speed
-   times the level's `pace`. Dead enemies are compacted away now and then.
+9. Enemies: run down at `enemySpeed` (their kind's speed times the level's `pace`, plus the march's speed; 0 for those
+   that stand or are frozen; slowed by frost and the hourglass, hurried by drummers); within 14 units close in on `x`
+   (riders faster); one that touches the footprint (`d < 0.6·r + radius`, across within the footprint ± radius) costs
+   `toll(strength)` (its strength times squad / 50 past 50) and is gone (and is counted against its wave, `waveLost`).
+   The squad stands (`halted`) while a horde enemy is within 25 units ahead; the boss instead stops and crushes a ninth of the squad it meets every second (at least the level's
+   `drain`, 22), so a boss fight lasts seconds, not a minute, whatever the squad. Dead enemies are compacted away now
+   and then.
 10. Power-ups: rapid fire doubles the shots, power shot the damage; under freeze the horde within 45 units does not
    move (the boss not for the first half); the clocks run down (`powers`) and bombs land (`blast`, radius 3, 12 musket
    balls' damage).
@@ -84,7 +88,11 @@ giant's).
 Telegraphed blows (`Strike`: a boulder's circle, the club's half of the road, the stomp's gap) wait `t` seconds and then
 take the share of the squad's footprint standing in them, at most `cap` (`Battle::attacks`); the bot steps out of them
 before anything else. `generate` returns a level that has been through this form, so the bake plays exactly
-what the table will hold. `levelCount()`/`level(n)` decode `kBaked[]` once; a fallback level exists if the table is empty.
+what the table will hold; the generator also puts everything it lays on the form's grid (`snap`) before the bot plays
+it. The generator keeps one run of the road as it lays it (`runner`, 64 units behind the road's end: nothing laid later
+can change it) and measures each new section by playing a copy of it from there (`playTo`), so a 15-minute road is built
+in tens of seconds. The bake takes that run (the bot's own choices, no plan) to 64 units before the end fight once and
+replays only the end for each strength it tries (`bakeLevel`), then plays the kept level from the start to be sure. `levelCount()`/`level(n)` decode `kBaked[]` once; a fallback level exists if the table is empty.
 
 ## 5. The view (`src/game/field.*`)
 
