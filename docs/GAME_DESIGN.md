@@ -64,6 +64,11 @@ behind (drawn faded). Gates that **grow** (most add gates and barricades) take o
 their cap: shooting a `+3` gate makes it a `+5`, shooting a `-20` barricade can make it a `+3`. Multipliers never grow.
 Bullets stop at the first growing gate, barrel or enemy in their path.
 
+A **flip gate** (from 39) covers half the road and turns over every 1.5 s between a sum and a cost (the face it turns to
+next shows small over it); it never grows: arrive while it is blue, or pass beside it. **Mystery gates** (from 56) come
+in pairs showing "?" and the same two outcomes (`+40 OR -15`); one holds each. Five hits show a gate's true face, and
+then it grows like any other.
+
 ## 4. Barrels
 
 A gold barrel stands on the road with hit points and a reward (`+N`, shown over it with a bar of its strength left).
@@ -138,7 +143,10 @@ lane (x ± 1.2): once the squad is within 30 the boulder rolls down it, the lane
 squad stands in it (at most 40%); it cannot be shot. **Fort walls** (sieges, from 37) cross the whole road with hit points
 (four to seven seconds of the squad's fire; rockets, the cannon and the mortar do three times, the flame burns it): the
 march stops at a wall and the horde waits behind it while archers shoot from the ramparts; when it falls ("WALL DOWN!")
-the horde charges.
+the horde charges. **Weather strips** (22 units with a pair of gates in them): on **ice** (from 31) the squad steers a
+third as quickly; **wind** (from 62) pushes it sideways at 2.5-3.5 units a second (arrows on the road, streaks blowing
+across); the bot leans into it. **Fog** (from 67, now and then) veils what lies further than about 18 units and
+**night** (from 81) darkens all but the squad's own few units (the view only).
 
 **Modes** (docs/CONTENT_PASS.md 3.3), by their place in each block of ten, each from the level that brings it in (a
 march before): 1 and 6 a march; 2 an **arsenal** from 22 (the squad starts with a weapon); 3 a **rescue** from 34 (the

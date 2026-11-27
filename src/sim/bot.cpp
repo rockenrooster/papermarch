@@ -7,19 +7,31 @@ namespace pm::sim {
 namespace {
 // What passing a gate leaves the squad, as the bot sees it: a weapon is worth a share of the squad over the musket
 // (a rough guess; the planner tries every gate of a row and keeps what really works).
-i64 gateWorth(const Battle& b, const GateDef& gd, const GateState& gs) {
-    if (gd.kind == kGateMul) return i64(b.squad) * gs.value;
+i64 gateWorth(const Battle& b, const GateDef& gd, const GateState& gs, i32 value) {
+    if (gd.kind == kGateMul) return i64(b.squad) * value;
     if (gd.kind == kGateWeapon) {
         // musket, twin, scattergun, lance, rockets, flamethrower, cannon, coil, mortar, frost
         static const float kWorth[kWeaponCount] = {0.0f, 0.15f, 0.1f, 0.2f, 0.25f, 0.2f, 0.2f, 0.2f, 0.2f, 0.1f};
         const float gain = kWorth[clampv<i32>(gs.value, 0, kWeaponCount - 1)] - kWorth[b.weapon < kWeaponCount ? b.weapon : 0];
         return i64(float(b.squad) * (1.0f + gain));
     }
-    return i64(b.squad) + gs.value;
+    return i64(b.squad) + value;
 }
+
+float steer(const Battle& b);
 }  // namespace
 
+// Where to steer, leaning into the wind by as much as it pushes (the squad's steering closes 12 units a second per unit
+// of distance, a third of that on ice).
 float botSteer(const Battle& b) {
+    const float x = steer(b);
+    const StripDef* st = b.stripAt(b.z);
+    if (!st || st->kind != kStripWind) return x;
+    return x - st->push / 12.0f;
+}
+
+namespace {
+float steer(const Battle& b) {
     const LevelDef& d = *b.def;
     const float r = b.radius();
     const float look = d.planLook > 0 ? d.planLook : 15.0f;
@@ -75,7 +87,8 @@ float botSteer(const Battle& b) {
             const GateDef& gd = d.gates[g];
             const GateState& gs = b.gates[g];
             if (gs.used || gs.passed || std::fabs(gd.z - rowZ) > 0.5f) continue;
-            const i64 after = gateWorth(b, gd, gs);
+            // A flip gate by the face it will show when the squad gets there.
+            const i64 after = gateWorth(b, gd, gs, b.gateNow(g, b.time + maxv(0.0f, gd.z - b.z) / maxv(0.5f, d.speed)));
             float g0, g1;
             span(g, g0, g1);
             if (nc < 8) {
@@ -145,6 +158,8 @@ float botSteer(const Battle& b) {
     if (sumW > 0) return sumX / sumW;
     return b.x * 0.98f;
 }
+
+}  // namespace
 
 PlayResult playLevel(const LevelDef& d, int maxSeconds) {
     thread_local Battle* bp = nullptr;  // large: one per thread, made once

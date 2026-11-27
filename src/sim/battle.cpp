@@ -129,7 +129,7 @@ void Battle::spawnWave(int w, BattleEvents& ev) {
 }
 
 void Battle::sync() {
-    for (; gatesInit_ < def->gateCount; ++gatesInit_) gates[gatesInit_] = {def->gates[gatesInit_].value, 0, 0, 99.0f};
+    for (; gatesInit_ < def->gateCount; ++gatesInit_) gates[gatesInit_] = {def->gates[gatesInit_].value, 0, 0, 0, 99.0f};
     for (; barrelsInit_ < def->barrelCount; ++barrelsInit_) barrels[barrelsInit_] = {def->barrels[barrelsInit_].hp * kHp, 0, 99.0f};
     for (; rollersInit_ < def->rollerCount; ++rollersInit_) rollerGone[rollersInit_] = 0;
     for (; wallsInit_ < def->wallCount; ++wallsInit_) {
@@ -322,6 +322,18 @@ float Battle::enemySpeed(const Enemy& e) const {
     // It runs at the squad at the march's speed on top of its own: it closes on the standing squad as fast as the two
     // closed when both moved.
     return (st.speed * def->pace + def->speed) * drive(e);
+}
+
+i32 Battle::gateNow(int g, float t) const {
+    const GateDef& gd = def->gates[g];
+    if (gd.trick == 1 && (int(t / 1.5f) & 1)) return gd.alt;
+    return gates[g].value;
+}
+
+const StripDef* Battle::stripAt(float zz) const {
+    for (int k = 0; k < def->stripCount; ++k)
+        if (zz >= def->strips[k].z0 && zz < def->strips[k].z1) return &def->strips[k];
+    return nullptr;
 }
 
 i32 Battle::toll(i32 n) const { return maxv<i32>(n, i32(i64(n) * squad / 50)); }
@@ -817,7 +829,8 @@ void Battle::moveBullets(BattleEvents& ev) {
                 float g0, g1;
                 gateSpan(g, time, g0, g1);
                 if (b.x < g0 || b.x > g1) continue;
-                gs.value = minv(gs.value + 1, gd.cap);
+                if (gd.trick == 2 && gs.seen < 5) ++gs.seen;
+                else gs.value = minv(gs.value + 1, gd.cap);
                 gs.hit = 0;
             }
             bool walled = false;
@@ -925,7 +938,8 @@ void Battle::moveBullets(BattleEvents& ev) {
             release(b);
             if (kind == 1) {
                 GateState& gs = gates[which];
-                if (b.grows) gs.value = minv(gs.value + 1, def->gates[which].cap);
+                if (def->gates[which].trick == 2 && gs.seen < 5) ++gs.seen;  // a mystery gate shows its face first
+                else if (b.grows) gs.value = minv(gs.value + 1, def->gates[which].cap);
                 gs.hit = 0;
                 ++ev.hits;
             } else if (kind == 2) {
@@ -1038,8 +1052,11 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
     const float lim = kRoadHalf - minv(r * 0.5f, 1.6f);
     const float tx = clampv(steerX, -lim, lim);
     const float quick = powered(kQuick) ? 1.5f : 1.0f;
-    vx = clampv((tx - x) * 12.0f * quick, -18.0f * quick, 18.0f * quick);
+    const StripDef* strip = stripAt(z);
+    const float grip = strip && strip->kind == kStripIce ? 1.0f / 3.0f : 1.0f;  // on ice it steers a third as quickly
+    vx = clampv((tx - x) * 12.0f * grip * quick, -18.0f * grip * quick, 18.0f * grip * quick);
     x += vx * kDt;
+    if (strip && strip->kind == kStripWind) x = clampv(x + strip->push * kDt, -lim, lim);  // the wind pushes it
     // March. The squad stands its ground while a horde that comes to it is within 25 units ahead, and marches on once
     // that horde is beaten (the owner, 2026-11-27: "the enemies come to the squad"); archers and catapults stand, so they
     // do not stop it. It halts before the boss.
@@ -1083,17 +1100,18 @@ void Battle::tick(float steerX, bool go, BattleEvents& ev) {
         if (x >= g0 && x <= g1) {
             ev.gate = g;
             ev.gateBefore = squad;
+            const i32 face = gateNow(g, time);
             if (gd.kind == kGateWeapon) {  // it hands over its weapon
                 weapon = u8(clampv<i32>(gs.value, 0, kWeaponCount - 1));
                 ev.weapon = weapon;
             } else {
                 // DOUBLE GATES: the next add gate counts twice (a barricade's loss does not).
-                const bool twice = gd.kind == kGateAdd && gs.value > 0 && powered(kDouble);
+                const bool twice = gd.kind == kGateAdd && face > 0 && powered(kDouble);
                 if (twice) {
                     powerLeft[kDouble] = 0;
                     ev.doubled = true;
                 }
-                const i64 s = gd.kind == kGateMul ? i64(squad) * gs.value : i64(squad) + gs.value * (twice ? 2 : 1);
+                const i64 s = gd.kind == kGateMul ? i64(squad) * face : i64(squad) + face * (twice ? 2 : 1);
                 squad = i32(clampv<i64>(s, 0, kSquadCap));
                 if (def->mode == kModeGold) squad = maxv(squad, minv<i32>(3, ev.gateBefore));  // a bonus road keeps 3
             }

@@ -70,6 +70,12 @@ const char* const kHints[kHintCount] = {
     "DODGE THE ROLLERS",                 // 49: every gauntlet (from 34)
     "RUN FOR IT",                        // 50: every rush (from 38)
     "TOPPLE THE GIANTS",                 // 51: every giants' road (from 49)
+    "ICE: STEER EARLY",                  // 52: ice (31)
+    "WAIT FOR THE BLUE SIDE",            // 53: flip gates (39)
+    "SHOOT TO REVEAL",                   // 54: mystery gates (56)
+    "LEAN INTO THE WIND",                // 55: wind (62)
+    "FOG HIDES THE ROAD",                // 56: fog (67)
+    "FIGHT IN THE DARK",                 // 57: night (81)
 };
 
 // Until the first bake: one small level, so the app always has something to play.
@@ -155,7 +161,7 @@ const LevelDef& level(int n) {
 bool decodeLevel(const char* text, LevelDef& out) {
     out = LevelDef();
     const char* p = text;
-    i64 v[8];
+    i64 v[10];
     while (*p) {
         while (*p == ' ') ++p;
         if (!*p) break;
@@ -179,6 +185,7 @@ bool decodeLevel(const char* text, LevelDef& out) {
             case 'G': if (!num(p, v[0]) || v[0] < 0 || v[0] >= kWeaponCount) return false; out.gun = u8(v[0]); break;
             case 'M': if (!num(p, v[0]) || v[0] < 0 || v[0] >= kModeCount) return false; out.mode = u8(v[0]); break;
             case 'J': if (!num(p, v[0]) || v[0] < 0 || v[0] > 15) return false; out.bossAttacks = u8(v[0]); break;
+            case 'F': if (!num(p, v[0]) || v[0] < 0 || v[0] > 2) return false; out.sky = u8(v[0]); break;
             case 'Q': {  // the plan's choices, one a row: Q-1,0,1
                 out.planCount = 0;
                 for (;;) {
@@ -189,15 +196,20 @@ bool decodeLevel(const char* text, LevelDef& out) {
                 }
                 break;
             }
-            case 'g': {  // x0, x1, z, value, kind, grows, cap[, moves]
+            case 'g': {  // x0, x1, z, value, kind, grows, cap[, moves[, trick, alt]]
                 if (out.gateCount >= kMaxGates || !nums(p, v, 7)) return false;
-                v[7] = 0;
-                if (*p == ',') {
+                v[7] = v[8] = v[9] = 0;
+                for (int k = 7; k < 10 && *p == ','; ++k) {
                     ++p;
-                    if (!num(p, v[7])) return false;
+                    if (!num(p, v[k])) return false;
                 }
                 out.gates[out.gateCount++] = {float(v[0]) / 10.0f, float(v[1]) / 10.0f, float(v[2]) / 10.0f, i32(v[3]), u8(v[4]), u8(v[5]),
-                                              i32(v[6]), u8(v[7])};
+                                              i32(v[6]), u8(v[7]), u8(v[8]), i32(v[9])};
+                break;
+            }
+            case 'h': {  // weather over the road: kind, z0, z1, push x 10
+                if (out.stripCount >= kMaxStrips || !nums(p, v, 4)) return false;
+                out.strips[out.stripCount++] = {float(v[1]) / 10.0f, float(v[2]) / 10.0f, u8(v[0]), float(v[3]) / 10.0f};
                 break;
             }
             case 'n': {  // a mine: x, z
@@ -277,6 +289,7 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     if (d.gun != kMusket) put(" G%d", d.gun);
     if (d.mode != kModeMarch) put(" M%d", d.mode);
     if (d.bossAttacks) put(" J%d", d.bossAttacks);
+    if (d.sky) put(" F%d", d.sky);
     if (d.planCount > 0) {
         put(" Q%d", d.plan[0]);
         for (int i = 1; i < d.planCount; ++i) put(",%d", d.plan[i]);
@@ -284,7 +297,8 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     for (int i = 0; i < d.gateCount; ++i) {
         const GateDef& g = d.gates[i];
         put(" g%d,%d,%d,%d,%d,%d,%d", t10(g.x0), t10(g.x1), t10(g.z), g.value, g.kind, g.grows, g.cap);
-        if (g.moves) put(",%d", g.moves);
+        if (g.moves || g.trick) put(",%d", g.moves);
+        if (g.trick) put(",%d,%d", g.trick, g.alt);
     }
     for (int i = 0; i < d.barrelCount; ++i) {
         const BarrelDef& b = d.barrels[i];
@@ -297,6 +311,8 @@ int encodeLevel(const LevelDef& d, char* out, int cap) {
     for (int i = 0; i < d.cageCount; ++i) put(" k%d,%d,%d", t10(d.cages[i].x), t10(d.cages[i].z), d.cages[i].reward);
     for (int i = 0; i < d.rollerCount; ++i) put(" o%d,%d", t10(d.rollers[i].x), t10(d.rollers[i].z));
     for (int i = 0; i < d.wallCount; ++i) put(" l%d,%d", t10(d.walls[i].z), d.walls[i].hp);
+    for (int i = 0; i < d.stripCount; ++i)
+        put(" h%d,%d,%d,%d", d.strips[i].kind, t10(d.strips[i].z0), t10(d.strips[i].z1), t10(d.strips[i].push));
     for (int i = 0; i < d.waveCount; ++i) {
         const WaveDef& w = d.waves[i];
         put(" w%d,%d,%d,%d,%d", t10(w.z), t10(w.x0), t10(w.x1), w.count, w.kind);

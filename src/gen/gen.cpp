@@ -62,6 +62,12 @@ void snap(LevelDef& d) {
     for (int i = 0; i < d.cageCount; ++i) d.cages[i].x = r10(d.cages[i].x), d.cages[i].z = r10(d.cages[i].z);
     for (int i = 0; i < d.rollerCount; ++i) d.rollers[i].x = r10(d.rollers[i].x), d.rollers[i].z = r10(d.rollers[i].z);
     for (int i = 0; i < d.wallCount; ++i) d.walls[i].z = r10(d.walls[i].z);
+    for (int i = 0; i < d.stripCount; ++i) {
+        StripDef& st = d.strips[i];
+        st.z0 = r10(st.z0);
+        st.z1 = r10(st.z1);
+        st.push = r10(st.push);
+    }
     for (int i = 0; i < d.waveCount; ++i) {
         WaveDef& w = d.waves[i];
         w.z = r10(w.z);
@@ -254,6 +260,20 @@ void build(int n, u64 seed, Shape& out) {
     if (giantsRoad) d.hint = 51;
     const bool rollers = n >= 27;  // boulders down marked lanes, from 27
     if (n == 27) d.hint = 47;
+    // Step 7 (docs/CONTENT_PASS.md 4.2): ice from 31, flip gates from 39, mystery gates from 56, wind from 62; fog from 67
+    // and night from 81 now and then (the view only). An introduction's hint beats the mode's.
+    const bool ice = n >= 31, flips = n >= 39, mysteries = n >= 56, wind = n >= 62;
+    if (n == 31) d.hint = 52;
+    if (n == 39) d.hint = 53;
+    if (n == 56) d.hint = 54;
+    if (n == 62) d.hint = 55;
+    {
+        const u64 h = hash64(u64(n) * 2654435761ULL + 99ULL) % 5ULL;
+        if (n == 67 || (n > 67 && h == 0)) d.sky = kSkyFog;
+        if (n == 81 || (n > 81 && h == 1)) d.sky = kSkyNight;
+        if (n == 67) d.hint = 56;
+        if (n == 81) d.hint = 57;
+    }
     // What this level knows (docs/CONTENT_PASS.md 4.2): mines from 13, archers from 17, moving gates from 19, catapults
     // from 21, cages from 24, shield bearers from 26, giants from 29, bombers from 37, drummers from 42; each is brought
     // in on its first level.
@@ -325,7 +345,8 @@ void build(int n, u64 seed, Shape& out) {
     int section = 0, last = -1;
     while (z < end) {
         const int gatesBefore = d.gateCount, barrelsBefore = d.barrelCount, wavesBefore = d.waveCount, medalsBefore = d.medalCount,
-                  minesBefore = d.mineCount, cagesBefore = d.cageCount, rollersBefore = d.rollerCount, wallsBefore = d.wallCount;
+                  minesBefore = d.mineCount, cagesBefore = d.cageCount, rollersBefore = d.rollerCount, wallsBefore = d.wallCount,
+                  stripsBefore = d.stripCount;
         // Above the level's ceiling: gains shrink by `over`, multipliers are left out.
         const float over = maxv(1.0f, E / ceilingOf(n));
         const bool grow = over <= 1.0f;
@@ -334,7 +355,10 @@ void build(int n, u64 seed, Shape& out) {
         int kind;
         if (section == 0) kind = n < 10 || r.f01() < 0.5f ? 0 : 1;
         else if (section == 1 && n == 27) kind = 9;  // the first rollers (the level's weapon comes next)
-        else if (section == (n == 27 ? 2 : 1) && offer > 0) kind = 6;
+        else if (section == 1 && (n == 31 || n == 62)) kind = 13;  // the first ice, the first wind
+        else if (section == 1 && n == 39) kind = 11;                 // the first flip gate
+        else if (section == 1 && n == 56) kind = 12;                 // the first mystery gates
+        else if (section == (n == 27 || n == 31 || n == 39 || n == 56 || n == 62 ? 2 : 1) && offer > 0) kind = 6;
         else if (section == 1 && n == 19) kind = 7;  // the first moving gate
         // A horde after every two or three other sections: never on a gold rush, a rush or a gauntlet (their roads are
         // hazards and gates; the end fight is their only horde).
@@ -342,15 +366,16 @@ void build(int n, u64 seed, Shape& out) {
         else {
             // Gold rush: gates, barrels, medallions; rescue: few gates; gauntlet: rollers and minefields, gates as bait.
             const float gk = rescue ? 0.4f : gauntlet ? 0.5f : 1.0f;
-            float w[11] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
+            float w[14] = {(n <= 3 ? 3.0f : 0.9f) * gk, pairs ? 2.2f * gk : 0.0f, barrels ? 1.7f : 0.0f, blocks ? 1.2f * gk : 0.0f, 0.0f,
                            triple && grow ? 1.1f * gk : 0.0f, 0.0f, moving ? (gold ? 1.6f : 0.8f) : 0.0f, gold && powersKnown > 0 ? 1.2f : 0.0f,
-                           rollers && !gold ? (gauntlet ? 3.0f : rush ? 1.5f : 0.6f) : 0.0f, gauntlet || (rush && mines) ? 1.4f : 0.0f};
-            if (last >= 0 && last < 11) w[last] *= 0.12f;
+                           rollers && !gold ? (gauntlet ? 3.0f : rush ? 1.5f : 0.6f) : 0.0f, gauntlet || (rush && mines) ? 1.4f : 0.0f,
+                           flips ? 0.8f * gk : 0.0f, mysteries ? 0.7f * gk : 0.0f, ice || wind ? 0.7f : 0.0f};
+            if (last >= 0 && last < 14) w[last] *= 0.12f;
             float sum = 0;
             for (float v : w) sum += v;
             float x = r.f01() * sum;
             kind = 0;
-            for (int k = 0; k < 11; ++k) {
+            for (int k = 0; k < 14; ++k) {
                 if (x < w[k]) {
                     kind = k;
                     break;
@@ -476,6 +501,41 @@ void build(int n, u64 seed, Shape& out) {
                 const int k = 5 + int(r.next() % 5u);
                 for (int i = 0; i < k && d.mineCount < kMaxMines; ++i) d.mines[d.mineCount++] = {uni(r, -4.2f, 4.2f), z + uni(r, 4.0f, 14.0f)};
                 z += 18.0f;
+                ++sinceWave;
+                break;
+            }
+            case 11: {  // a flip gate over half the road: a fair sum and a cost by turns, 1.5 s each (pass beside it)
+                const bool left = r.f01() < 0.5f;
+                const i32 a = friendly(maxv(3.0f, E * uni(r, 0.4f, 0.9f) / over)), c = friendly(maxv(2.0f, E * uni(r, 0.15f, 0.4f)));
+                gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, z + 6.0f, a, kGateAdd, 0, a);
+                d.gates[d.gateCount - 1].trick = 1;
+                d.gates[d.gateCount - 1].alt = -c;
+                z += 14.0f;
+                ++sinceWave;
+                break;
+            }
+            case 12: {  // two mystery gates: each shows the same two outcomes; one holds the sum, the other the cost
+                const i32 a = friendly(maxv(3.0f, E * uni(r, 0.4f, 0.8f) / over)), c = friendly(maxv(2.0f, E * uni(r, 0.2f, 0.4f)));
+                const bool goodLeft = r.f01() < 0.5f;
+                for (int side = 0; side < 2; ++side) {
+                    const bool good = (side == 0) == goodLeft;
+                    gate(d, side == 0 ? -4.6f : 0.25f, side == 0 ? -0.25f : 4.6f, z + 6.0f, good ? a : -c, kGateAdd, 1, good ? a + a / 2 : c / 3);
+                    d.gates[d.gateCount - 1].trick = 2;
+                    d.gates[d.gateCount - 1].alt = good ? -c : a;
+                }
+                z += 14.0f;
+                ++sinceWave;
+                break;
+            }
+            case 13: {  // weather over the road (ice, or wind pushing one way) with a pair of gates in it
+                const bool windy = (n == 62 && d.stripCount == 0) || (wind && (!ice || r.f01() < 0.5f));  // 62 brings the wind in
+                if (d.stripCount < kMaxStrips)
+                    d.strips[d.stripCount++] = {z, z + 22.0f, u8(windy ? kStripWind : kStripIce), windy ? (r.f01() < 0.5f ? -1.0f : 1.0f) * uni(r, 2.5f, 3.5f) : 0.0f};
+                const bool left = r.f01() < 0.5f;
+                const i32 a = friendly(maxv(3.0f, E * uni(r, 0.3f, 0.8f) / over)), c = friendly(maxv(2.0f, E * uni(r, 0.15f, 0.4f)));
+                gate(d, left ? -4.6f : 0.25f, left ? -0.25f : 4.6f, z + 12.0f, a, kGateAdd, 1, a + 2 + a / 2);
+                gate(d, left ? 0.25f : -4.6f, left ? 4.6f : -0.25f, z + 12.0f, -c, kGateAdd, 1, maxv<i32>(1, c / 3));
+                z += 26.0f;
                 ++sinceWave;
                 break;
             }
@@ -610,6 +670,7 @@ void build(int n, u64 seed, Shape& out) {
             d.cageCount = cagesBefore;
             d.rollerCount = rollersBefore;
             d.wallCount = wallsBefore;
+            d.stripCount = stripsBefore;
         }
     }
     // The end: the boss, or a last stand of the horde across the road; finish() sizes it.

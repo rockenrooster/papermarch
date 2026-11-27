@@ -124,6 +124,16 @@ and the red lane tiles are reused, walls are stone paper stickers with battlemen
 Hammers, pits, narrows, tide and the last stand are left out (they need art or a ground shader the game does not have).
 Checks: unit tests 31/31, the table 100/100, the flow test 23/23 on the PC and in the browser, level 1 won by touch.
 
+## 2026-11-27: 0.10.0, content step 7
+
+Flip gates (39), mystery gates (56), ice (31) and wind (62) strips, fog (67) and night (81), each with its hint (the
+introduction's beats the mode's), the bot reading a flip gate's face at its arrival and leaning into the wind
+(GAME_DESIGN 3, 5). Drawn without new art: a flip gate squashes as it turns and shows its next face; a mystery gate is
+violet-grey with "?" and both outcomes; ice a pale sheen in slices; wind the road arrows turned sideways and streaks;
+fog and night are veils placed in the depth order beyond the squad (night also a blue grade and a deep vignette). Mud
+is left out. Checks: unit tests 31/31, the table 100/100, the flow test 23/23 on the PC and in the browser, level 1 won
+by touch.
+
 ## Status
 
 | Part | Status |

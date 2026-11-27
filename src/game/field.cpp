@@ -508,6 +508,14 @@ void Field::drawGround(PaperFrame& f) {
     f.post.saturation = w.saturation;
     f.post.hudTop = (L_.top() + L_.px(kTopBandDp) * 0.7f) / float(maxv(1, L_.h));
     f.post.edge = edge_ * (reduceEffects ? 0.15f : 0.4f);
+    if (def_->sky == sim::kSkyNight) {  // a cold blue grade and a deep vignette
+        f.post.light = 0x6A7AD0;
+        f.post.lightStrength = 0.5f;
+        f.post.vignette = maxv(f.post.vignette, 0.75f);
+    } else if (def_->sky == sim::kSkyFog) {
+        g.hazeStart *= 0.5f;
+        g.hazeEnd *= 0.6f;
+    }
     shDx_ = w.shadowDx;
     shDz_ = w.shadowDz;
     shAlpha_ = w.shadowAlpha;
@@ -961,12 +969,13 @@ void Field::events(const sim::Battle& b, const sim::BattleEvents& ev) {
         const sim::GateDef& g = def_->gates[ev.gate];
         const i32 delta = ev.gateAfter - ev.gateBefore;
         const bool good = delta >= 0;
-        if (g.kind == sim::kGateMul) std::snprintf(t, sizeof t, "\xC3\x97%d", b.gates[ev.gate].value);
-        else std::snprintf(t, sizeof t, "%+d", b.gates[ev.gate].value);
+        const i32 face = b.gateNow(ev.gate, b.time);
+        if (g.kind == sim::kGateMul) std::snprintf(t, sizeof t, "\xC3\x97%d", face);
+        else std::snprintf(t, sizeof t, "%+d", face);
         if (g.kind != sim::kGateWeapon) floater(0, 1.0f, 4.4f, t, good ? kWhiteC : 0xFF7A86, 0x16224F, good ? 1.1f : 1.0f, true);
-        const u32 c = g.kind == sim::kGateMul ? kVioletC : (b.gates[ev.gate].value > 0 ? kBlue : kRed);
+        const u32 c = g.kind == sim::kGateMul ? kVioletC : (face > 0 ? kBlue : kRed);
         gateUsedAt_[ev.gate] = time;
-        const int side = g.kind == sim::kGateMul ? 1 : (ev.gateBefore >= 0 && b.gates[ev.gate].value >= 0 ? 0 : 2);
+        const int side = g.kind == sim::kGateMul ? 1 : (ev.gateBefore >= 0 && face >= 0 ? 0 : 2);
         float g0, g1;
         b.gateSpan(ev.gate, b.time, g0, g1);
         if (def_->mode == sim::kModeGold && ids_.coin >= 0 && good)  // a bonus road: gold coins burst from every gate
@@ -1334,11 +1343,18 @@ void Field::drawGates(const sim::Battle& b, UiBatch& labels) {
             }
             const float fade = gs.passed && !gs.used ? 0.25f + 0.75f * clampv(1.0f - (b.z - gd.z) / 1.5f, 0.0f, 1.0f) : 1.0f;
             const bool mul = gd.kind == sim::kGateMul, wpn = gd.kind == sim::kGateWeapon;
-            const int kind = wpn ? 3 : (mul ? 1 : (gs.value > 0 ? 0 : 2));
+            const float tNow = b.time + gateStep_;
+            const i32 value = b.gateNow(g, tNow);  // a flip gate's face now
+            const bool hidden = gd.trick == 2 && gs.seen < 5;
+            if (gd.trick == 1) {  // it turns over (the panel squashes to nothing and back) around each change
+                const float ph = std::fmod(tNow, 1.5f), near = minv(ph, 1.5f - ph);
+                if (near < 0.15f) collapse *= maxv(0.08f, near / 0.15f);
+            }
+            const int kind = wpn ? 3 : (mul ? 1 : (value > 0 ? 0 : 2));
             // Blue adds, violet multiplies, red takes; a weapon is a cream panel in an orange frame (ART_DIRECTION 16).
             static const u32 kC[4] = {0x2E8BFF, 0x9B4DFF, 0xF0323C, 0xFFF6E0}, kH[4] = {0xBFE4FF, 0xE6CCFF, 0xFFC2B8, 0xFF8A1E};
-            const bool grey = !mul && !wpn && gs.value == 0;
-            const u32 C = grey ? 0x8C96A8 : kC[kind], Hc = grey ? 0xD8DEE8 : kH[kind];
+            const bool grey = !mul && !wpn && value == 0;
+            const u32 C = hidden ? 0x8A84B8 : grey ? 0x8C96A8 : kC[kind], Hc = hidden ? 0xDCD8F0 : grey ? 0xD8DEE8 : kH[kind];
             const float top = kBottom + (kTop - kBottom) * collapse;
             // Where it stands now (a moving gate slides on a rail across the road, its posts on wheels).
             float gx0, gx1;
@@ -1388,11 +1404,21 @@ void Field::drawGates(const sim::Battle& b, UiBatch& labels) {
                 }
                 continue;
             }
-            // Its number: white, outlined in a dark shade of its colour, pulsing when it changes.
+            // Its number: white, outlined in a dark shade of its colour, pulsing when it changes. A mystery gate shows "?" and
+            // its two outcomes under it; a flip gate the face it turns to next, small over its top.
             char t[16];
-            if (mul) std::snprintf(t, sizeof t, "\xC3\x97%d", gs.value);
-            else if (gs.value > 0) std::snprintf(t, sizeof t, "+%d", gs.value);
-            else std::snprintf(t, sizeof t, "%d", gs.value);
+            if (hidden) std::snprintf(t, sizeof t, "?");
+            else if (mul) std::snprintf(t, sizeof t, "\xC3\x97%d", value);
+            else if (value > 0) std::snprintf(t, sizeof t, "+%d", value);
+            else std::snprintf(t, sizeof t, "%d", value);
+            if ((hidden || gd.trick == 1) && fade > 0.3f && !gs.used) {
+                char u[32];
+                const i32 other = gd.trick == 1 ? (value == gd.alt ? gs.value : gd.alt) : 0;
+                if (hidden) std::snprintf(u, sizeof u, "%+d OR %+d", maxv(gs.value, gd.alt), minv(gs.value, gd.alt));
+                else std::snprintf(u, sizeof u, "NEXT %+d", other);
+                const float us = 0.42f * sb * tune.tagScale;
+                if (us >= 7.0f) label(labels, u, (xl + xr) * 0.5f, hidden ? (yb + yt) * 0.5f + 0.75f * sb : yt - 0.35f * sb, us, kWhiteC, 0x16224F);
+            }
             const float pulse = gs.hit < 0.12f ? 1.0f + 0.15f * (1.0f - gs.hit / 0.12f) : 1.0f;
             // A row of choices gets big numbers; a column's panels (one a row, close behind each other) smaller ones.
             bool row = false;
@@ -1622,6 +1648,36 @@ void Field::drawStrikes(const sim::Battle& b, float step) {
                 else redZone(xx - 1.0f, xx + 1.0f, zr - 0.4f, zr + 0.4f, 0.55f);
             }
             if (ids_.arrowGround >= 0) flat(ids_.arrowGround, s.x, b.z + 3.0f, 1.6f, 0.6f + 0.4f * pulse);
+        }
+    }
+    // Weather over the road: ice a pale sheen in slices up the road; wind arrows on the road and streaks blowing across.
+    const float zMin = cam_.z + cam_.tBottom - 1.0f, zMax = cam_.z + cam_.tTop + 2.0f;
+    for (int k = 0; k < def_->stripCount; ++k) {
+        const sim::StripDef& st = def_->strips[k];
+        if (st.z1 < zMin || st.z0 > zMax) continue;
+        if (st.kind == sim::kStripIce) {
+            for (float zz = maxv(st.z0, zMin); zz < minv(st.z1, zMax); zz += 2.0f) {
+                float ax, ay, as, bx, by, bs;
+                const float z2 = minv(zz + 2.0f, st.z1);
+                if (!cam_.project(0, zz, 0, ax, ay, as) || !cam_.project(0, z2, 0, bx, by, bs)) continue;
+                Sticker* q = add(z2 + 0.5f, 1);
+                if (q) *q = sticker(kShBox, 0.5f * (ax + bx), 0.5f * (ay + by), sim::kRoadHalf * 0.5f * (as + bs), maxv(1.0f, 0.5f * (ay - by)), 0xD8F4FF,
+                                    0xD8F4FF, 0xD8F4FF, 0.38f + 0.06f * std::sin(time * 2.0f + zz));
+            }
+        } else {
+            const float dir = st.push < 0.0f ? -1.0f : 1.0f;
+            for (float zz = st.z0 + 2.0f; zz < st.z1; zz += 5.0f)
+                for (int c = 0; c < 2; ++c) {
+                    const Placed pl = sprite(ids_.arrowGround, c ? 2.2f : -2.2f, zz, 0.03f, time, 0.65f, 0.55f, dir * kPi * 0.5f);
+                    for (Sticker* q : {pl.st, pl.st2})
+                        if (q) q->hh *= maxv(0.12f, std::sin(pl.elev * kPi / 180.0f));
+                }
+            if (ids_.speedLines >= 0)
+                for (int i = 0; i < 4; ++i) {
+                    const float zz = st.z0 + (st.z1 - st.z0) * (0.15f + 0.23f * float(i));
+                    const float xx = std::fmod(time * 6.0f * dir + float(i) * 2.7f + 50.0f, 12.0f) - 6.0f;
+                    sprite(ids_.speedLines, xx, zz, 1.2f, time, 1.4f, 0.5f, dir * kPi * 0.5f);
+                }
         }
     }
     // Mortar shells arcing to where they land (1.1 s), a ring on the road there.
@@ -2232,6 +2288,16 @@ void Field::build(PaperFrame& f, UiBatch& labels, const sim::Battle& b, float al
             streak(ids_.flame, z0 + 4.0f, ax, ay, bx, by, 0.5f * (as + bs) * (2.8f + R * 0.4f), time, minv(1.0f, flameT_ / 0.15f));
     }
     drawParticles();
+    // Fog veils what lies further than about 18 units, then 28 (it lies under nearer things in the depth order); night
+    // darkens all but the squad's own few units.
+    if (def_->sky != sim::kSkyClear) {
+        const float W = float(L_.w), H = float(L_.h);
+        const bool fog = def_->sky == sim::kSkyFog;
+        const u32 c = fog ? 0xD6DEE6 : 0x0A1030;
+        const float k0 = fog ? 18.0f : 5.0f, k1 = fog ? 28.0f : 22.0f, a0 = fog ? 0.3f : 0.42f, a1 = fog ? 0.6f : 0.35f;
+        for (int i = 0; i < 2; ++i)
+            if (Sticker* q = add(viewZ_ + (i ? k1 : k0), 1)) *q = sticker(kShBox, W * 0.5f, H * 0.5f, W * 0.5f + 8.0f, H * 0.5f + 8.0f, c, c, c, i ? a1 : a0);
+    }
     // Far to near, then the shadows' and the stickers' lists for the renderer.
     // Ties go by the order things were added, the same every frame (std::sort is not stable: no flicker).
     std::sort(items_, items_ + itemN_, [](const Item& a, const Item& c) { return a.key > c.key || (a.key == c.key && a.first < c.first); });

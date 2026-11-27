@@ -69,6 +69,10 @@ struct GateDef {
     u8 grows = 1;     // bullets that hit it raise it by one each, up to `cap` (a multiplier never grows)
     i32 cap = 9;
     u8 moves = 0;     // > 0: it slides across the road, 3 either way every 3 s, starting `moves`/256 of the way round
+    // 1 a flip gate: its value and `alt` by turns, 1.5 s each (it never grows); 2 a mystery gate: it shows "?" and two
+    // outcomes, its value and `alt` (a decoy); five hits show its true face, and then it grows.
+    u8 trick = 0;
+    i32 alt = 0;
 };
 struct BarrelDef {
     float x = 0, z = 30;
@@ -99,7 +103,17 @@ struct WallDef {
     float z = 40;
     i32 hp = 60;
 };
-constexpr int kMaxRollers = 96, kMaxWalls = 32;
+// A stretch of road with weather: wind pushes the squad sideways at `push` units a second (+ to the right); on ice the
+// squad steers a third as quickly.
+enum StripKind : u8 { kStripWind = 1, kStripIce = 2 };
+struct StripDef {
+    float z0 = 40, z1 = 60;
+    u8 kind = kStripWind;
+    float push = 0;
+};
+// The level's sky (the view only): fog hides what is further than about 22 units, night darkens all but the near road.
+enum SkyKind : u8 { kSkyClear, kSkyFog, kSkyNight };
+constexpr int kMaxRollers = 96, kMaxWalls = 32, kMaxStrips = 48;
 struct WaveDef {
     float z = 40;     // its front row
     float x0 = -4, x1 = 4;
@@ -122,6 +136,7 @@ struct LevelDef {
     u8 gun = kMusket;          // the weapon the squad starts with
     u8 mode = kModeMarch;      // LevelMode
     u8 bossAttacks = 0;        // BossAttack bits
+    u8 sky = kSkyClear;        // SkyKind
     // The bake's best run (the proof the level can be won, src/sim/bot.*): how far ahead the bot lines up with a row of
     // gates (0: its everyday 15 units) and, for each row of two or more gates, which one it takes (from the left; -1 its
     // own choice). rowZ lists those rows up the road (from the gates: indexRows).
@@ -129,7 +144,8 @@ struct LevelDef {
     u16 rowCount = 0, planCount = 0;
     float rowZ[kMaxRows] = {};
     i8 plan[kMaxRows] = {};
-    int gateCount = 0, barrelCount = 0, waveCount = 0, medalCount = 0, mineCount = 0, cageCount = 0, rollerCount = 0, wallCount = 0;
+    int gateCount = 0, barrelCount = 0, waveCount = 0, medalCount = 0, mineCount = 0, cageCount = 0, rollerCount = 0, wallCount = 0,
+        stripCount = 0;
     GateDef gates[kMaxGates];
     BarrelDef barrels[kMaxBarrels];
     WaveDef waves[kMaxWaves];
@@ -138,6 +154,7 @@ struct LevelDef {
     CageDef cages[kMaxCages];
     RollerDef rollers[kMaxRollers];
     WallDef walls[kMaxWalls];
+    StripDef strips[kMaxStrips];
 };
 // Finds the rows of two or more gates side by side (rowZ, rowCount). The decoder and the generator call it.
 void indexRows(LevelDef& d);
@@ -194,6 +211,7 @@ struct Bullet {
 struct GateState {
     i32 value = 0;
     u8 used = 0, passed = 0;
+    u8 seen = 0;  // a mystery gate: hits taken (it shows its face at 5)
     float hit = 0;
 };
 struct BarrelState {
@@ -309,6 +327,8 @@ public:
     int bombCount = 0;
     bool powered(u8 p) const { return p < kPowerCount && powerLeft[p] > 0.0f; }
     float enemySpeed(const Enemy& e) const;  // units a second down the road now (the view moves it between steps)
+    i32 gateNow(int g, float t) const;       // what gate g gives `t` seconds into the march (a flip gate's face then)
+    const StripDef* stripAt(float zz) const; // the weather over the road at zz, null none
     // Mines (hit points left, gone), cages opened, the archers' arrows in flight.
     i32 mineHp[kMaxMines] = {};
     u8 mineGone[kMaxMines] = {}, cageOpen[kMaxCages] = {};
@@ -394,7 +414,7 @@ const LevelDef& level(int n);
 bool decodeLevel(const char* text, LevelDef& out);
 int encodeLevel(const LevelDef& d, char* out, int cap);
 const char* hintText(int hint);
-constexpr int kHintCount = 52;
+constexpr int kHintCount = 58;
 constexpr int kHintHard = 11;  // shown on every hard level
 int starsFor(const LevelDef& d, i32 squadLeft);
 
