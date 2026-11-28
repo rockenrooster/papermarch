@@ -27,6 +27,7 @@ on 2026-11-27 the owner stopped it ("No more fable agent"): no Fable or other ar
 | Screenshot of a device (PAPERMARCH in front only) | `scripts\capture-android.ps1 -Serial moto [-Out x.png]` |
 | The browser build (Emscripten from `D:\Stuff\DevFolder\emsdk`, shared: only read it) -> `build\web\site\` | `scripts\build-web.ps1 [-Clean]` |
 | Serve it on port 8092 (RAVEFORM 8080, GLOWTIDE 8091); it listens on IPv4 only | `scripts\serve-web.ps1 [-Build]` |
+| Publish it to GitHub Pages (https://rockenrooster.github.io/papermarch/, the gh-pages branch; the owner asked 2026-11-27) | `scripts\publish-pages.ps1 [-Build]` |
 | The browser build in a headless, muted Chrome at an iPhone's size with touch (absolute out folder) | `node tools\web_check.mjs http://127.0.0.1:8092/ $PWD\captures\web flow\|play\|reload` |
 | The release key (exists; `-Generate` keeps a random password in `keys\`, gitignored) | `scripts\release-key.ps1 [-Generate] [-SecretsOnly] [-NoBuild]` |
 | The release APK on GitHub (`docs/RELEASE_PIPELINE.md`) | `gh workflow run release.yml -R rockenrooster/papermarch`, `gh run watch -R rockenrooster/papermarch` |

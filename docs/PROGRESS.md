@@ -234,6 +234,15 @@ The owner then asked to make sure the bot completes every level: re-baked, `pape
 unit tests 32/32, the table 100/100, the flow test 27/27 on the PC and in the browser, the layout lint, level 1 won by
 touch in the browser.
 
+## 2026-11-27: the browser build on GitHub Pages
+
+The owner: "can we publish to github pages too and have it work? if so then do it". The page uses only relative paths
+and needs no special headers (no threads), so it runs from the sub-path: **https://rockenrooster.github.io/papermarch/**
+(the gh-pages branch, `scripts\publish-pages.ps1 [-Build]`; each publish is one commit, no force push). The shell now asks
+for full screen at the first touch on a phone (portrait where the browser allows; an iPhone gets an Add to Home Screen
+hint). Checked on the live site in headless Chrome: the flow test 27/27, level 1 won by touch, NEXT, the save kept. The
+local LAN server is stopped (the owner asked). Netlify is still not used.
+
 ## Status
 
 | Part | Status |

@@ -70,12 +70,18 @@
   @media (orientation: landscape) and (max-height: 520px) and (pointer: coarse) {
     #turn { display: flex; }
   }
+  #hint {
+    display: none; position: fixed; z-index: 3; bottom: calc(var(--sab) + 14px); left: 50%; transform: translateX(-50%);
+    padding: 8px 16px; border-radius: 18px; background: rgba(38, 20, 10, 0.85); color: #fff4d6; white-space: nowrap;
+    font: 600 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; pointer-events: none; transition: opacity 1s;
+  }
 </style>
 </head>
 <body>
 <canvas id="canvas" tabindex="-1"></canvas>
 <div id="status"><div class="name">PAPERMARCH</div><div id="msg">Loading&hellip;</div></div>
 <div id="turn">Turn your phone upright to play</div>
+<div id="hint">For full screen: Share, then Add to Home Screen</div>
 <script>
   // ?args=--level%2012 passes the game its command line (TECH_SPEC 2.5): tests on a PC use ?args=--no-audio.
   var params = new URLSearchParams(location.search);
@@ -113,6 +119,30 @@
   ['touchend', 'pointerup', 'mousedown', 'keydown'].forEach(function (type) {
     window.addEventListener(type, gesture, true);
   });
+  // Full screen on a phone (the owner, 2026-11-27: the address bar is in the way in a web app): a touch screen enters it
+  // at the first touch, and again after leaving it, held upright where the browser allows. Android's Chrome and iPads
+  // have the Fullscreen API; an iPhone's Safari has none for a page, so it gets a hint toward the home screen, where the
+  // page opens without the bar (manifest.webmanifest, apple-mobile-web-app-capable).
+  var touchScreen = matchMedia('(pointer: coarse)').matches;
+  var standalone = navigator.standalone || matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches;
+  var root = document.documentElement;
+  function fullscreen() {
+    if (!touchScreen || standalone || document.fullscreenElement || document.webkitFullscreenElement) return;
+    var req = root.requestFullscreen || root.webkitRequestFullscreen;
+    if (!req) return;
+    var p = req.call(root, { navigationUI: 'hide' });
+    if (p && p.then) p.then(function () {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('portrait').catch(function () {});
+    }).catch(function () {});
+  }
+  if (touchScreen && !standalone && !(root.requestFullscreen || root.webkitRequestFullscreen)) {
+    var hint = document.getElementById('hint');
+    hint.style.display = 'block';
+    setTimeout(function () { hint.style.opacity = '0'; }, 7000);
+    setTimeout(function () { hint.style.display = 'none'; }, 8000);
+  }
+  window.addEventListener('touchend', fullscreen, true);
+  window.addEventListener('pointerup', function (e) { if (e.pointerType === 'touch') fullscreen(); }, true);
   // No pinch zoom, double-tap zoom, long-press menu or text selection over the game.
   document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
   document.addEventListener('contextmenu', function (e) { e.preventDefault(); });

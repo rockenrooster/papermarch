@@ -9,7 +9,9 @@ fifteen), getting faster and harder, with hard levels thrown in; the last ones c
 
 - **Android:** download `papermarch.apk` from the [latest release](https://github.com/rockenrooster/papermarch/releases/latest)
   (Android 10 or later, 64-bit ARM). The game shows an UPDATE button when a newer build is out.
-- **Browser:** the same game built with Emscripten (WebAssembly + WebGL 2).
+- **Browser:** play it at **https://rockenrooster.github.io/papermarch/**, the same game built with Emscripten
+  (WebAssembly + WebGL 2). On a phone it goes full screen at the first touch (on an iPhone: Share, then Add to Home
+  Screen).
 
 Everything you see and hear is made by this repository's code: the soldiers, ogres, props and effects are 3D models
 built and rendered by script in Blender (`tools/art/`, docs/ART_DIRECTION.md), the ground and the UI art by Python,
